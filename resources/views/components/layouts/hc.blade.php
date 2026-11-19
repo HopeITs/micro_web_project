@@ -13,6 +13,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <title>{{ $title ? $title.' · ' : '' }}{{ __('hc.brand') }}</title>
     <script>try { var t = localStorage.getItem('hc.theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -24,9 +25,10 @@
 <a class="skip-link" href="#main">{{ __('hc.skip') }}</a>
 <header class="hc-header">
     <button class="hc-icon-btn hc-menu-toggle" type="button" @click="nav = !nav" :aria-expanded="nav" aria-controls="hc-sidebar" aria-label="{{ __('hc.menu') }}"><x-hc.icon name="menu"/></button>
-    <a class="hc-brand" href="{{ route('home', ['locale' => $locale]) }}">
-        <img src="{{ asset('assets/brand/hope-center.png') }}" alt="" width="36" height="36">
-        <span><strong>{{ __('hc.brand') }}</strong><small>{{ __('hc.organization') }}</small></span>
+    <a class="hc-brand" href="{{ route('home', ['locale' => $locale]) }}" aria-label="{{ __('hc.brand') }} · {{ __('hc.organization') }}">
+        <img class="hc-logo-micro" src="{{ asset('assets/brand/micro-projects.svg') }}" alt="{{ __('hc.brand') }}" width="96" height="35">
+        <span class="hc-brand-divider" aria-hidden="true"></span>
+        <img class="hc-logo-hc" src="{{ asset('assets/brand/hope-center.svg') }}" alt="{{ __('hc.organization') }}" width="82" height="28">
     </a>
     <div class="hc-header-actions">
         <div style="position:relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">

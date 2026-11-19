@@ -76,9 +76,6 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-header { position: fixed; inset-block-start: 0; inset-inline: 0; height: var(--header-h); z-index: 40; display: flex; align-items: center; gap: 12px; padding-inline: 16px; background: var(--surface); border-block-end: 1px solid var(--line); }
 .hc-header::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 0; height: 3px; background: var(--brand); }
 .hc-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.hc-brand img { width: 36px; height: 36px; border-radius: 8px; background: #fff; }
-.hc-brand strong { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hc-brand small { display: block; color: var(--muted); font-size: .75rem; font-weight: 500; }
 .hc-header-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 4px; }
 .hc-sidebar { position: fixed; inset-block: var(--header-h) 0; inset-inline-start: 0; width: var(--sidebar-w); background: var(--surface); border-inline-end: 1px solid var(--line); padding: 16px 12px; overflow-y: auto; z-index: 30; display: flex; flex-direction: column; gap: 4px; transition: transform .2s ease; }
 .hc-nav-group { font-size: .72rem; font-weight: 700; color: var(--muted); letter-spacing: .04em; padding: 14px 12px 6px; }
@@ -97,7 +94,6 @@ h3 { font-size: 1rem; font-weight: 700; }
     [dir="rtl"] .hc-sidebar { transform: translateX(calc(100% + 1px)); }
     .hc-sidebar.is-open { transform: none; box-shadow: var(--shadow); }
     .hc-main { margin-inline-start: 0; }
-    .hc-brand small { display: none; }
 }
 
 /* ------------------------------------------------------------------ page */
@@ -235,7 +231,6 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-auth-art::after { width: 300px; height: 300px; inset-block-start: -120px; inset-inline-start: -80px; }
 .hc-auth-art h1 { font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem); position: relative; }
 .hc-auth-art p { opacity: .9; max-width: 42ch; margin-block-start: 12px; position: relative; }
-.hc-auth-art img { width: 64px; height: 64px; background: #fff; border-radius: 14px; padding: 6px; position: relative; }
 .hc-auth-form { display: grid; place-items: center; padding: 24px 16px; background: var(--surface); }
 .hc-auth-form form { width: min(100%, 400px); display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 860px) {
@@ -258,3 +253,15 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-table td.num, .hc-table th.num, .hc-table td .hc-pnum { white-space: nowrap; }
 .hc-nav-link > span:not(.soon) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hc-nav-link .soon { flex: none; font-size: .65rem; padding: 0 6px; }
+
+/* Official logos (Micro Projects and Hope Center SVGs from hcsyria.org). Both are #BE1F24 artwork:
+   kept as is on light surfaces, turned white on the red panel and in dark mode. */
+.hc-brand { gap: 12px; }
+.hc-logo-micro { height: 34px; width: auto; display: block; }
+.hc-logo-hc { height: 26px; width: auto; display: block; }
+.hc-brand-divider { width: 1px; height: 28px; background: var(--line-strong); }
+.hc-auth-logo { position: relative; width: 172px; height: auto; background: none; border-radius: 0; padding: 0; filter: brightness(0) invert(1); }
+.hc-auth-micro { width: 170px; height: auto; align-self: flex-start; margin-block-end: 8px; }
+:root[data-theme="dark"] .hc-logo-micro, :root[data-theme="dark"] .hc-logo-hc, :root[data-theme="dark"] .hc-auth-micro { filter: brightness(0) invert(.92); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hc-logo-micro, :root:not([data-theme="light"]) .hc-logo-hc, :root:not([data-theme="light"]) .hc-auth-micro { filter: brightness(0) invert(.92); } }
+@media (max-width: 560px) { .hc-logo-hc, .hc-brand-divider { display: none; } .hc-logo-micro { height: 30px; } }

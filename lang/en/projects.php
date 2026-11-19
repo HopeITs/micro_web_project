@@ -29,4 +29,6 @@ return [
     'no_results_city' => 'There are no project records to display for this city yet.', 'back_projects' => 'Back to projects',
     'details' => 'Project details', 'amount' => 'Requested amount', 'amount_note' => 'As recorded. Currency is not specified in this view.',
     'address' => 'Project address', 'notes' => 'Notes',
+    'number_invalid' => 'The project number is not valid.',
+    'number_taken' => 'This number is already used by another project in the same city. First free number: :next.',
 ];

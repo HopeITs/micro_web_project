@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
+/**
+ * @handwritten Login account (table web_accounts, unified schema v1.1). Not overwritten by the model generator.
+ */
 final class WebAccount extends Authenticatable
 {
     protected $table = 'web_accounts';
@@ -16,7 +21,11 @@ final class WebAccount extends Authenticatable
 
     protected function casts(): array
     {
-        return ['disabled_at' => 'immutable_datetime', 'credential_principal_id' => 'integer'];
+        return [
+            'disabled_at' => 'immutable_datetime',
+            'password_changed_at' => 'immutable_datetime',
+            'credential_legacy_user_id' => 'integer',
+        ];
     }
 
     public function getAuthPasswordName(): string
@@ -27,5 +36,20 @@ final class WebAccount extends Authenticatable
     public function getRememberTokenName(): string
     {
         return '';
+    }
+
+    public function credentialLegacyUser(): BelongsTo
+    {
+        return $this->belongsTo(LegacyStaffUser::class, 'credential_legacy_user_id');
+    }
+
+    public function accountCityRoles(): HasMany
+    {
+        return $this->hasMany(AccountCityRole::class, 'account_id');
+    }
+
+    public function accountCityCapabilities(): HasMany
+    {
+        return $this->hasMany(AccountCityCapability::class, 'account_id');
     }
 }

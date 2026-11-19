@@ -14,7 +14,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One city context per request (or per queued job).
+        $this->app->scoped(\App\Support\CityContext::class);
     }
 
     public function boot(): void

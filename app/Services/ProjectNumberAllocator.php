@@ -32,6 +32,7 @@ final class ProjectNumberAllocator
      * that holds the city's sequence lock. $create receives the number and must insert the project.
      *
      * @template T
+     *
      * @param  Closure(int): T  $create
      * @return T
      */

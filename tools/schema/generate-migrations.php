@@ -25,6 +25,7 @@ foreach (glob($dir.'/2026_11_20_*.php') as $old) {
 function shortName(string $table, string $suffix): string
 {
     $name = $table.'_'.$suffix;
+
     return strlen($name) <= 60 ? $name : substr($table, 0, 40).'_'.substr(md5($name), 0, 8).'_'.substr($suffix, -6);
 }
 
@@ -63,6 +64,7 @@ function columnLine(array $c, string $scope): string
     } elseif ($n === 'sort_order') {
         $line .= '->default(0)';
     }
+
     return $line.';';
 }
 
@@ -84,9 +86,9 @@ foreach ($order as $group) {
         $lines = [];
         foreach ($t['columns'] as $c) {
             $lines[] = '            '.columnLine($c, $t['scope']);
-            if (!empty($c['unique'])) {
+            if (! empty($c['unique'])) {
                 $lines[] = "            \$table->unique('{$c['name']}', '".shortName($name, $c['name'].'_uq')."');";
-            } elseif (!empty($c['index'])) {
+            } elseif (! empty($c['index'])) {
                 $lines[] = "            \$table->index('{$c['name']}', '".shortName($name, $c['name'].'_ix')."');";
             }
             if (isset($c['references'])) {
@@ -151,4 +153,4 @@ return new class extends Migration
 PHP;
 }
 
-echo 'generated '.($seq - 1)." table migrations and 1 foreign-key migration (".array_sum(array_map('count', $fks))." foreign keys)\n";
+echo 'generated '.($seq - 1).' table migrations and 1 foreign-key migration ('.array_sum(array_map('count', $fks))." foreign keys)\n";

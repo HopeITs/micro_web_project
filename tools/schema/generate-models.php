@@ -40,6 +40,7 @@ foreach ($schema['tables'] as $table => $t) {
     $file = "{$root}/app/Models/{$name}.php";
     if (is_file($file) && str_contains(file_get_contents($file), '@handwritten')) {
         $skipped[] = $name;
+
         continue;
     }
     $cols = array_column($t['columns'], null, 'name');

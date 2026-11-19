@@ -38,6 +38,7 @@ final class ReferenceListsSeeder extends Seeder
                 }
                 if (DB::table($table)->exists()) {
                     $done[$table] = true;
+
                     continue;
                 }
                 foreach ($rows as $i => $row) {

@@ -2,10 +2,15 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\RequireCurrentAccount;
+use App\Http\Middleware\RestrictToPermittedCities;
+use App\Http\Middleware\SetLocale;
+use App\Support\CityContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,16 +20,16 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // One city context per request (or per queued job).
-        $this->app->scoped(\App\Support\CityContext::class);
+        $this->app->scoped(CityContext::class);
     }
 
     public function boot(): void
     {
         // Livewire update requests re-run these, so components see the same locale and city limits as the page.
-        \Livewire\Livewire::addPersistentMiddleware([
-            \App\Http\Middleware\SetLocale::class,
-            \App\Http\Middleware\RequireCurrentAccount::class,
-            \App\Http\Middleware\RestrictToPermittedCities::class,
+        Livewire::addPersistentMiddleware([
+            SetLocale::class,
+            RequireCurrentAccount::class,
+            RestrictToPermittedCities::class,
         ]);
 
         RateLimiter::for('login', fn (Request $request) => [

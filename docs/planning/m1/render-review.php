@@ -1,11 +1,13 @@
 <?php
 
-/* Renders m1-schema-review.html (Arabic review page) from unified-schema-v1.json. */
+/* Renders the Arabic review page from unified-schema-<version>.json. Usage: php render-review.php [v1|v1.1] */
 
-$s = json_decode(file_get_contents(__DIR__.'/unified-schema-v1.json'), true);
+$version = $argv[1] ?? 'v1';
+$s = json_decode(file_get_contents(__DIR__."/unified-schema-{$version}.json"), true);
+$outFile = $version === 'v1' ? 'm1-schema-review.html' : "m1-schema-review-{$version}.html";
 $logo = base64_encode(file_get_contents(__DIR__.'/../../../public/assets/brand/hope-center.png'));
 $e = fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$scopeLabel = ['city' => 'بيانات مدينة', 'lookup' => 'قائمة موحدة', 'city_lookup' => 'قائمة لكل مدينة', 'global' => 'نظام', 'existing' => 'موجود حالياً'];
+$scopeLabel = ['city' => 'بيانات مدينة', 'lookup' => 'قائمة موحدة', 'city_lookup' => 'قائمة لكل مدينة', 'global' => 'نظام', 'existing' => 'موجود حالياً', 'explicit' => 'حسابات'];
 $txLabel = ['trim' => 'تنظيف', 'bool01' => 'نعم/لا', 'date' => 'تاريخ', 'lookup' => 'قائمة', 'project' => 'مشروع', 'person' => 'شخص', 'account' => 'حساب', 'money' => 'مبلغ', 'sex' => 'جنس', 'stage' => 'مرحلة', 'file' => 'ملف', 'currency' => 'عملة'];
 
 ob_start();
@@ -65,13 +67,25 @@ ul{margin:6px 0;padding-inline-start:22px}
 <header><div class="wrap"><img src="data:image/png;base64,<?= $logo ?>" alt="مركز الرجاء"><div><h1>M1 — مخطط القاعدة الموحدة (للاعتماد)</h1><p>قاعدة واحدة لكل المدن · <?= $e($s['meta']['version']) ?> · 19 تشرين الثاني 2026</p></div></div></header>
 <main><div class="wrap">
 
+<?php if (!empty($s['meta']['addendum_v1_1'])): $a = $s['meta']['addendum_v1_1']; ?>
+<section class="approve">
+<h2>ملحق v1.1 — جداول الحسابات (يحتاج موافقتك)</h2>
+<p><b>السبب:</b> في v1 اعتبرنا جداول الحسابات "موجودة وتبقى كما هي"، لكنها مرتبطة بطبقات ستُحذف (<code>web_principals</code>، <code>sources</code>، <code>op_task</code>، <code>op_microproject</code>). هنا عرّفناها صراحةً وربطناها بالجداول الموحدة.</p>
+<p><b>ما لا يتغير:</b> البيانات، والصلاحيات، وقواعد النقل. وأعمدة <code>account_city_capabilities</code> و<code>account_city_roles</code> و<code>account_password_resets</code> و<code>account_audit_events</code> تبقى كما هي.</p>
+<div class="table"><table><tr><th>الجدول</th><th>التغيير</th></tr>
+<?php foreach ($s['tables'] as $n => $t): if (empty($t['addendum'])) continue; ?><tr><td><code><?= $e($n) ?></code></td><td><?= $e($t['addendum']) ?></td></tr>
+<?php endforeach; foreach ($a['removed_tables'] as $n => $why): ?><tr><td><code><?= $e($n) ?></code></td><td>يُحذف: <?= $e($why) ?></td></tr>
+<?php endforeach; ?></table></div>
+<p>بصمة v1.1: <span class="sha"><?= $e($s['sha256']) ?></span></p>
+</section>
+<?php endif; ?>
 <section>
 <h2>الخلاصة</h2>
 <div class="kpis">
 <div class="kpi"><b><?= $s['counts']['tables'] ?></b><span>جدولاً في القاعدة الجديدة</span></div>
 <div class="kpi"><b><?= ($s['counts']['by_scope']['lookup'] ?? 0) + ($s['counts']['by_scope']['city_lookup'] ?? 0) ?></b><span>قائمة (Lookup)</span></div>
 <div class="kpi"><b><?= $s['counts']['by_scope']['city'] ?? 0 ?></b><span>جدول بيانات</span></div>
-<div class="kpi"><b><?= $s['counts']['by_scope']['existing'] ?? 0 ?></b><span>جدول حسابات موجود يُعاد استخدامه</span></div>
+<div class="kpi"><b><?= ($s["counts"]["by_scope"]["existing"] ?? 0) + ($s["counts"]["by_scope"]["explicit"] ?? 0) ?></b><span>جدول حسابات موجود يُعاد استخدامه</span></div>
 <div class="kpi"><b><?= $s['counts']['source_tables'] ?></b><span>جدولاً مصدرياً مغطى</span></div>
 <div class="kpi"><b>818 ← <?= $s['counts']['tables'] ?></b><span>عدد الجداول الحالي ← الجديد</span></div>
 </div>
@@ -156,5 +170,5 @@ ul{margin:6px 0;padding-inline-start:22px}
 </body>
 </html>
 <?php
-file_put_contents(__DIR__.'/m1-schema-review.html', ob_get_clean());
-echo "written m1-schema-review.html\n";
+file_put_contents(__DIR__.'/'.$outFile, ob_get_clean());
+echo "written {$outFile}\n";

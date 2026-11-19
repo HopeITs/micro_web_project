@@ -6,8 +6,9 @@
  * Usage: php build-schema.php [source-schema-inventory.json]
  */
 
-$def = require __DIR__.'/unified-schema-v1.php';
-$inventoryFile = $argv[1] ?? __DIR__.'/../m0/schema-inventory-2026-11-19.json';
+$version = $argv[1] ?? 'v1';
+$def = require __DIR__."/unified-schema-{$version}.php";
+$inventoryFile = $argv[2] ?? __DIR__.'/../m0/schema-inventory-2026-11-19.json';
 $inventory = json_decode(file_get_contents($inventoryFile), true);
 
 // Union of source columns per table across cities (exported from the restored sources).
@@ -36,6 +37,7 @@ function parseColumn(string $name, string $spec): array
 }
 
 $standard = [
+    'explicit' => [],
     'global' => ['before' => ['id' => 'id'], 'after' => ['created_at' => 'datetime|null', 'updated_at' => 'datetime|null']],
     'city' => ['before' => ['id' => 'id', 'city_id' => 'fk:cities', 'legacy_id' => 'int|null'], 'after' => ['created_at' => 'datetime|null', 'updated_at' => 'datetime|null', 'deleted_at' => 'datetime|null']],
     'lookup' => ['before' => ['id' => 'id', 'name_ar' => 'str:255', 'name_en' => 'str:255|null'], 'after' => ['sort_order' => 'int', 'is_active' => 'bool', 'created_at' => 'datetime|null', 'updated_at' => 'datetime|null']],
@@ -67,12 +69,13 @@ foreach ($def['tables'] as $table => $t) {
             $columns[] = $col;
         }
     }
-    $uniques = [];
+    $uniques = $t['unique'] ?? [];
     if ($scope === 'city') { $uniques[] = ['city_id', 'legacy_id']; }
     if ($table === 'projects') { $uniques[] = ['city_id', 'project_number']; }
     if ($table === 'kobo_forms') { $uniques[] = ['city_id', 'form_uid']; }
     if ($table === 'lookup_legacy_map') { $uniques[] = ['city_id', 'lookup_table', 'legacy_id']; }
     $out['tables'][$table] = array_filter([
+        'addendum' => $t['addendum'] ?? null,
         'group' => $t['group'], 'scope' => $scope, 'source' => $t['source'] ?? null, 'legacy_key' => $t['legacy_key'] ?? null,
         'note' => $t['note'] ?? null, 'unique' => $uniques ?: null, 'columns' => $columns ?: null,
     ], fn ($v) => $v !== null);
@@ -100,7 +103,7 @@ $out['validation_errors'] = $errors;
 
 $canonical = json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 $out = ['sha256' => hash('sha256', $canonical)] + $out;
-file_put_contents(__DIR__.'/unified-schema-v1.json', json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n");
+file_put_contents(__DIR__."/unified-schema-{$version}.json", json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n");
 
 echo 'tables='.$out['counts']['tables'].' columns='.$out['counts']['columns'].' sha256='.$out['sha256']."\n";
 echo json_encode($out['counts']['by_scope'])."\n";

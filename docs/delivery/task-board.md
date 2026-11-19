@@ -1,5 +1,25 @@
 # Delivery task board
 
+## Rebuild plan M0–M7 (approved by the user 19 November 2026) — canonical from now on
+
+Full plan: [rebuild-plan-2026-11.md](../planning/rebuild-plan-2026-11.md). User decisions: reuse existing code; **one database with clean unified tables only** (drop `legacy_*`, `op_*`, `shared_*`; keep original sources as hashed SQL archives outside the operational database); project number suggested from each city's own sequence, editable, unique per city with a locked check, shown as `CITY-####`, new internal `id` on every table; each city continues its own sequence; Kobo sync, extended profession meetings and cross-program national-number check are in scope; Lebanon is out of scope; UI is Livewire 4 + Tailwind 4 with HC identity (`#BE1F24`, Somar Sans, RTL); build on synthetic data first, then import real data. No task starts before all of its dependencies are closed. The phase tables below this section are history.
+
+| Task | Depends on | State |
+|---|---|---|
+| M0.1 Freeze desktop source reference (`2273a2d`), recover deleted SQL from git | — | todo |
+| M0.2 Schema inventory of the five current databases incl. Kobo and `profession_*`, diff vs October | M0.1 | todo |
+| M0.3 Screen/menu/role matrix update (9 roles; desktop backdoor not carried over) | M0.1 | todo |
+| M0.4 Parity review update: each feature exists / modify / new | M0.2, M0.3 | todo |
+| M0.5 Open decisions: DISC/F2F access, Kobo token and server reach, parallel-run period | M0.4 | todo |
+| M1.1–M1.6 Unified schema: naming/keys, project number, other MAX-based ids, lookups, domain schema, accounts, old→new mapping | M0 gate | todo; **needs user approval** |
+| M2.1–M2.3 New migrations, models with city scope, synthetic seeders | M1 gate | todo |
+| M2.4–M2.6 Design tokens (`#BE1F24`), Livewire component library, new layout | M2.4 parallel to M1; M2.6 needs M2.2 | todo |
+| M3.1–M3.5 Unified ETL, reconciler, 100-application sample run, sequence floors | M1.6, M2.1 | todo |
+| M4.1–M4.19 Functional modules in dependency order (see plan) | M2 gate, M3.4 | todo |
+| M5.1–M5.6 Full real-data import, reconciliation, attachments, archive | M4 gate | todo |
+| M6.1–M6.4 Security, performance, staff sign-off, restore rehearsal | M5.6 | todo |
+| M7.1–M7.4 Hosting question, server, cutover, support | M6.3 | todo |
+
 ## Desktop parity and design audit (proposed 28 October 2026; **approved by the user the same day**: "يفضل حفظ واحد، نعم أوافق على المقترح. ابدأ" — single save chosen)
 
 The review and audit were analysis only; implementation started on the approval. Source: [desktop-web-parity-review.md](../planning/desktop-web-parity-review.md) (33 application/person differences, 10 checklist, 8 finance, 4 executive/purchasing/special-case, 3 annex, 10 field) and [design-audit-tasks.md](../planning/design-audit-tasks.md) (D1–D17; screenshots outside the repository under `MicroProjects-TestRuntime/p64-design-audit-shots`). New tasks are numbered after the existing ones; delivered task history is unchanged.

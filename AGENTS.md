@@ -1,6 +1,7 @@
 # Project delivery instructions
 
-- This is the canonical Git checkout for Micro Projects web development. Remote: https://github.com/JudyDad/micro_web_project.git.
+- This is the canonical Git checkout for Micro Projects web development. Remote: https://github.com/HopeITs/micro_web_project.git.
+- Working rules (user, 19 November 2026): test the site and every output through user scenarios for each role; show the results to the user in the browser; push changes as you go; ask the user whenever anything is unclear. The rebuild plan M0–M7 in `docs/planning/rebuild-plan-2026-11.md` is canonical.
 - The user explicitly requires commits and pushes for every task and phase worked on. Commit coherent task changes with clear messages and push the current branch after verification. Record incomplete work truthfully; do not claim phase acceptance for drafts. Do not force-push or overwrite unrelated changes.
 - Follow `docs/planning/team-execution-plan.md` and the newer decisions in `docs/planning/p0-4-scope-contract.md`. Phase 0 passed static discovery review. The user explicitly approved the Phase 1 preservation schema on 17 October 2026; see `docs/planning/phase-1/schema-approval.md`. The subsequent instruction to start P2.3 through the end of Phase 2 authorizes the documented four-table operational foundation addendum for the synthetic read-only slice. Implement that scope without asking again. Real grants, activation and future business schema remain separate decisions.
 - Keep the desktop source at `D:\MyProjects\MicroProject newTest` read-only. Never commit source backups, business rows, credentials, local environment secrets, private attachments or database dumps.

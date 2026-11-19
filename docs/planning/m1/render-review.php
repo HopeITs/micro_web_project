@@ -5,7 +5,7 @@
 $version = $argv[1] ?? 'v1';
 $s = json_decode(file_get_contents(__DIR__."/unified-schema-{$version}.json"), true);
 $outFile = $version === 'v1' ? 'm1-schema-review.html' : "m1-schema-review-{$version}.html";
-$logo = base64_encode(file_get_contents(__DIR__.'/../../../public/assets/brand/hope-center.png'));
+$logo = base64_encode(file_get_contents(__DIR__.'/../../../public/assets/brand/hope-center.svg'));
 $e = fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $scopeLabel = ['city' => 'بيانات مدينة', 'lookup' => 'قائمة موحدة', 'city_lookup' => 'قائمة لكل مدينة', 'global' => 'نظام', 'existing' => 'موجود حالياً', 'explicit' => 'حسابات'];
 $txLabel = ['trim' => 'تنظيف', 'bool01' => 'نعم/لا', 'date' => 'تاريخ', 'lookup' => 'قائمة', 'project' => 'مشروع', 'person' => 'شخص', 'account' => 'حساب', 'money' => 'مبلغ', 'sex' => 'جنس', 'stage' => 'مرحلة', 'file' => 'ملف', 'currency' => 'عملة'];
@@ -64,10 +64,22 @@ ul{margin:6px 0;padding-inline-start:22px}
 </style>
 </head>
 <body>
-<header><div class="wrap"><img src="data:image/png;base64,<?= $logo ?>" alt="مركز الرجاء"><div><h1>M1 — مخطط القاعدة الموحدة (للاعتماد)</h1><p>قاعدة واحدة لكل المدن · <?= $e($s['meta']['version']) ?> · 19 تشرين الثاني 2026</p></div></div></header>
+<header><div class="wrap"><img src="data:image/svg+xml;base64,<?= $logo ?>" alt="مركز الرجاء" style="filter:brightness(0) invert(1);background:none;padding:0;height:44px"><div><h1>M1 — مخطط القاعدة الموحدة (للاعتماد)</h1><p>قاعدة واحدة لكل المدن · <?= $e($s['meta']['version']) ?> · 19 تشرين الثاني 2026</p></div></div></header>
 <main><div class="wrap">
 
-<?php if (!empty($s['meta']['addendum_v1_1'])): $a = $s['meta']['addendum_v1_1']; ?>
+<?php if (!empty($s['meta']['addendum_v1_2'])): $a = $s['meta']['addendum_v1_2']; ?>
+<section class="approve">
+<h2>ملحق v1.2 — تصحيحات من نقل الداتا الحقيقية (يحتاج موافقتك)</h2>
+<p><b>السبب:</b> <?= $e($a['reason']) ?></p>
+<div class="table"><table><tr><th>التغيير</th><th>الدليل</th></tr>
+<?php foreach ($a['changes'] as $change => $why): ?><tr><td><code><?= $e($change) ?></code></td><td><?= $e($why) ?></td></tr>
+<?php endforeach; ?></table></div>
+<h3>قواعد نقل أُضيفت (لا تغيّر الجداول)</h3>
+<ul><?php foreach (['not_answered', 'required_text', 'deleted_users', 'imported_accounts', 'notice_kind', 'attachment_ids'] as $k): ?><li><code><?= $e($k) ?></code>: <?= $e($s['meta']['transforms'][$k]) ?></li><?php endforeach; ?></ul>
+<p>v1.1 المعتمدة لم تتغير. بصمة v1.2: <span class="sha"><?= $e($s['sha256']) ?></span></p>
+</section>
+<?php endif; ?>
+<?php if (!empty($s['meta']['addendum_v1_1']) && $s['meta']['version'] === 'unified-v1.1'): $a = $s['meta']['addendum_v1_1']; ?>
 <section class="approve">
 <h2>ملحق v1.1 — جداول الحسابات (يحتاج موافقتك)</h2>
 <p><b>السبب:</b> في v1 اعتبرنا جداول الحسابات "موجودة وتبقى كما هي"، لكنها مرتبطة بطبقات ستُحذف (<code>web_principals</code>، <code>sources</code>، <code>op_task</code>، <code>op_microproject</code>). هنا عرّفناها صراحةً وربطناها بالجداول الموحدة.</p>

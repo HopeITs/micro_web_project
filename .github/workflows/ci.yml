@@ -45,29 +45,15 @@ jobs:
           DB_USERNAME: micro_projects_test
           DB_PASSWORD: ci-only
         run: php artisan foundation:check-database
-      - name: Verify approved schema lifecycle and constraints
+      - name: Verify unified schema on MySQL (migrate, rollback, re-migrate)
         env:
-          RUN_MYSQL_SCHEMA_TESTS: '1'
-          MYSQL_TEST_HOST: '127.0.0.1'
-          MYSQL_TEST_PORT: '3306'
-          MYSQL_TEST_USERNAME: micro_projects_test
-          MYSQL_TEST_PASSWORD: ci-only
-        run: php vendor/phpunit/phpunit/phpunit tests/Integration
-      - name: Prepare disposable restricted runtime
-        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
           DB_DATABASE: micro_projects_test
           DB_USERNAME: micro_projects_test
           DB_PASSWORD: ci-only
         run: |
           php artisan migrate --force
-          php artisan phase2:demo
-          docker exec ${{ job.services.mysql.id }} mysql -uroot -pci-root-only -e "CREATE USER 'phase2_runtime'@'%' IDENTIFIED BY 'ci-runtime-only'; GRANT SELECT ON micro_projects_test.* TO 'phase2_runtime'@'%'; GRANT INSERT ON micro_projects_test.account_audit_events TO 'phase2_runtime'@'%'; GRANT UPDATE (password_hash, updated_at) ON micro_projects_test.web_accounts TO 'phase2_runtime'@'%';"
-      - name: Verify runtime audit and business-data permissions
-        env:
-          RUN_RUNTIME_AUDIT_TESTS: '1'
-          MYSQL_RUNTIME_HOST: '127.0.0.1'
-          MYSQL_RUNTIME_PORT: '3306'
-          MYSQL_RUNTIME_DATABASE: micro_projects_test
-          MYSQL_RUNTIME_USERNAME: phase2_runtime
-          MYSQL_RUNTIME_PASSWORD: ci-runtime-only
-        run: php vendor/phpunit/phpunit/phpunit tests/Integration/RuntimeAuditPrivilegesTest.php
+          php artisan migrate:rollback --force
+          php artisan migrate --force

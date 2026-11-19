@@ -210,7 +210,7 @@ final class AccountProvisioner
 
         return DB::transaction(function () use ($username, $email, $passwordHash, $decision, $actor) {
             $time = now('UTC')->format('Y-m-d H:i:s.u');
-            $id = DB::table('web_accounts')->insertGetId(['username' => $username, 'email' => $email, 'password_hash' => $passwordHash, 'password_changed_at' => null, 'credential_principal_id' => null, 'disabled_at' => null, 'created_at' => $time, 'updated_at' => $time]);
+            $id = DB::table('web_accounts')->insertGetId(['username' => $username, 'email' => $email, 'password_hash' => $passwordHash, 'password_changed_at' => null, 'credential_legacy_user_id' => null, 'disabled_at' => null, 'created_at' => $time, 'updated_at' => $time]);
             $this->audit->record($actor, 'account.provisioned', 'succeeded', subjectAccount: $id, subjectType: 'account', subjectId: $id, decision: $decision);
 
             return WebAccount::findOrFail($id);

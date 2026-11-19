@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trimStrings(except: [fn (Request $request) => $request->is('en/people', 'en/people/*', 'ar/people', 'ar/people/*', 'en/applications', 'en/applications/*', 'ar/applications', 'ar/applications/*')]);
         $middleware->convertEmptyStringsToNull(except: [fn (Request $request) => $request->is('en/people', 'en/people/*', 'ar/people', 'ar/people/*', 'en/applications', 'en/applications/*', 'ar/applications', 'ar/applications/*')]);
         $middleware->redirectGuestsTo(fn (Request $request) => route('auth.login', ['locale' => in_array($request->route('locale'), ['en', 'ar'], true) ? $request->route('locale') : 'ar']));
-        $middleware->redirectUsersTo(fn (Request $request) => route('projects.index', ['locale' => in_array($request->route('locale'), ['en', 'ar'], true) ? $request->route('locale') : 'ar']));
+        $middleware->redirectUsersTo(fn (Request $request) => route('home', ['locale' => in_array($request->route('locale'), ['en', 'ar'], true) ? $request->route('locale') : 'ar']));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

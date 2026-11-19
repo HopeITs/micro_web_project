@@ -1,172 +1,31 @@
 <?php
 
-use App\Http\Controllers\AccountAdminController;
-use App\Http\Controllers\AccountPasswordController;
-use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\AttachmentController;
-use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ChecklistController;
-use App\Http\Controllers\DetailExportController;
-use App\Http\Controllers\ExecutiveFileController;
-use App\Http\Controllers\FinanceController;
-use App\Http\Controllers\LifecycleController;
-use App\Http\Controllers\LookupController;
-use App\Http\Controllers\MonitoringVisitController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\PeopleController;
-use App\Http\Controllers\ProfessionMeetingController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\PurchasingController;
-use App\Http\Controllers\RehabVisitController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\SearchReportController;
-use App\Http\Controllers\SpecialCaseController;
-use App\Http\Controllers\TaskBoardController;
-use App\Http\Controllers\VisitController;
-use App\Http\Middleware\FoundationPreview;
 use App\Http\Middleware\RequireCurrentAccount;
+use App\Http\Middleware\RestrictToPermittedCities;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route(auth()->check() ? 'projects.index' : 'auth.login', ['locale' => 'ar']);
-});
-
-Route::view('/{locale}/foundation', 'foundation')
-    ->whereIn('locale', ['en', 'ar'])
-    ->middleware(FoundationPreview::class)
-    ->name('foundation');
+/*
+ * Rebuild (M2.6): the shell of the new site. Modules are added here as they are ported in M4;
+ * routes/legacy-web.php keeps the previous routes as a porting reference and is not loaded.
+ */
+Route::get('/', fn () => redirect()->route(auth()->check() ? 'home' : 'auth.login', ['locale' => 'ar']));
 
 Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::class)->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AuthController::class, 'show'])->name('auth.login');
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.attempt');
-        Route::get('/forgot-password', [AccountPasswordController::class, 'forgot'])->name('auth.forgot');
-        Route::post('/forgot-password', [AccountPasswordController::class, 'request'])->middleware('throttle:login')->name('auth.forgot.request');
-        Route::get('/reset-password/{token}', [AccountPasswordController::class, 'reset'])->where('token', '[A-Za-z0-9]{40}')->name('auth.reset');
-        Route::post('/reset-password/{token}', [AccountPasswordController::class, 'resetStore'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:login')->name('auth.reset.store');
     });
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
-        Route::middleware(RequireCurrentAccount::class)->group(function () {
-            Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
-            Route::get('/applications/export', [ApplicationController::class, 'export'])->name('applications.export');
-            Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
-            Route::post('/applications', [ApplicationController::class, 'store'])->block(10, 10)->name('applications.store');
-            Route::get('/applications/drafts', [ApplicationController::class, 'drafts'])->name('applications.drafts');
-            Route::post('/applications/drafts', [ApplicationController::class, 'saveDraft'])->block(10, 10)->name('applications.drafts.save');
-            Route::get('/applications/drafts/{draft}', [ApplicationController::class, 'restoreDraft'])->where('draft', '[a-f0-9]{32}')->name('applications.drafts.restore');
-            Route::delete('/applications/drafts/{draft}', [ApplicationController::class, 'discardDraft'])->where('draft', '[a-f0-9]{32}')->name('applications.drafts.discard');
-            Route::get('/applications/{application}', [ApplicationController::class, 'show'])->where('application', '[1-9][0-9]{0,18}')->name('applications.show');
-            Route::get('/applications/{application}/print', [ApplicationController::class, 'print'])->where('application', '[1-9][0-9]{0,18}')->name('applications.print');
-            Route::post('/applications/{application}', [ApplicationController::class, 'update'])->where('application', '[1-9][0-9]{0,18}')->name('applications.update');
-            Route::post('/applications/{application}/lifecycle', [LifecycleController::class, 'transition'])->where('application', '[1-9][0-9]{0,18}')->block(10, 10)->name('lifecycle.transition');
-            Route::post('/applications/{application}/lifecycle/reason', [LifecycleController::class, 'reason'])->where('application', '[1-9][0-9]{0,18}')->block(10, 10)->name('lifecycle.reason');
-            Route::get('/applications/{application}/checklist/{person}', [ChecklistController::class, 'show'])->where(['application' => '[1-9][0-9]{0,18}', 'person' => '[1-9][0-9]{0,18}'])->name('checklists.show');
-            Route::get('/applications/{application}/checklist/{person}/print', [ChecklistController::class, 'print'])->where(['application' => '[1-9][0-9]{0,18}', 'person' => '[1-9][0-9]{0,18}'])->name('checklists.print');
-            Route::post('/applications/{application}/checklist/{person}', [ChecklistController::class, 'save'])->where(['application' => '[1-9][0-9]{0,18}', 'person' => '[1-9][0-9]{0,18}'])->block(10, 10)->name('checklists.save');
-            Route::get('/statistics', [ReportController::class, 'statistics'])->name('reports.statistics');
-            Route::get('/search-reports', [SearchReportController::class, 'index'])->name('search.reports');
-            Route::get('/search-reports/export', [SearchReportController::class, 'export'])->name('search.reports.export');
-            Route::get('/statistics/export', [ReportController::class, 'export'])->name('reports.statistics.export');
-            Route::get('/payments', [FinanceController::class, 'payments'])->name('finance.payments');
-            Route::get('/payments/export', [FinanceController::class, 'paymentsExport'])->name('finance.payments.export');
-            Route::get('/payments/projects/lookup', [FinanceController::class, 'projectLookup'])->name('finance.projects.lookup');
-            Route::get('/visit-schedule', [VisitController::class, 'schedule'])->name('visits.schedule');
-            Route::get('/visit-schedule/export', [VisitController::class, 'scheduleExport'])->name('visits.schedule.export');
-            Route::post('/visit-schedule/{notice}/seen', [VisitController::class, 'scheduleSeen'])->where('notice', '[1-9][0-9]{0,18}')->block(10, 10)->name('visits.schedule.seen');
-            Route::post('/visit-schedule/{notice}/reschedule', [VisitController::class, 'scheduleReschedule'])->where('notice', '[1-9][0-9]{0,18}')->block(10, 10)->name('visits.schedule.reschedule');
-            Route::post('/visit-schedule/{notice}/note', [VisitController::class, 'scheduleNote'])->where('notice', '[1-9][0-9]{0,18}')->block(10, 10)->name('visits.schedule.note');
-            Route::get('/profession-meetings', [ProfessionMeetingController::class, 'index'])->name('meetings.index');
-            Route::get('/profession-meetings/new', [ProfessionMeetingController::class, 'create'])->name('meetings.create');
-            Route::get('/profession-meetings/{meeting}', [ProfessionMeetingController::class, 'show'])->where('meeting', '[1-9][0-9]{0,18}')->name('meetings.show');
-            Route::post('/profession-meetings', [ProfessionMeetingController::class, 'save'])->block(10, 10)->name('meetings.save');
-            Route::post('/profession-meetings/{meeting}/delete', [ProfessionMeetingController::class, 'delete'])->where('meeting', '[1-9][0-9]{0,18}')->block(10, 10)->name('meetings.delete');
-            Route::post('/profession-meetings/{meeting}/restore', [ProfessionMeetingController::class, 'restore'])->where('meeting', '[1-9][0-9]{0,18}')->block(10, 10)->name('meetings.restore');
-            Route::get('/admin/accounts', [AccountAdminController::class, 'index'])->name('admin.accounts.index');
-            Route::get('/admin/accounts/new', [AccountAdminController::class, 'create'])->name('admin.accounts.new');
-            Route::post('/admin/accounts', [AccountAdminController::class, 'store'])->block(10, 10)->name('admin.accounts.store');
-            Route::post('/admin/accounts/plain', [AccountAdminController::class, 'storePlain'])->block(10, 10)->name('admin.accounts.store-plain');
-            Route::get('/admin/staff', [AccountAdminController::class, 'staff'])->name('admin.staff');
-            Route::get('/admin/audit', [AuditLogController::class, 'index'])->name('admin.audit');
-            Route::get('/admin/audit/export', [AuditLogController::class, 'export'])->name('admin.audit.export');
-            Route::get('/lookups', [LookupController::class, 'index'])->name('lookups.index');
-            Route::get('/lookups/{table}/export', [LookupController::class, 'export'])->where('table', '[a-z_]{2,40}')->name('lookups.export');
-            Route::get('/applications/{application}/states/export', [DetailExportController::class, 'states'])->where('application', '[1-9][0-9]{0,18}')->name('details.states.export');
-            Route::get('/people/{person}/family/export', [DetailExportController::class, 'family'])->where('person', '[1-9][0-9]{0,18}')->name('details.family.export');
-            Route::get('/admin/tasks', [AccountAdminController::class, 'tasks'])->name('admin.tasks');
-            Route::post('/admin/tasks', [AccountAdminController::class, 'saveTasks'])->block(10, 10)->name('admin.tasks.save');
-            Route::prefix('/admin/accounts/{account}')->where(['account' => '[1-9][0-9]{0,18}', 'link' => '[1-9][0-9]{0,18}'])->group(function () {
-                Route::get('/', [AccountAdminController::class, 'show'])->name('admin.accounts.show');
-                Route::post('/capabilities', [AccountAdminController::class, 'capabilities'])->block(10, 10)->name('admin.accounts.capabilities');
-                Route::post('/role', [AccountAdminController::class, 'role'])->block(10, 10)->name('admin.accounts.role');
-                Route::post('/role/revoke', [AccountAdminController::class, 'roleRevoke'])->block(10, 10)->name('admin.accounts.role-revoke');
-                Route::post('/email', [AccountAdminController::class, 'email'])->block(10, 10)->name('admin.accounts.email');
-                Route::post('/links', [AccountAdminController::class, 'link'])->block(10, 10)->name('admin.accounts.link');
-                Route::post('/links/{link}', [AccountAdminController::class, 'linkState'])->block(10, 10)->name('admin.accounts.link-state');
-                Route::post('/disable', [AccountAdminController::class, 'disable'])->block(10, 10)->name('admin.accounts.disable');
-            });
-            Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-            Route::get('/notifications/export', [NotificationController::class, 'export'])->name('notifications.export');
-            Route::post('/notifications/seen', [NotificationController::class, 'seen'])->block(10, 10)->name('notifications.seen');
-            Route::get('/notifications/send', [NotificationController::class, 'create'])->name('notifications.create');
-            Route::post('/notifications/send', [NotificationController::class, 'send'])->block(10, 10)->name('notifications.send');
-            Route::get('/account/password', [AccountPasswordController::class, 'edit'])->name('account.password');
-            Route::post('/account/password', [AccountPasswordController::class, 'update'])->block(10, 10)->name('account.password.update');
-            Route::get('/task-board', [TaskBoardController::class, 'index'])->name('tasks.board');
-            Route::get('/task-board/export', [TaskBoardController::class, 'export'])->name('tasks.board.export');
-            Route::post('/task-board/toggle', [TaskBoardController::class, 'toggle'])->block(10, 10)->name('tasks.toggle');
-            Route::prefix('/applications/{application}')->where(['application' => '[1-9][0-9]{0,18}'])->group(function () {
-                Route::get('/finance', [FinanceController::class, 'show'])->name('finance.show');
-                Route::post('/finance/donor', [FinanceController::class, 'donor'])->block(10, 10)->name('finance.donor');
-                Route::post('/finance/groups', [FinanceController::class, 'group'])->block(10, 10)->name('finance.group');
-                Route::post('/finance/loan', [FinanceController::class, 'loan'])->block(10, 10)->name('finance.loan');
-                Route::post('/finance/installments', [FinanceController::class, 'installments'])->block(10, 10)->name('finance.installments');
-                Route::get('/executive-files', [ExecutiveFileController::class, 'show'])->name('executive.show');
-                Route::post('/executive-files', [ExecutiveFileController::class, 'save'])->block(10, 10)->name('executive.save');
-                Route::get('/purchasing', [PurchasingController::class, 'show'])->name('purchasing.show');
-                Route::post('/purchasing', [PurchasingController::class, 'save'])->block(10, 10)->name('purchasing.save');
-                Route::get('/special-cases', [SpecialCaseController::class, 'show'])->name('special-cases.show');
-                Route::post('/special-cases', [SpecialCaseController::class, 'save'])->block(10, 10)->name('special-cases.save');
-                Route::post('/special-cases/{case}/delete', [SpecialCaseController::class, 'delete'])->where('case', '[1-9][0-9]{0,18}')->block(10, 10)->name('special-cases.delete');
-                Route::post('/visits/{kind}/delete', [VisitController::class, 'delete'])->where('kind', '[OV]-(op|cl)')->block(10, 10)->name('visits.delete');
-                Route::get('/me-visits', [MonitoringVisitController::class, 'hub'])->name('me.hub');
-                Route::get('/me-visits/new/{person}', [MonitoringVisitController::class, 'create'])->where('person', '[1-9][0-9]{0,18}')->name('me.create');
-                Route::get('/me-visits/{visit}', [MonitoringVisitController::class, 'show'])->where('visit', '[1-9][0-9]{0,18}')->name('me.show');
-                Route::post('/me-visits', [MonitoringVisitController::class, 'save'])->block(10, 10)->name('me.save');
-                Route::post('/me-visits/{visit}/delete', [MonitoringVisitController::class, 'delete'])->where('visit', '[1-9][0-9]{0,18}')->block(10, 10)->name('me.delete');
-                Route::post('/special-cases/{case}/restore', [SpecialCaseController::class, 'restore'])->where('case', '[1-9][0-9]{0,18}')->block(10, 10)->name('special-cases.restore');
-                Route::post('/visits/{visit}/restore', [VisitController::class, 'restore'])->where('visit', '[1-9][0-9]{0,18}')->block(10, 10)->name('visits.restore');
-                Route::post('/me-visits/{visit}/restore', [MonitoringVisitController::class, 'restore'])->where('visit', '[1-9][0-9]{0,18}')->block(10, 10)->name('me.restore');
-                Route::get('/rehab-visit', [RehabVisitController::class, 'show'])->name('rehab.show');
-                Route::post('/rehab-visit', [RehabVisitController::class, 'save'])->block(10, 10)->name('rehab.save');
-                Route::post('/rehab-visit/delete', [RehabVisitController::class, 'delete'])->block(10, 10)->name('rehab.delete');
-                Route::get('/visits', [VisitController::class, 'hub'])->name('visits.hub');
-                Route::get('/visits/{kind}', [VisitController::class, 'show'])->where('kind', '[OV]-(op|cl)')->name('visits.show');
-                Route::post('/visits/{kind}', [VisitController::class, 'save'])->where('kind', '[OV]-(op|cl)')->block(10, 10)->name('visits.save');
-            });
-            Route::post('/applications/{application}/people', [ApplicationController::class, 'person'])->where('application', '[1-9][0-9]{0,18}')->name('applications.person');
-            Route::post('/applications/{application}/complete', [ApplicationController::class, 'complete'])->where('application', '[1-9][0-9]{0,18}')->name('applications.complete');
-            Route::post('/applications/{application}/people/{link}/details/{kind}', [ApplicationController::class, 'applicantDetail'])->where(['application' => '[1-9][0-9]{0,18}', 'link' => '[1-9][0-9]{0,18}', 'kind' => 'loss|illness|asset|aid|help|homepower'])->name('applications.applicant-detail');
-            Route::post('/applications/{application}/details/{kind}', [ApplicationController::class, 'detail'])->where(['application' => '[1-9][0-9]{0,18}', 'kind' => 'agriculture|rehab|rehab_answers|powersource|risk|material'])->name('applications.detail');
-            Route::get('/people', [PeopleController::class, 'index'])->name('people.index');
-            Route::get('/people/lookup', [PeopleController::class, 'lookup'])->name('people.lookup');
-            Route::get('/people/create', [PeopleController::class, 'create'])->name('people.create');
-            Route::post('/people', [PeopleController::class, 'store'])->block(10, 10)->name('people.store');
-            Route::post('/people/families', [PeopleController::class, 'storeFamily'])->block(10, 10)->name('people.families.store');
-            Route::get('/people/{person}', [PeopleController::class, 'show'])->where('person', '[1-9][0-9]{0,18}')->name('people.show');
-            Route::put('/people/{person}', [PeopleController::class, 'update'])->where('person', '[1-9][0-9]{0,18}')->name('people.update');
-            Route::post('/people/{person}/family', [PeopleController::class, 'family'])->where('person', '[1-9][0-9]{0,18}')->name('people.family');
-            Route::post('/people/{person}/details/{kind}', [PeopleController::class, 'detail'])->where(['person' => '[1-9][0-9]{0,18}', 'kind' => 'education|workexp|course'])->name('people.detail');
-            Route::get('/attachments/{reference}', [AttachmentController::class, 'download'])->where('reference', '[a-f0-9]{32}')->name('attachments.download');
+        Route::middleware([RequireCurrentAccount::class, RestrictToPermittedCities::class])->group(function () {
+            Route::get('/', HomeController::class)->name('home');
             Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
-            Route::get('/projects/{record}', [ProjectController::class, 'show'])->where('record', '[1-9][0-9]{0,19}')->name('projects.show');
-            Route::get('/cities', fn (string $locale) => redirect()->route('projects.index', ['locale' => $locale]))->name('cities.index');
-            Route::prefix('/cities/{source}')->where(['source' => '[1-5]'])->group(function () {
-                Route::get('/projects', [ProjectController::class, 'legacyIndex']);
-                Route::get('/projects/{record}', [ProjectController::class, 'legacyShow'])->where('record', '[1-9][0-9]{0,19}');
-            });
+            Route::get('/projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
+            Route::view('/design', 'design')->name('design');
         });
     });
 });

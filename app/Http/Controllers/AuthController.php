@@ -23,13 +23,13 @@ class AuthController
         $data = $request->validated();
         $principal = $authenticate->attempt($data['username'], $data['password']);
         if ($principal === null) {
-            return back()->withErrors(['username' => __('projects.login_error')])->withInput($request->only('username'));
+            return back()->withErrors(['username' => __('hc.login_error')])->withInput($request->only('username'));
         }
         Auth::login($principal, false);
         $request->session()->regenerate();
 
         // Never trust an intended source URL from a previous session or login.
-        return redirect()->route('projects.index', ['locale' => app()->getLocale()]);
+        return redirect()->route('home', ['locale' => app()->getLocale()]);
     }
 
     public function logout(Request $request, AccountAuditTrail $audit): RedirectResponse

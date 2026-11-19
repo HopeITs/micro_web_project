@@ -2,69 +2,62 @@
 
 namespace App\Services;
 
+use App\Models\LegacyStaffUser;
 use App\Models\WebAccount;
-use App\Models\WebPrincipal;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
- * Controlled administrative service. It writes accounts, reviewed links and city capabilities, so only the staff administration screens
- * (`accounts.manage`, see AccountAdminService) and provisioning commands reach it; the read-only runtime never does.
+ * Controlled administrative service. It writes accounts, reviewed links to desktop users (legacy_staff_users, unified
+ * schema v1.1) and city capabilities, so only the staff administration screens (`accounts.manage`) and provisioning
+ * commands reach it.
  */
 final class AccountProvisioner
 {
-    public function __construct(private SourceIdentity $identity, private AccountAuditTrail $audit) {}
+    public function __construct(private AccountAuditTrail $audit) {}
 
-    public function provision(string $username, int $credentialPrincipalId, array $reviewedPrincipalIds, array $cityCapabilities, string $decision, ?int $actor = null): WebAccount
+    /**
+     * Creates an account from reviewed desktop users of one or more cities. The credential user's desktop PBKDF2 hash is
+     * used until the first web login; every reviewed user is linked so old records resolve to this account.
+     *
+     * @param  list<int>  $reviewedUserIds
+     * @param  array<int, list<string>>  $cityCapabilities
+     */
+    public function provision(string $username, int $credentialUserId, array $reviewedUserIds, array $cityCapabilities, string $decision, ?int $actor = null): WebAccount
     {
         if ($username === '' || strlen($username) > 800 || preg_match('//u', $username) !== 1 || mb_strlen($username) > 200
-            || ! AccountAuditTrail::validDecision($decision) || $credentialPrincipalId < 1 || $reviewedPrincipalIds === []
-            || ! in_array($credentialPrincipalId, $reviewedPrincipalIds, true)
-            || count(array_unique($reviewedPrincipalIds)) !== count($reviewedPrincipalIds)) {
+            || ! AccountAuditTrail::validDecision($decision) || $credentialUserId < 1 || $reviewedUserIds === []
+            || ! in_array($credentialUserId, $reviewedUserIds, true)
+            || count(array_unique($reviewedUserIds)) !== count($reviewedUserIds)) {
             throw new InvalidArgumentException('Explicit reviewed account identity and decision are required.');
         }
-        foreach ($reviewedPrincipalIds as $id) {
+        foreach ($reviewedUserIds as $id) {
             if (! is_int($id) || $id < 1) {
-                throw new InvalidArgumentException('Reviewed principal IDs must be positive integers.');
+                throw new InvalidArgumentException('Reviewed legacy user IDs must be positive integers.');
             }
         }
 
-        return DB::transaction(function () use ($username, $credentialPrincipalId, $reviewedPrincipalIds, $cityCapabilities, $decision, $actor) {
-            sort($reviewedPrincipalIds);
-            $principals = WebPrincipal::whereIn('id', $reviewedPrincipalIds)->orderBy('id')->lockForUpdate()->get();
-            if ($principals->count() !== count($reviewedPrincipalIds)
-                || DB::table('account_legacy_links')->whereIn('principal_id', $reviewedPrincipalIds)->exists()) {
-                throw new InvalidArgumentException('A reviewed principal is missing or already linked.');
+        return DB::transaction(function () use ($username, $credentialUserId, $reviewedUserIds, $cityCapabilities, $decision, $actor) {
+            sort($reviewedUserIds);
+            $users = LegacyStaffUser::whereIn('id', $reviewedUserIds)->orderBy('id')->lockForUpdate()->get();
+            if ($users->count() !== count($reviewedUserIds)
+                || DB::table('account_legacy_links')->whereIn('legacy_staff_user_id', $reviewedUserIds)->exists()) {
+                throw new InvalidArgumentException('A reviewed legacy user is missing or already linked.');
             }
-            foreach ($principals as $principal) {
-                if ($this->identity->activeUser($principal) === null) {
+            foreach ($users as $user) {
+                if ($user->disabled_at !== null) {
                     throw new InvalidArgumentException('Inactive legacy identity requires a separate staff decision.');
                 }
-                if ($principal->id === $credentialPrincipalId) {
-                    if ($principal->password_hash !== null) {
-                        if (preg_match('//u', $principal->password_hash) !== 1 || password_get_info($principal->password_hash)['algoName'] === 'unknown') {
-                            throw new InvalidArgumentException('Selected credential needs compatibility review.');
-                        }
-                    } else {
-                        $legacy = $this->identity->publishedUsers($principal->source_id)->where('r.id', $principal->source_record_id)->value('u.Password');
-                        $encoded = str_replace([' ', "\t", "\r", "\n"], '', (string) $legacy);
-                        if (preg_match('/\A[A-Za-z0-9+\/]{64}\z/', $encoded) !== 1 || strlen((string) base64_decode($encoded, true)) !== 48) {
-                            throw new InvalidArgumentException('Selected credential needs compatibility review.');
-                        }
-                    }
+                if ($user->id === $credentialUserId && ! self::compatibleLegacyHash($user->password_hash)) {
+                    throw new InvalidArgumentException('Selected credential needs compatibility review.');
                 }
             }
-            $account = new WebAccount;
-            $account->username = $username;
-            $account->credential_principal_id = $credentialPrincipalId;
-            $account->save();
+            $time = now('UTC')->format('Y-m-d H:i:s.u');
+            $id = DB::table('web_accounts')->insertGetId(['username' => $username, 'email' => null, 'password_hash' => null, 'password_changed_at' => null, 'credential_legacy_user_id' => $credentialUserId, 'disabled_at' => null, 'created_at' => $time, 'updated_at' => $time]);
+            $account = WebAccount::findOrFail($id);
             $this->audit->record($actor, 'account.provisioned', 'succeeded', subjectAccount: $account->id, subjectType: 'account', subjectId: $account->id, decision: $decision);
-            foreach ($principals as $principal) {
-                $linkId = DB::table('account_legacy_links')->insertGetId([
-                    'account_id' => $account->id, 'source_id' => $principal->source_id, 'principal_id' => $principal->id,
-                    'decision_locator' => $decision, 'reviewed_at' => now('UTC')->format('Y-m-d H:i:s.u'), 'revoked_at' => null,
-                ]);
-                $this->audit->record($actor, 'legacy.linked', 'succeeded', subjectAccount: $account->id, subjectType: 'legacy_link', subjectId: $linkId, decision: $decision);
+            foreach ($users as $user) {
+                $this->insertLink($account, $user, $decision, $actor);
             }
             foreach ($cityCapabilities as $city => $capabilities) {
                 if (! is_int($city) || ! is_array($capabilities)) {
@@ -77,6 +70,14 @@ final class AccountProvisioner
 
             return $account;
         }, attempts: 3);
+    }
+
+    /** The desktop stores Base64(16-byte salt + 32-byte PBKDF2-SHA256 hash): 64 characters. */
+    public static function compatibleLegacyHash(?string $hash): bool
+    {
+        $encoded = str_replace([' ', "\t", "\r", "\n"], '', (string) $hash);
+
+        return preg_match('/\A[A-Za-z0-9+\/]{64}\z/', $encoded) === 1 && strlen((string) base64_decode($encoded, true)) === 48;
     }
 
     public function grant(WebAccount $account, int $city, string $capability, string $decision, ?int $actor = null): void
@@ -119,69 +120,56 @@ final class AccountProvisioner
         }, attempts: 3);
     }
 
-    public function setLinkRevoked(WebAccount $account, int $principalId, bool $revoked, string $decision, ?int $actor = null): void
+    public function setLinkRevoked(WebAccount $account, int $legacyUserId, bool $revoked, string $decision, ?int $actor = null): void
     {
         if (! AccountAuditTrail::validDecision($decision)) {
             throw new InvalidArgumentException('A link review decision is required.');
         }
-        DB::transaction(function () use ($account, $principalId, $revoked, $decision, $actor) {
+        DB::transaction(function () use ($account, $legacyUserId, $revoked, $decision, $actor) {
             WebAccount::whereKey($account->id)->lockForUpdate()->firstOrFail();
-            $query = DB::table('account_legacy_links')->where('account_id', $account->id)->where('principal_id', $principalId);
+            $query = DB::table('account_legacy_links')->where('account_id', $account->id)->where('legacy_staff_user_id', $legacyUserId);
             $link = (clone $query)->lockForUpdate()->first();
             if ($link === null) {
                 throw new InvalidArgumentException('No reviewed link exists.');
             }
-            if (! $revoked) {
-                $principal = WebPrincipal::whereKey($principalId)->lockForUpdate()->first();
-                if ($principal === null || $this->identity->activeUser($principal) === null) {
-                    throw new InvalidArgumentException('Inactive legacy identity requires a separate staff decision.');
-                }
+            if (! $revoked && LegacyStaffUser::whereKey($legacyUserId)->whereNull('disabled_at')->lockForUpdate()->doesntExist()) {
+                throw new InvalidArgumentException('Inactive legacy identity requires a separate staff decision.');
             }
             $query->update(['revoked_at' => $revoked ? now('UTC')->format('Y-m-d H:i:s.u') : null]);
             $this->audit->record($actor, $revoked ? 'legacy.revoked' : 'legacy.restored', 'succeeded', subjectAccount: $account->id, subjectType: 'legacy_link', subjectId: $link->id, decision: $decision);
         }, attempts: 3);
     }
 
-    /** The identity pointer of a published source user record, created on first use (a principal carries no credential of its own). */
-    public function ensurePrincipal(int $source, int $recordId): WebPrincipal
-    {
-        $existing = WebPrincipal::where('source_id', $source)->where('source_table_id', 117)->where('source_record_id', $recordId)->first();
-        if ($existing !== null) {
-            return $existing;
-        }
-        if ($recordId < 1 || ! in_array($source, app(SourceCatalog::class)->sourceIds(), true) || ! $this->identity->publishedUsers($source)->where('r.id', $recordId)->exists()) {
-            throw new InvalidArgumentException('The source user is not a published historical account.');
-        }
-        $time = now('UTC')->format('Y-m-d H:i:s.u');
-        $id = DB::table('web_principals')->insertGetId(['source_id' => $source, 'source_table_id' => 117, 'source_record_id' => $recordId, 'password_hash' => null, 'disabled_at' => null, 'created_at' => $time, 'updated_at' => $time]);
-
-        return WebPrincipal::findOrFail($id);
-    }
-
-    /** Adds one reviewed historical identity to an existing account. A principal already linked to any account is never moved. */
-    public function linkPrincipal(WebAccount $account, int $principalId, string $decision, ?int $actor = null): int
+    /** Adds one reviewed desktop user to an existing account. A user already linked to any account is never moved. */
+    public function linkLegacyUser(WebAccount $account, int $legacyUserId, string $decision, ?int $actor = null): int
     {
         if (! AccountAuditTrail::validDecision($decision)) {
             throw new InvalidArgumentException('A link review decision is required.');
         }
 
-        return DB::transaction(function () use ($account, $principalId, $decision, $actor) {
+        return DB::transaction(function () use ($account, $legacyUserId, $decision, $actor) {
             WebAccount::whereKey($account->id)->lockForUpdate()->firstOrFail();
-            $principal = WebPrincipal::whereKey($principalId)->lockForUpdate()->first();
-            if ($principal === null || DB::table('account_legacy_links')->where('principal_id', $principalId)->exists()) {
-                throw new InvalidArgumentException('A reviewed principal is missing or already linked.');
+            $user = LegacyStaffUser::whereKey($legacyUserId)->lockForUpdate()->first();
+            if ($user === null || DB::table('account_legacy_links')->where('legacy_staff_user_id', $legacyUserId)->exists()) {
+                throw new InvalidArgumentException('A reviewed legacy user is missing or already linked.');
             }
-            if ($this->identity->activeUser($principal) === null) {
+            if ($user->disabled_at !== null) {
                 throw new InvalidArgumentException('Inactive legacy identity requires a separate staff decision.');
             }
-            $linkId = DB::table('account_legacy_links')->insertGetId([
-                'account_id' => $account->id, 'source_id' => $principal->source_id, 'principal_id' => $principal->id,
-                'decision_locator' => $decision, 'reviewed_at' => now('UTC')->format('Y-m-d H:i:s.u'), 'revoked_at' => null,
-            ]);
-            $this->audit->record($actor, 'legacy.linked', 'succeeded', subjectAccount: $account->id, subjectType: 'legacy_link', subjectId: $linkId, decision: $decision);
 
-            return (int) $linkId;
+            return $this->insertLink($account, $user, $decision, $actor);
         }, attempts: 3);
+    }
+
+    private function insertLink(WebAccount $account, LegacyStaffUser $user, string $decision, ?int $actor): int
+    {
+        $linkId = DB::table('account_legacy_links')->insertGetId([
+            'account_id' => $account->id, 'city_id' => $user->city_id, 'legacy_staff_user_id' => $user->id,
+            'decision_locator' => $decision, 'reviewed_at' => now('UTC')->format('Y-m-d H:i:s.u'), 'revoked_at' => null,
+        ]);
+        $this->audit->record($actor, 'legacy.linked', 'succeeded', $user->city_id, $account->id, 'legacy_link', $linkId, $decision);
+
+        return (int) $linkId;
     }
 
     /** Disables or re-enables the whole web account (every city); protected requests recheck it. */
@@ -199,8 +187,8 @@ final class AccountProvisioner
     }
 
     /**
-     * Creates an account that has no desktop identity (after the old databases are retired): it carries its own password hash, which its user
-     * must replace at first login (`credential_principal_id` NULL and `password_changed_at` NULL mark it).
+     * Creates an account that has no desktop identity: it carries its own password hash, which its user must replace at first
+     * login (`credential_legacy_user_id` NULL and `password_changed_at` NULL mark it).
      */
     public function createPlain(string $username, ?string $email, string $passwordHash, string $decision, ?int $actor = null): WebAccount
     {

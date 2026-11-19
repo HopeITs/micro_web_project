@@ -36,9 +36,9 @@ final class AccountPasswords
     /** An account created without a desktop identity must replace its first password before doing anything else. */
     public function mustChange(WebAccount $account): bool
     {
-        $row = DB::table('web_accounts')->where('id', $account->id)->first(['password_changed_at', 'credential_principal_id', 'password_hash']);
+        $row = DB::table('web_accounts')->where('id', $account->id)->first(['password_changed_at', 'credential_legacy_user_id', 'password_hash']);
 
-        return $row !== null && $row->password_hash !== null && $row->credential_principal_id === null && $row->password_changed_at === null;
+        return $row !== null && $row->password_hash !== null && $row->credential_legacy_user_id === null && $row->password_changed_at === null;
     }
 
     /** A random one-time password for an account an administrator creates. */

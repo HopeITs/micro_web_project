@@ -1,6 +1,71 @@
-@php($cityName = app()->isLocale('ar') ? $project->city_name_ar : $project->city_name_en)
-<x-layouts.app :title="__('projects.project').' '.$project->MP_ID.' · '.$cityName" :operational="true" :synthetic="$synthetic ?? false">
-    <a class="back-link" href="{{ route('projects.index', ['locale' => app()->getLocale()]) }}">{{ __('projects.back_projects') }}</a>
-    <div class="page-heading"><div><p class="eyebrow">{{ $cityName }} · {{ __('projects.number') }} <bdi>{{ $project->MP_ID }}</bdi></p><h1 class="project-title">{{ $project->MP_Name }}</h1></div><span class="version-tag">{{ __('projects.read_only_short') }}</span></div>
-    <x-ui.card :title="__('projects.details')"><dl class="project-details"><div><dt>{{ __('projects.number') }}</dt><dd><bdi>{{ $project->MP_ID }}</bdi></dd></div><div><dt>{{ __('projects.city') }}</dt><dd>{{ $cityName }}</dd></div><div><dt>{{ __('projects.date') }}</dt><dd><bdi>{{ $project->MP_DateOfRequest ?? '—' }}</bdi></dd></div><div><dt>{{ __('projects.state') }}</dt><dd>{{ $project->ApplicationState ?? '—' }}</dd></div><div><dt>{{ __('projects.amount') }}</dt><dd><bdi>{{ $project->MP_RequestedAmount ?? '—' }}</bdi><p class="field-hint">{{ __('projects.amount_note') }}</p></dd></div><div class="detail-wide"><dt>{{ __('projects.address') }}</dt><dd class="preserve-text">{{ $project->MP_PlaceAddress ?? '—' }}</dd></div><div class="detail-wide"><dt>{{ __('projects.notes') }}</dt><dd class="preserve-text">{{ $project->MP_Note ?? '—' }}</dd></div></dl></x-ui.card>
-</x-layouts.app>
+@php
+    $en = app()->getLocale() === 'en';
+    $label = fn ($m) => $m ? ($en && $m->name_en ? $m->name_en : $m->name_ar) : __('hc.not_set');
+    $person = $project->projectApplicants->first()?->person;
+    $current = $project->projectStateHistory->firstWhere('is_current', true);
+    $loan = $project->loans->first();
+@endphp
+<x-layouts.hc :title="\App\Services\ProjectNumberAllocator::display($project->city->code, $project->project_number)">
+    <p style="margin-block-end:12px"><a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('projects.index', ['locale' => app()->getLocale()]) }}"><x-hc.icon name="arrow" :size="16" class="hc-back-icon"/>{{ __('hc.back') }}</a></p>
+    <div class="hc-page-head">
+        <div>
+            <p class="hc-eyebrow">{{ $en ? $project->city->name_en : $project->city->name_ar }} · {{ __('hc.stage_'.$project->application_stage) }}</p>
+            <h1><x-hc.project-number :code="$project->city->code" :number="$project->project_number"/> · {{ $project->name }}</h1>
+            <p>{{ $person ? trim($person->first_name.' '.$person->father_name.' '.$person->last_name) : '' }}</p>
+        </div>
+        @if($current)<x-hc.badge tone="brand" style="font-size:.9rem;padding:4px 14px">{{ $label($current->projectState) }}</x-hc.badge>@endif
+    </div>
+
+    <div class="hc-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); align-items:start">
+        <div class="hc-grid">
+            <x-hc.section :title="__('hc.details')" step="1">
+                <dl class="hc-dl">
+                    <div><dt>{{ __('hc.number') }}</dt><dd><x-hc.project-number :code="$project->city->code" :number="$project->project_number"/></dd></div>
+                    <div><dt>{{ __('hc.request_date') }}</dt><dd class="num">{{ $project->request_date?->format('Y-m-d') ?? __('hc.not_set') }}</dd></div>
+                    <div><dt>{{ __('hc.requested') }}</dt><dd class="num">{{ $project->requested_amount !== null ? number_format((float) $project->requested_amount) : __('hc.not_set') }}</dd></div>
+                    <div><dt>{{ __('hc.career') }}</dt><dd>{{ $label($project->career) }}</dd></div>
+                    <div><dt>{{ __('hc.category') }}</dt><dd>{{ $label($project->projectCategory) }}</dd></div>
+                    <div><dt>{{ __('hc.type') }}</dt><dd>{{ $label($project->projectType) }}</dd></div>
+                    <div><dt>{{ __('hc.donor') }}</dt><dd>{{ $label($project->donor) }}</dd></div>
+                    <div><dt>{{ __('hc.address') }}</dt><dd>{{ $project->place_address ?: __('hc.not_set') }}</dd></div>
+                    @if($project->legacy_id)<div><dt>{{ __('hc.legacy_number') }}</dt><dd class="num">{{ $project->legacy_id }}</dd></div>@endif
+                </dl>
+            </x-hc.section>
+            @if($person)
+            <x-hc.section :title="__('hc.applicant')" step="2">
+                <dl class="hc-dl">
+                    <div><dt>{{ __('hc.beneficiary') }}</dt><dd>{{ trim($person->first_name.' '.$person->father_name.' '.$person->last_name) }}</dd></div>
+                    <div><dt>{{ __('hc.national_number') }}</dt><dd class="num ltr">{{ $person->national_number ?: __('hc.not_set') }}</dd></div>
+                    <div><dt>{{ __('hc.mobile') }}</dt><dd class="num ltr">{{ $person->mobile ?: __('hc.not_set') }}</dd></div>
+                </dl>
+            </x-hc.section>
+            @endif
+            <x-hc.section :title="__('hc.loan')" step="3">
+                @if($loan)
+                    @php($paid = $loan->loanInstallments->where('is_paid', true)->sum('amount'))
+                    <dl class="hc-dl" style="margin-block-end:16px">
+                        <div><dt>{{ __('hc.amount') }}</dt><dd class="num">{{ number_format((float) $loan->amount) }} <span class="muted">{{ $loan->currency }}</span></dd></div>
+                        <div><dt>{{ __('hc.paid') }}</dt><dd class="num">{{ number_format((float) $paid) }}</dd></div>
+                        <div><dt>{{ __('hc.collected') }}</dt><dd><div class="hc-progress"><span style="width: {{ $loan->amount > 0 ? round($paid / $loan->amount * 100) : 0 }}%"></span></div></dd></div>
+                    </dl>
+                    <div class="hc-table-wrap"><table class="hc-table">
+                        <thead><tr><th>#</th><th>{{ __('hc.due_on') }}</th><th class="num">{{ __('hc.amount') }}</th><th>{{ __('hc.state') }}</th></tr></thead>
+                        <tbody>@foreach($loan->loanInstallments as $i => $inst)
+                            <tr><td class="num">{{ $i + 1 }}</td><td class="num">{{ $inst->due_on?->format('Y-m-d') }}</td><td class="num">{{ number_format((float) $inst->amount) }}</td>
+                                <td>@if($inst->is_paid)<x-hc.badge tone="ok">{{ __('hc.paid') }}</x-hc.badge>@elseif($inst->due_on?->isPast())<x-hc.badge tone="danger">{{ __('hc.unpaid') }}</x-hc.badge>@else<x-hc.badge>{{ __('hc.unpaid') }}</x-hc.badge>@endif</td></tr>
+                        @endforeach</tbody>
+                    </table></div>
+                @else
+                    <p class="muted">{{ __('hc.no_loan') }}</p>
+                @endif
+            </x-hc.section>
+        </div>
+        <x-hc.card :title="__('hc.history')">
+            <ol class="hc-timeline">
+                @foreach($project->projectStateHistory as $h)
+                    <li @class(['current' => $h->is_current])><strong>{{ $label($h->projectState) }}</strong><br><span class="muted num">{{ $h->changed_on?->format('Y-m-d') }}</span>@if($h->stateReason)<br><span class="muted">{{ $label($h->stateReason) }}</span>@endif</li>
+                @endforeach
+            </ol>
+        </x-hc.card>
+    </div>
+</x-layouts.hc>

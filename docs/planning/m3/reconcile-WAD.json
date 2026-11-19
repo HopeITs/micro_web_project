@@ -1,0 +1,2710 @@
+{
+    "city": "WAD",
+    "run": 2,
+    "source": "m1src_wad",
+    "checked_at": "2026-11-19T17:16:59+00:00",
+    "summary": {
+        "equal": 276,
+        "explained": 3,
+        "unexplained": 0
+    },
+    "exceptions": {
+        "truncated": 47,
+        "required_text_empty": 29,
+        "money_rounded": 2,
+        "name_empty": 1,
+        "required_missing": 1,
+        "account_unmapped": 1
+    },
+    "run_counts": {
+        "read": {
+            "age": 6,
+            "aid": 20,
+            "aidperiod": 7,
+            "aidsource": 27,
+            "asset": 4,
+            "assetbenefits": 3,
+            "assettype": 7,
+            "category": 6,
+            "subcategory": 17,
+            "career": 289,
+            "microprojecttype": 5,
+            "microprojectsubtype": 17,
+            "fundtype": 2,
+            "donor": 10,
+            "donorgroup": 12,
+            "educationtype": 5,
+            "educationlevel": 4,
+            "education": 178,
+            "level": 4,
+            "goal": 15,
+            "illness": 5,
+            "medicalneeds": 5,
+            "incomesource": 4,
+            "language": 11,
+            "loss": 5,
+            "maritalstatus": 7,
+            "militarystate": 5,
+            "parish": 11,
+            "personstate": 8,
+            "powersource": 7,
+            "relation": 27,
+            "risk": 3,
+            "worktype": 5,
+            "work": 101,
+            "course": 4,
+            "imagetype": 12,
+            "specialcasetype": 2,
+            "state": 11,
+            "statereason": 25,
+            "task": 39,
+            "score": 10,
+            "scorevalue": 30,
+            "checklist_opinion": 3,
+            "checklist_position": 28,
+            "street": 24,
+            "priest": 63,
+            "checklist_member": 47,
+            "agquestion": 14,
+            "aganswer": 53,
+            "rehabquestion": 24,
+            "rehabanswer": 56,
+            "visitquestions": 20,
+            "visitanswers": 43,
+            "mequestion": 42,
+            "meanswer": 104,
+            "meprofitmarks": 5,
+            "meresultranges": 4,
+            "profession_section": 5,
+            "profession_question": 22,
+            "profession_option": 46,
+            "user": 47,
+            "person": 2901,
+            "family": 612,
+            "person_family": 2901,
+            "person_education": 381,
+            "person_course": 41,
+            "person_loss": 133,
+            "person_illness": 292,
+            "person_asset": 680,
+            "person_help": 125,
+            "person_goals": 547,
+            "person_powersource": 469,
+            "microproject": 650,
+            "person_microproject": 645,
+            "microproject_state": 1574,
+            "microproject_powersource": 122,
+            "microproject_risk": 33,
+            "microproject_score": 3810,
+            "material": 843,
+            "checklist": 437,
+            "person_checklistmembers": 3250,
+            "task_microproject": 11100,
+            "specialcase": 20,
+            "loan": 167,
+            "payment": 1216,
+            "visit": 121,
+            "office_monitoring": 33,
+            "visit_user": 158,
+            "mevisit": 204,
+            "mevisit_answer": 10,
+            "mevisit_user": 296,
+            "kobo_submission": 298,
+            "kobo_question": 212,
+            "kobo_question_version": 330,
+            "kobo_monitoring_record": 204,
+            "kobo_user_mapping": 65,
+            "kobo_visit_visitor": 549,
+            "log": 55491,
+            "person_workexp": 1563,
+            "person_aidsource": 35,
+            "kobo_form_mapping": 10,
+            "image": 3534,
+            "user_notification": 19867,
+            "task_user": 132
+        },
+        "written": {
+            "aid_sources": 1,
+            "careers": 1,
+            "donors": 1,
+            "donor_groups": 12,
+            "education_specialties": 82,
+            "occupations": 17,
+            "checklist_positions": 21,
+            "streets": 24,
+            "priests": 63,
+            "checklist_members": 47,
+            "me_profit_marks": 4,
+            "legacy_staff_users": 47,
+            "web_accounts": 47,
+            "people": 2901,
+            "families": 612,
+            "family_members": 2901,
+            "person_educations": 381,
+            "person_courses": 41,
+            "person_losses": 133,
+            "person_illnesses": 291,
+            "person_assets": 680,
+            "person_aid_received": 125,
+            "person_goals": 547,
+            "person_power_sources": 469,
+            "projects": 650,
+            "project_applicants": 645,
+            "project_state_history": 1574,
+            "project_power_sources": 122,
+            "project_risks": 33,
+            "project_scores": 3810,
+            "project_materials": 843,
+            "checklists": 437,
+            "checklist_member_opinions": 3250,
+            "project_tasks": 11100,
+            "special_cases": 20,
+            "loans": 167,
+            "loan_installments": 1216,
+            "visits": 121,
+            "visit_answers": 1015,
+            "visit_visitors": 158,
+            "me_visits": 204,
+            "me_visit_answers": 10,
+            "me_visit_visitors": 296,
+            "kobo_submissions": 298,
+            "kobo_questions": 212,
+            "kobo_question_versions": 330,
+            "kobo_monitoring_records": 204,
+            "kobo_user_mappings": 65,
+            "kobo_visit_visitors": 549,
+            "desktop_activity_log": 55491,
+            "person_work_experiences": 1563,
+            "person_aid_sources": 35,
+            "kobo_forms": 10,
+            "attachments": 3534,
+            "web_notices": 19867,
+            "account_city_tasks": 132
+        },
+        "skipped": {
+            "person_illness": 1
+        },
+        "exceptions": {
+            "account_unmapped": 1,
+            "money_rounded": 2,
+            "name_empty": 1,
+            "required_missing": 1,
+            "required_text_empty": 29,
+            "truncated": 47
+        },
+        "next_project_number": 657
+    },
+    "checks": [
+        {
+            "group": "rows",
+            "check": "person → people",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "family → families",
+            "source": 612,
+            "target": 612,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_family → family_members",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_education → person_educations",
+            "source": 381,
+            "target": 381,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_workexp → person_work_experiences",
+            "source": 1563,
+            "target": 1563,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_course → person_courses",
+            "source": 41,
+            "target": 41,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_loss → person_losses",
+            "source": 133,
+            "target": 133,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_illness → person_illnesses",
+            "source": 292,
+            "target": 291,
+            "explained": 1,
+            "status": "explained",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_asset → person_assets",
+            "source": 680,
+            "target": 680,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_aidsource → person_aid_sources",
+            "source": 35,
+            "target": 35,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_help → person_aid_received",
+            "source": 125,
+            "target": 125,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_goals → person_goals",
+            "source": 547,
+            "target": 547,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_powersource → person_power_sources",
+            "source": 469,
+            "target": 469,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject → projects",
+            "source": 650,
+            "target": 650,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_microproject → project_applicants",
+            "source": 645,
+            "target": 645,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_state → project_state_history",
+            "source": 1574,
+            "target": 1574,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_powersource → project_power_sources",
+            "source": 122,
+            "target": 122,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_risk → project_risks",
+            "source": 33,
+            "target": 33,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_score → project_scores",
+            "source": 3810,
+            "target": 3810,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "material → project_materials",
+            "source": 843,
+            "target": 843,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_ag_answer → project_agriculture_answers",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_rehab → project_rehabilitations",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "microproject_rehab_answer → project_rehabilitation_items",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "checklist → checklists",
+            "source": 437,
+            "target": 437,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "person_checklistmembers → checklist_member_opinions",
+            "source": 3250,
+            "target": 3250,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "task_microproject → project_tasks",
+            "source": 11100,
+            "target": 11100,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "specialcase → special_cases",
+            "source": 20,
+            "target": 20,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "loan → loans",
+            "source": 167,
+            "target": 167,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "payment → loan_installments",
+            "source": 1216,
+            "target": 1216,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "exefile → executive_files",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "purchasing → purchases",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "visit → visits",
+            "source": 121,
+            "target": 121,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "visit_user → visit_visitors",
+            "source": 158,
+            "target": 158,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "mevisit → me_visits",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "mevisit_answer → me_visit_answers",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "mevisit_user → me_visit_visitors",
+            "source": 296,
+            "target": 296,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_submission → kobo_submissions",
+            "source": 298,
+            "target": 298,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_question → kobo_questions",
+            "source": 212,
+            "target": 212,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_question_version → kobo_question_versions",
+            "source": 330,
+            "target": 330,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_monitoring_record → kobo_monitoring_records",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_person_review → kobo_person_reviews",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_person_review_audit → kobo_person_review_audits",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_sync_conflict → kobo_sync_conflicts",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_sync_conflict_audit → kobo_sync_conflict_audits",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_user_mapping → kobo_user_mappings",
+            "source": 65,
+            "target": 65,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "kobo_visit_visitor → kobo_visit_visitors",
+            "source": 549,
+            "target": 549,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting → profession_meetings",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_career → profession_meeting_careers",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_answer → profession_meeting_answers",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_option_answer → profession_meeting_option_answers",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_attendee → profession_meeting_attendees",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_participant → profession_meeting_participants",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_brand → profession_meeting_brands",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_challenge → profession_meeting_challenges",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_competition → profession_meeting_competitions",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_equipment → profession_meeting_equipment",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_season → profession_meeting_seasons",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "profession_meeting_minute → profession_meeting_minutes",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "log → desktop_activity_log",
+            "source": 55491,
+            "target": 55491,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "user → legacy_staff_users",
+            "source": 47,
+            "target": 47,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "user_notification → web_notices",
+            "source": 19867,
+            "target": 19867,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "rows",
+            "check": "image + file + meeting attachments → attachments",
+            "source": 3534,
+            "target": 3534,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "age → age_ranges",
+            "source": 6,
+            "target": 6,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "aid → aid_types",
+            "source": 20,
+            "target": 20,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "aidperiod → aid_periods",
+            "source": 7,
+            "target": 7,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "aidsource → aid_sources",
+            "source": 27,
+            "target": 27,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "asset → asset_kinds",
+            "source": 4,
+            "target": 4,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "assetbenefits → asset_benefits",
+            "source": 3,
+            "target": 3,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "assettype → asset_types",
+            "source": 7,
+            "target": 7,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "category → project_categories",
+            "source": 6,
+            "target": 6,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "subcategory → project_subcategories",
+            "source": 17,
+            "target": 17,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "career → careers",
+            "source": 289,
+            "target": 289,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "microprojecttype → project_types",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "microprojectsubtype → project_subtypes",
+            "source": 17,
+            "target": 17,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "fundtype → fund_types",
+            "source": 2,
+            "target": 2,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "donor → donors",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "donorgroup → donor_groups",
+            "source": 12,
+            "target": 12,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "educationtype → education_types",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "educationlevel → education_levels",
+            "source": 4,
+            "target": 4,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "education → education_specialties",
+            "source": 178,
+            "target": 178,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "level → education_grades",
+            "source": 4,
+            "target": 4,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "goal → goals",
+            "source": 15,
+            "target": 15,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "illness → illnesses",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "medicalneeds → medical_needs",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "incomesource → income_sources",
+            "source": 4,
+            "target": 4,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "language → languages",
+            "source": 11,
+            "target": 11,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "loss → loss_types",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "maritalstatus → marital_statuses",
+            "source": 7,
+            "target": 7,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "militarystate → military_statuses",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "parish → parishes",
+            "source": 11,
+            "target": 11,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "personstate → person_states",
+            "source": 8,
+            "target": 8,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "powersource → power_sources",
+            "source": 7,
+            "target": 7,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "relation → relations",
+            "source": 27,
+            "target": 27,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "risk → risks",
+            "source": 3,
+            "target": 3,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "worktype → work_types",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "work → occupations",
+            "source": 101,
+            "target": 101,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "course → courses",
+            "source": 4,
+            "target": 4,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "imagetype → attachment_types",
+            "source": 12,
+            "target": 12,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "specialcasetype → special_case_types",
+            "source": 2,
+            "target": 2,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "state → project_states",
+            "source": 11,
+            "target": 11,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "statereason → state_reasons",
+            "source": 25,
+            "target": 25,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "purchasingcategory → purchasing_categories",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "task → task_definitions",
+            "source": 39,
+            "target": 39,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "score → score_criteria",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "scorevalue → score_options",
+            "source": 30,
+            "target": 30,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "checklist_opinion → checklist_opinions",
+            "source": 3,
+            "target": 3,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "checklist_position → checklist_positions",
+            "source": 28,
+            "target": 28,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "street → streets",
+            "source": 24,
+            "target": 24,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "priest → priests",
+            "source": 63,
+            "target": 63,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "checklist_member → checklist_members",
+            "source": 47,
+            "target": 47,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "agquestion → ag_questions",
+            "source": 14,
+            "target": 14,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "aganswer → ag_answers",
+            "source": 53,
+            "target": 53,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "rehabquestion → rehab_questions",
+            "source": 24,
+            "target": 24,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "rehabanswer → rehab_answers",
+            "source": 56,
+            "target": 56,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "visitquestions → visit_questions",
+            "source": 20,
+            "target": 20,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "visitanswers → visit_question_options",
+            "source": 43,
+            "target": 43,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "mequestion → me_questions",
+            "source": 42,
+            "target": 42,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "meanswer → me_answers",
+            "source": 104,
+            "target": 104,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "meprofitmarks → me_profit_marks",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "meresultranges → me_result_ranges",
+            "source": 4,
+            "target": 4,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "profession_section → profession_sections",
+            "source": 5,
+            "target": 5,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "profession_question → profession_questions",
+            "source": 22,
+            "target": 22,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "lists",
+            "check": "profession_option → profession_options",
+            "source": 46,
+            "target": 46,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "numbers",
+            "check": "project numbers (set equality)",
+            "source": 650,
+            "target": 650,
+            "explained": 0,
+            "status": "equal",
+            "note": "identical sets"
+        },
+        {
+            "group": "numbers",
+            "check": "next project number = highest source number + 1",
+            "source": 657,
+            "target": 657,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "money",
+            "check": "requested amount (sum)",
+            "source": 11349944952.91,
+            "target": 11349944952.91,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "money",
+            "check": "loans SYP (sum)",
+            "source": 6855298800,
+            "target": 6855298800,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "money",
+            "check": "instalments Paid (sum)",
+            "source": 330970000,
+            "target": 330970000,
+            "explained": 0,
+            "status": "equal",
+            "note": "sum of the source values rounded to 2 decimals per row (DECIMAL 15,2 rule)"
+        },
+        {
+            "group": "money",
+            "check": "instalments Not Paid (sum)",
+            "source": 273870000,
+            "target": 273870000,
+            "explained": 0,
+            "status": "equal",
+            "note": "sum of the source values rounded to 2 decimals per row (DECIMAL 15,2 rule)"
+        },
+        {
+            "group": "references",
+            "check": "people.street_id ← person.Street_ID",
+            "source": 645,
+            "target": 645,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "people.marital_status_id ← person.P_MaritalStatus_ID",
+            "source": 931,
+            "target": 931,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "people.home_ownership_id ← person.P_HomeType_ID",
+            "source": 645,
+            "target": 645,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "people.parish_id ← person.P_Parish_ID",
+            "source": 645,
+            "target": 645,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "people.priest_id ← person.P_Priest_ID",
+            "source": 486,
+            "target": 486,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "people.second_priest_id ← person.P_Priest2_ID",
+            "source": 23,
+            "target": 23,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "people.person_state_id ← person.P_State_ID",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "family_members.family_id ← person_family.Family_ID",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "family_members.person_id ← person_family.Person_ID",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "family_members.relation_id ← person_family.Relation_ID",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "family_members.education_level_id ← person_family.EducationLevel_ID",
+            "source": 1326,
+            "target": 1326,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "family_members.education_specialty_id ← person_family.Education_ID",
+            "source": 769,
+            "target": 769,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "family_members.provider_person_id ← person_family.P_Provider_ID",
+            "source": 2901,
+            "target": 2901,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_educations.person_id ← person_education.Person_ID",
+            "source": 381,
+            "target": 381,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_educations.education_specialty_id ← person_education.Education_ID",
+            "source": 381,
+            "target": 381,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_educations.education_grade_id ← person_education.Level_ID",
+            "source": 381,
+            "target": 381,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_work_experiences.person_id ← person_workexp.Person_ID",
+            "source": 1563,
+            "target": 1563,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_work_experiences.project_id ← person_workexp.MicroProject_ID",
+            "source": 1311,
+            "target": 1311,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_work_experiences.occupation_id ← person_workexp.Work_ID",
+            "source": 1311,
+            "target": 1311,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_work_experiences.work_type_id ← person_workexp.W_WorkType_ID",
+            "source": 1349,
+            "target": 1349,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_courses.person_id ← person_course.Person_ID",
+            "source": 41,
+            "target": 41,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_courses.project_subcategory_id ← person_course.SubCategory_ID",
+            "source": 41,
+            "target": 41,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_losses.person_id ← person_loss.Person_ID",
+            "source": 133,
+            "target": 133,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_losses.loss_type_id ← person_loss.Loss_ID",
+            "source": 133,
+            "target": 133,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_illnesses.person_id ← person_illness.Person_ID",
+            "source": 291,
+            "target": 291,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_illnesses.illness_id ← person_illness.Illness_ID",
+            "source": 269,
+            "target": 268,
+            "explained": 1,
+            "status": "explained",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_illnesses.aid_source_id ← person_illness.AidSource_ID",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_illnesses.aid_period_id ← person_illness.AidPeriod_ID",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_illnesses.medical_need_id ← person_illness.MedicalNeeds_ID",
+            "source": 2,
+            "target": 2,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_assets.person_id ← person_asset.Person_ID",
+            "source": 680,
+            "target": 680,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_assets.asset_kind_id ← person_asset.Asset_ID",
+            "source": 680,
+            "target": 680,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_assets.asset_type_id ← person_asset.Asset_Type_ID",
+            "source": 647,
+            "target": 647,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_assets.asset_benefit_id ← person_asset.Asset_Benefits_ID",
+            "source": 644,
+            "target": 644,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_sources.person_id ← person_aidsource.Person_ID",
+            "source": 35,
+            "target": 35,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_sources.project_id ← person_aidsource.MicroProject_ID",
+            "source": 35,
+            "target": 35,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_sources.aid_source_id ← person_aidsource.AidSource_ID",
+            "source": 35,
+            "target": 35,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_received.person_id ← person_help.Person_ID",
+            "source": 125,
+            "target": 125,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_received.aid_source_id ← person_help.AidSource_ID",
+            "source": 125,
+            "target": 125,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_received.aid_type_id ← person_help.Aid_ID",
+            "source": 80,
+            "target": 80,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_aid_received.aid_period_id ← person_help.Aidperiod_ID",
+            "source": 80,
+            "target": 80,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_goals.person_id ← person_goals.Person_ID",
+            "source": 547,
+            "target": 547,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_goals.goal_id ← person_goals.Goal_ID",
+            "source": 547,
+            "target": 547,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_power_sources.person_id ← person_powersource.Person_ID",
+            "source": 469,
+            "target": 469,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "person_power_sources.power_source_id ← person_powersource.PowerSource_ID",
+            "source": 469,
+            "target": 469,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.fund_type_id ← microproject.MP_FundType_ID",
+            "source": 650,
+            "target": 650,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.project_type_id ← microproject.MP_Type_ID",
+            "source": 649,
+            "target": 649,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.project_subtype_id ← microproject.MP_SubType_ID",
+            "source": 649,
+            "target": 649,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.project_category_id ← microproject.Category_ID",
+            "source": 649,
+            "target": 649,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.project_subcategory_id ← microproject.SubCategory_ID",
+            "source": 649,
+            "target": 649,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.career_id ← microproject.Career_ID",
+            "source": 649,
+            "target": 649,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.place_type_id ← microproject.MP_PlaceType_ID",
+            "source": 490,
+            "target": 490,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.donor_id ← microproject.MP_Donor",
+            "source": 187,
+            "target": 187,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.donor_group_id ← microproject.DonorGroup_ID",
+            "source": 167,
+            "target": 167,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.street_id ← microproject.MP_Street_ID",
+            "source": 31,
+            "target": 31,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.paper_registrar_account_id ← microproject.MP_PaperUser_ID",
+            "source": 643,
+            "target": 643,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.program_registrar_account_id ← microproject.MP_ProgramUser_ID",
+            "source": 650,
+            "target": 650,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "projects.edited_by_account_id ← microproject.MP_EditedByUser_ID",
+            "source": 516,
+            "target": 516,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_applicants.project_id ← person_microproject.MicroProject_ID",
+            "source": 645,
+            "target": 645,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_applicants.person_id ← person_microproject.Person_ID",
+            "source": 645,
+            "target": 645,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_state_history.project_id ← microproject_state.MicroProject_ID",
+            "source": 1574,
+            "target": 1574,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_state_history.project_state_id ← microproject_state.State_ID",
+            "source": 1574,
+            "target": 1574,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_state_history.state_reason_id ← microproject_state.StateReason_ID",
+            "source": 596,
+            "target": 596,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_power_sources.project_id ← microproject_powersource.MicroProject_ID",
+            "source": 122,
+            "target": 122,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_power_sources.power_source_id ← microproject_powersource.PowerSource_ID",
+            "source": 122,
+            "target": 122,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_risks.project_id ← microproject_risk.MicroProject_ID",
+            "source": 33,
+            "target": 33,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_risks.risk_id ← microproject_risk.Risk_ID",
+            "source": 33,
+            "target": 33,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_scores.project_id ← microproject_score.MicroProject_ID",
+            "source": 3810,
+            "target": 3810,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_scores.score_criterion_id ← microproject_score.Score_ID",
+            "source": 3810,
+            "target": 3810,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_materials.project_id ← material.MicroProject_ID",
+            "source": 843,
+            "target": 843,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_agriculture_answers.project_id ← microproject_ag_answer.MicroProject_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_agriculture_answers.ag_question_id ← microproject_ag_answer.Question_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_agriculture_answers.ag_answer_id ← microproject_ag_answer.Answer_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_rehabilitations.project_id ← microproject_rehab.MicroProject_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_rehabilitation_items.project_rehabilitation_id ← microproject_rehab_answer.MicroRehab_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_rehabilitation_items.rehab_question_id ← microproject_rehab_answer.Question_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_rehabilitation_items.rehab_answer_id ← microproject_rehab_answer.Answer_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.person_id ← checklist.Person_ID",
+            "source": 437,
+            "target": 437,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.home_visitor_1_id ← checklist.HVisit_Visitor1_ID",
+            "source": 347,
+            "target": 347,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.home_visitor_2_id ← checklist.HVisit_Visitor2_ID",
+            "source": 195,
+            "target": 195,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.project_visitor_1_id ← checklist.PVisit_Visitor1_ID",
+            "source": 36,
+            "target": 36,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.project_visitor_2_id ← checklist.PVisit_Visitor2_ID",
+            "source": 33,
+            "target": 33,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.professional_test_account_id ← checklist.ProTest_User_ID",
+            "source": 1,
+            "target": 0,
+            "explained": 1,
+            "status": "explained",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklists.rejection_message_sender_account_id ← checklist.RejectMsgSender_ID",
+            "source": 74,
+            "target": 74,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklist_member_opinions.person_id ← person_checklistmembers.Person_ID",
+            "source": 3250,
+            "target": 3250,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklist_member_opinions.checklist_member_id ← person_checklistmembers.Member_ID",
+            "source": 3250,
+            "target": 3250,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "checklist_member_opinions.checklist_opinion_id ← person_checklistmembers.Opinion",
+            "source": 1112,
+            "target": 1112,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_tasks.project_id ← task_microproject.MicroProject_ID",
+            "source": 11100,
+            "target": 11100,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "project_tasks.task_definition_id ← task_microproject.Task_ID",
+            "source": 11100,
+            "target": 11100,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "special_cases.project_id ← specialcase.MicroProject_ID",
+            "source": 20,
+            "target": 20,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "special_cases.account_id ← specialcase.User_ID",
+            "source": 20,
+            "target": 20,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "special_cases.special_case_type_id ← specialcase.Type_ID",
+            "source": 20,
+            "target": 20,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "loans.project_id ← loan.MicroProject_ID",
+            "source": 167,
+            "target": 167,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "loan_installments.loan_id ← payment.Loan_ID",
+            "source": 1216,
+            "target": 1216,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "executive_files.project_id ← exefile.MicroProject_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "purchases.project_id ← purchasing.MicroProject_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "purchases.purchasing_category_id ← purchasing.ItemCategory_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "visits.project_id ← visit.MicroProject_ID",
+            "source": 121,
+            "target": 121,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "visit_visitors.visit_id ← visit_user.Visit_ID",
+            "source": 158,
+            "target": 158,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "visit_visitors.account_id ← visit_user.User_ID",
+            "source": 158,
+            "target": 158,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "me_visits.person_id ← mevisit.Person_ID",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "me_visit_answers.me_visit_id ← mevisit_answer.Visit_ID",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "me_visit_answers.me_question_id ← mevisit_answer.Question_ID",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "me_visit_answers.me_answer_id ← mevisit_answer.Answer_ID",
+            "source": 10,
+            "target": 10,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "me_visit_visitors.me_visit_id ← mevisit_user.Visit_ID",
+            "source": 296,
+            "target": 296,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "me_visit_visitors.account_id ← mevisit_user.User_ID",
+            "source": 296,
+            "target": 296,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_monitoring_records.kobo_submission_id ← kobo_monitoring_record.Submission_ID",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_monitoring_records.project_id ← kobo_monitoring_record.MicroProject_ID",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_monitoring_records.person_id ← kobo_monitoring_record.Person_ID",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_monitoring_records.me_visit_id ← kobo_monitoring_record.Legacy_Visit_ID",
+            "source": 204,
+            "target": 204,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_reviews.kobo_submission_id ← kobo_person_review.Submission_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_reviews.project_id ← kobo_person_review.Project_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_reviews.person_id ← kobo_person_review.Person_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_review_audits.kobo_submission_id ← kobo_person_review_audit.Submission_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_review_audits.project_id ← kobo_person_review_audit.Project_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_review_audits.person_id ← kobo_person_review_audit.Person_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_person_review_audits.actor_account_id ← kobo_person_review_audit.Actor_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_sync_conflicts.incoming_submission_id ← kobo_sync_conflict.Incoming_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_sync_conflicts.existing_submission_id ← kobo_sync_conflict.Existing_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_sync_conflicts.visit_id ← kobo_sync_conflict.Visit_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_sync_conflicts.decided_by_account_id ← kobo_sync_conflict.Decided_User_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_sync_conflict_audits.kobo_sync_conflict_id ← kobo_sync_conflict_audit.Conflict_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_sync_conflict_audits.actor_account_id ← kobo_sync_conflict_audit.Actor_User_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_user_mappings.account_id ← kobo_user_mapping.User_ID",
+            "source": 39,
+            "target": 39,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_visit_visitors.kobo_submission_id ← kobo_visit_visitor.Submission_ID",
+            "source": 549,
+            "target": 549,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "kobo_visit_visitors.account_id ← kobo_visit_visitor.User_ID",
+            "source": 426,
+            "target": 426,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meetings.career_id ← profession_meeting.Career_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meetings.project_subcategory_id ← profession_meeting.SubCategory_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meetings.paper_registrar_account_id ← profession_meeting.PaperRegistrar_UserID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meetings.program_registrar_account_id ← profession_meeting.ProgramRegistrar_UserID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meetings.edited_by_account_id ← profession_meeting.Edited_By_UserID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_careers.profession_meeting_id ← profession_meeting_career.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_careers.career_id ← profession_meeting_career.Career_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_answers.profession_meeting_id ← profession_meeting_answer.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_answers.profession_question_id ← profession_meeting_answer.Question_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_option_answers.profession_meeting_id ← profession_meeting_option_answer.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_option_answers.profession_option_id ← profession_meeting_option_answer.Option_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_attendees.profession_meeting_id ← profession_meeting_attendee.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_attendees.person_id ← profession_meeting_attendee.Person_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_attendees.project_id ← profession_meeting_attendee.MicroProject_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_participants.profession_meeting_id ← profession_meeting_participant.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_participants.profession_question_id ← profession_meeting_participant.Question_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_participants.person_id ← profession_meeting_participant.Person_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_participants.project_id ← profession_meeting_participant.MicroProject_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_brands.profession_meeting_id ← profession_meeting_brand.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_challenges.profession_meeting_id ← profession_meeting_challenge.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_competitions.profession_meeting_id ← profession_meeting_competition.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_equipment.profession_meeting_id ← profession_meeting_equipment.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_seasons.profession_meeting_id ← profession_meeting_season.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_minutes.profession_meeting_id ← profession_meeting_minute.Meeting_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        },
+        {
+            "group": "references",
+            "check": "profession_meeting_minutes.profession_section_id ← profession_meeting_minute.Section_ID",
+            "source": 0,
+            "target": 0,
+            "explained": 0,
+            "status": "equal",
+            "note": null
+        }
+    ]
+}

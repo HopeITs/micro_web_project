@@ -32,6 +32,22 @@ return [
 
     'connections' => [
 
+        // M3 transfer: a restored desktop city database, read with a SELECT-only account.
+        // The database name is chosen per run (unified:import --source-db=...).
+        'source' => [
+            'driver' => 'mysql',
+            'host' => env('SOURCE_DB_HOST', '127.0.0.1'),
+            'port' => env('SOURCE_DB_PORT', '3306'),
+            'database' => null,
+            'username' => env('SOURCE_DB_USERNAME'),
+            'password' => env('SOURCE_DB_PASSWORD'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => false,
+            'options' => [PDO::ATTR_EMULATE_PREPARES => false, PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true],
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),

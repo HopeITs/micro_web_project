@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تقرير M0 — خط الأساس</title>
+<style>
+@font-face{font-family:"Somar Sans";src:url("../../../public/assets/fonts/SomarSans-Regular.otf");font-weight:400}
+@font-face{font-family:"Somar Sans";src:url("../../../public/assets/fonts/SOMARSANS-MEDIUM.OTF");font-weight:500}
+@font-face{font-family:"Somar Sans";src:url("../../../public/assets/fonts/SOMARSANS-BOLD.OTF");font-weight:700}
+:root{--brand:#BE1F24;--brand-soft:#fbeaea;--ink:#2b2b2d;--muted:#6d6e71;--line:#e3e3e6;--bg:#f5f5f6;--card:#fff;--ok:#1f7a3f;--ok-soft:#e6f4ea;--warn:#9a6200;--warn-soft:#fff4dd;--new:#1d4f91;--new-soft:#e7eefb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ececee;--muted:#a3a4a8;--line:#3a3a3e;--bg:#161618;--card:#202023;--brand-soft:#3a1d1e;--ok-soft:#173222;--warn-soft:#3a2d12;--new-soft:#1a2740}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "Somar Sans",system-ui,sans-serif}
+header{background:var(--brand);color:#fff;padding:28px 16px}
+header .wrap{display:flex;align-items:center;gap:16px}
+header img{height:52px;background:#fff;border-radius:10px;padding:6px}
+h1{margin:0;font-size:26px}
+header p{margin:4px 0 0;opacity:.9}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+main .wrap{padding-block:24px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}
+h2{margin:0 0 12px;font-size:20px;color:var(--brand)}
+h3{font-size:16px;margin:18px 0 8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center}
+.kpi b{display:block;font-size:26px;color:var(--brand)}
+.kpi span{color:var(--muted);font-size:14px}
+.table{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:start;vertical-align:top}
+th{background:var(--bg);font-weight:500;white-space:nowrap}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;direction:ltr;unicode-bidi:embed}
+.tag{display:inline-block;border-radius:999px;padding:1px 10px;font-size:13px;white-space:nowrap}
+.ok{background:var(--ok-soft);color:var(--ok)}.mod{background:var(--warn-soft);color:var(--warn)}.new{background:var(--new-soft);color:var(--new)}.no{background:var(--brand-soft);color:var(--brand)}
+.y{color:var(--ok);font-weight:700}.n{color:var(--muted)}
+.note{background:var(--warn-soft);border-inline-start:4px solid var(--warn);padding:10px 14px;border-radius:8px;margin:12px 0}
+ul{margin:6px 0;padding-inline-start:22px}
+.done{color:var(--ok);font-weight:500}
+</style>
+</head>
+<body>
+<header><div class="wrap"><img src="data:image/png;base64,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" alt="مركز الرجاء"><div><h1>تقرير المرحلة M0 — خط الأساس</h1><p>مشروع تحويل برنامج المشاريع الصغيرة إلى موقع · 19 تشرين الثاني 2026</p></div></div></header>
+<main><div class="wrap">
+
+<section>
+<h2>الخلاصة</h2>
+<div class="kpis">
+<div class="kpi"><b>145</b><span>جدولاً مختلفاً في المدن الخمس</span></div>
+<div class="kpi"><b>18</b><span>جدولاً جديداً منذ تشرين الأول (Kobo + اجتماعات المهن)</span></div>
+<div class="kpi"><b>10</b><span>ملفات SQL مسترجعة من git</span></div>
+<div class="kpi"><b>9</b><span>أدوار مستخدمين في البرنامج</span></div>
+<div class="kpi"><b>34</b><span>شاشة/ميزة مصنّفة</span></div>
+</div>
+<ul>
+<li class="done">M0.1 تجميد مرجع المصدر واسترجاع ملفات SQL المحذوفة — منجز.</li>
+<li class="done">M0.2 جرد مخطط القواعد ومقارنته بتشرين الأول — منجز (حلب من نسخة 22 تشرين الأول).</li>
+<li class="done">M0.3 مصفوفة القوائم والأدوار — منجز.</li>
+<li class="done">M0.4 تصنيف الشاشات: موجود / تعديل / جديد — منجز.</li>
+<li>M0.5 القرارات المفتوحة — <b>بانتظار إجابتك</b> (آخر قسم).</li>
+</ul>
+</section>
+
+<section>
+<h2>M0.1 — مرجع المصدر</h2>
+<ul>
+<li>برنامج سطح المكتب: <code>D:\MyProjects\MicroProject newTest</code>، فرع <code>main</code>، commit <code>2273a2d</code> (13 تشرين الثاني 2026، الإصدار 4.0.44). لم يُعدّل شيء فيه.</li>
+<li>ملفات SQL التي حُذفت من المستودع في commit <code>0b0327e</code> استُرجعت من git، ونُسخت معها سكربتات PM04.</li>
+</ul>
+<div class="note">أحد السكربتات (<code>KoboVisitorMapping_Upgrade.sql</code>) يحتوي أسماء موظفين، لذلك حُفظت الملفات الأصلية في مجلد خاص خارج مستودع git: <code>D:\MyProjects\micro_web\MicroProjects-M0-Private\source-sql</code>. في المستودع نحفظ فقط هذه القائمة مع البصمات.</div>
+<div class="table"><table>
+<tr><th>الملف</th><th>SHA-256 (أول 16)</th><th>ما يعرّفه</th></tr>
+<tr><td><code>all_procedures.sql</code></td><td><code>0530e61fa1b00513</code></td><td>8 إجراءات: <code>beneficiaries_me_answers</code>، <code>calculate_profit_rates</code>، <code>empty_database</code>، <code>mevisit_results</code>، <code>select_application_details</code>، <code>select_checklist_details</code>، <code>select_loan_details</code>، <code>visit_user_statistics</code></td></tr>
+<tr><td><code>ProfessionMeetings_Schema.sql</code></td><td><code>9b90dcbb067751ea</code></td><td>14 جدولاً لاجتماعات المهن + أسئلة وخيارات الاستبيان</td></tr>
+<tr><td><code>PM04-Upgrade*.sql</code> (3)</td><td><code>c0f652d3…</code> / <code>ba2c9ece…</code> / <code>05a67b15…</code></td><td><code>profession_meeting_career</code>، <code>_attachment</code>، <code>_migration</code>، تعديل <code>profession_meeting</code>، triggers لحالة المسودة/النهائي</td></tr>
+<tr><td><code>KoboVisitorMapping_Upgrade.sql</code></td><td><code>c88cc0177925404f</code></td><td><code>kobo_opening_field_mapping</code>، <code>kobo_user_mapping</code>، <code>kobo_visit_visitor</code></td></tr>
+<tr><td><code>KoboMonitoringImport_Upgrade.sql</code></td><td><code>76f57a533e959837</code></td><td><code>kobo_monitoring_field_mapping</code>، <code>kobo_monitoring_record</code></td></tr>
+<tr><td><code>KoboMonitoringStage_Upgrade.sql</code></td><td><code>d70da04cbb8b4fa4</code></td><td><code>kobo_monitoring_stage_mapping</code></td></tr>
+<tr><td><code>KoboSyncConflicts_Upgrade.sql</code></td><td><code>91fb712ae3994d08</code></td><td><code>kobo_sync_conflict</code>، <code>_audit</code></td></tr>
+<tr><td><code>KoboPersonReview_Upgrade.sql</code></td><td><code>aa8219987d645def</code></td><td><code>kobo_person_review</code>، <code>_audit</code></td></tr>
+</table></div>
+</section>
+
+<section>
+<h2>M0.2 — جرد مخطط القواعد</h2>
+<p>المصدر: النسخ الاحتياطية التي أرسلتها (19 تشرين الثاني) لدمشق وحمص واللاذقية والوادي، ونسخة 22 تشرين الأول لحلب. قُرئت تعريفات الجداول فقط، بدون الداتا. المقارنة مع مخطط 16 تشرين الأول المعتمد في المرحلة السابقة.</p>
+<div class="table"><table>
+<tr><th>المدينة</th><th>القاعدة</th><th>النسخة</th><th>جداول</th><th>أعمدة</th><th>تشرين الأول</th><th>جديد</th></tr>
+<tr><td>حلب</td><td><code>hcsyria_micro</code></td><td>22 تشرين الأول</td><td>122</td><td>751</td><td>122</td><td><span class="tag mod">نحتاج نسخة جديدة</span></td></tr>
+<tr><td>دمشق</td><td><code>hcsyria_micro_d</code></td><td>19 تشرين الثاني</td><td>143</td><td>893</td><td>125</td><td>+18 جدول</td></tr>
+<tr><td>حمص</td><td><code>hcsyria_micro_h</code></td><td>19 تشرين الثاني</td><td>142</td><td>980</td><td>124</td><td>+18 جدول</td></tr>
+<tr><td>اللاذقية</td><td><code>hcsyria_micro_l</code></td><td>19 تشرين الثاني</td><td>140</td><td>891</td><td>122</td><td>+18 جدول</td></tr>
+<tr><td>الوادي</td><td><code>hcsyria_micro_w</code></td><td>19 تشرين الثاني</td><td>141</td><td>976</td><td>123</td><td>+18 جدول</td></tr>
+</table></div>
+<h3>ما تغيّر منذ تشرين الأول (نفس الشيء في المدن الأربع)</h3>
+<ul>
+<li><b>15 جدول Kobo:</b> <code>kobo_submission</code>، <code>kobo_form_mapping</code>، <code>kobo_question</code>، <code>kobo_question_version</code>، <code>kobo_visit_schedule</code>، <code>kobo_visit_visitor</code>، <code>kobo_user_mapping</code>، <code>kobo_opening_field_mapping</code>، <code>kobo_monitoring_record</code>، <code>kobo_monitoring_field_mapping</code>، <code>kobo_monitoring_stage_mapping</code>، <code>kobo_sync_conflict</code>، <code>kobo_sync_conflict_audit</code>، <code>kobo_person_review</code>، <code>kobo_person_review_audit</code>.</li>
+<li><b>3 جداول اجتماعات مهن:</b> <code>profession_meeting_career</code>، <code>profession_meeting_attachment</code>، <code>profession_meeting_migration</code>.</li>
+<li><b>عمودان جديدان</b> في <code>profession_meeting</code>: <code>Record_State</code> (مسودة/نهائي) و<code>Minutes_Notes</code>.</li>
+<li>لا جداول محذوفة، ولا تغيير على أعمدة باقي الجداول. أعمدة الجداول الجديدة متطابقة في المدن الأربع.</li>
+<li>خمسة جداول Kobo لم يكن لها تعريف SQL في المستودع (<code>kobo_submission</code>، <code>kobo_form_mapping</code>، <code>kobo_question</code>، <code>kobo_question_version</code>، <code>kobo_visit_schedule</code>)، وصار تعريفها معروفاً من نسخك الجديدة.</li>
+</ul>
+<div class="note">القائمة الكاملة للجداول والأعمدة لكل مدينة في <code>docs/planning/m0/schema-inventory-2026-11-19.json</code> (أسماء وأنواع فقط).</div>
+<h3>ملاحظات أخرى</h3>
+<ul>
+<li>جداول خاصة ببعض المدن: <code>dept</code>، <code>temp_gender</code>، <code>work_exp</code> (دمشق)، <code>resultstable</code> (حمص والوادي)، <code>visit_schedule_temp</code> (حمص). تبدو مؤقتة، وستُراجع في M1.</li>
+<li>نسخ XAMPP المحلية (تموز 2026، 109 جداول) قديمة، ولن نعتمد عليها.</li>
+<li>توجد قاعدة سادسة <code>hcsyria_micro_id</code> (108 جداول) فيها 3,886 مشروعاً بنفس أرقام وأسماء حلب.</li>
+</ul>
+</section>
+
+<section>
+<h2>M0.3 — القوائم والأدوار في البرنامج</h2>
+<p>من <code>MainForm.Check_User_Role</code>. ✔ ظاهر، — مخفي.</p>
+<div class="table"><table>
+<tr><th>القائمة / الشاشة</th><th>مدير (1، 8)</th><th>إدخال بيانات (2)</th><th>مالي، قانوني (3، 7)</th><th>ضيف، خارج الخدمة، إعلام (4، 6، 9)</th></tr>
+<tr><td>طلب جديد (مبدئي/كامل)، Checklist</td><td class="y">✔</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>لوحة الإدارة، أدوات الإدارة (القوائم)</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>القروض والدفعات</td><td class="y">✔</td><td class="n">—</td><td class="y">✔</td><td class="n">—</td></tr>
+<tr><td>جدول الدفعات، المرفقات</td><td class="y">✔</td><td class="y">✔</td><td class="y">✔</td><td class="n">—</td></tr>
+<tr><td>نماذج الزيارات، جدول الزيارات، نتائج الزيارات</td><td class="y">✔</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>إحصاءات الزوار</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>مزامنة Kobo، حالة خاصة، اجتماعات المهن</td><td class="y">✔</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>البحث، الإحصاءات، لوحة المهام، رسالة، المظهر</td><td class="y">✔</td><td class="y">✔</td><td class="y">✔</td><td class="y">✔</td></tr>
+<tr><td>السجل، النسخ الاحتياطي/الاستعادة، المستخدمون</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>فحص الرقم الوطني</td><td class="y">✔</td><td class="y">✔</td><td class="n">—</td><td class="n">—</td></tr>
+</table></div>
+<ul>
+<li>الدور 6 (خارج الخدمة) لا يستطيع تسجيل الدخول أصلاً. الدور 5 غير معرّف ويظهر فقط في السجل والإحصاءات.</li>
+<li>شاشات كثيرة تمنع الحفظ والتصدير للأدوار 4/6/7/9 حتى لو فُتحت.</li>
+<li>التقارير عبر المدن ممنوعة على الأدوار 4/6/7/9.</li>
+<li><b>لن يُنقل للموقع:</b> حساب admin بكلمة مرور ثابتة في الكود (<code>MainForm.cs:351</code>)، وحفظ كلمة المرور كنص عند "تذكرني".</li>
+<li>الموقع الحالي فيه نفس الأدوار (مدير، إدخال بيانات، مالي، قانوني، إعلام، ضيف) مع مهام المراقبة والتواصل والصندوق، وصلاحيات مستقلة لكل مدينة.</li>
+</ul>
+</section>
+
+<section>
+<h2>M0.4 — تصنيف الشاشات (البرنامج ← الموقع)</h2>
+<p><span class="tag ok">موجود</span> مبني ويُعاد استخدامه · <span class="tag mod">تعديل</span> مبني ويحتاج إكمالاً · <span class="tag new">جديد</span> غير موجود في الموقع · <span class="tag no">قرار</span> يحتاج قرارك</p>
+<div class="table"><table>
+<tr><th>شاشة البرنامج</th><th>في الموقع الآن</th><th>الحالة</th><th>المهمة</th></tr>
+<tr><td>تسجيل الدخول، المستخدمون، الأدوار</td><td>حساب موحد، صلاحيات لكل مدينة، إدارة الحسابات</td><td><span class="tag ok">موجود</span></td><td>M4.1</td></tr>
+<tr><td>اختيار المدينة</td><td>فلتر المدن بدل الاختيار</td><td><span class="tag ok">موجود</span></td><td>M2.6</td></tr>
+<tr><td>أدوات الإدارة: شوارع، تعليم، خبرات، مانحين، مصادر، كهنة، أعضاء checklist</td><td>عرض وتصدير فقط</td><td><span class="tag new">جديد</span> (التعديل)</td><td>M4.2</td></tr>
+<tr><td>لوحة الإدارة (جدول مشاريع بفلاتر وأعمدة)</td><td>قائمة الطلبات بفلاتر أقل</td><td><span class="tag mod">تعديل</span></td><td>M4.17</td></tr>
+<tr><td>طلب مبدئي/كامل</td><td>نموذج واحد بترتيب الورق</td><td><span class="tag mod">تعديل</span> (الجداول الداخلية، حفظ واحد)</td><td>M4.5</td></tr>
+<tr><td>رقم المشروع</td><td>تسلسل لكل مدينة، غير قابل للتعديل</td><td><span class="tag mod">تعديل</span> (اقتراح + تعديل + فحص)</td><td>M1.2</td></tr>
+<tr><td>ملحقا الزراعة والتأهيل</td><td>غير موجود</td><td><span class="tag no">قرار</span></td><td>M4.6</td></tr>
+<tr><td>Checklist وطباعته</td><td>موجود مع الطباعة</td><td><span class="tag mod">تعديل</span> (10 فروقات)</td><td>M4.7</td></tr>
+<tr><td>فحص الرقم الوطني</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.4</td></tr>
+<tr><td>القروض والدفعات، جدول الدفعات</td><td>موجود</td><td><span class="tag mod">تعديل</span> (8 فروقات)</td><td>M4.9</td></tr>
+<tr><td>المرفقات</td><td>موجود ومعطّل افتراضياً</td><td><span class="tag mod">تعديل</span></td><td>M4.11</td></tr>
+<tr><td>المشتريات (مخفية في البرنامج)</td><td>محرر اختياري</td><td><span class="tag no">قرار</span></td><td>M4.10</td></tr>
+<tr><td>الملفات التنفيذية (بلا قائمة في البرنامج)</td><td>موجود</td><td><span class="tag no">قرار</span></td><td>M4.10</td></tr>
+<tr><td>الخط الزمني للقرض (بلا قائمة)</td><td>غير موجود</td><td><span class="tag no">قرار</span></td><td>M4.9</td></tr>
+<tr><td>نماذج الزيارات الستة</td><td>موجود</td><td><span class="tag mod">تعديل</span> (الزوار، الترتيب)</td><td>M4.12</td></tr>
+<tr><td>جدول الزيارات</td><td>موجود مع إعادة الجدولة</td><td><span class="tag mod">تعديل</span></td><td>M4.12</td></tr>
+<tr><td>نتائج الزيارات</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.12</td></tr>
+<tr><td>إحصاءات الزوار</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.12</td></tr>
+<tr><td>مزامنة Kobo، الأخطاء، مراجعة المستفيدين</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.14</td></tr>
+<tr><td>حالة خاصة</td><td>موجود</td><td><span class="tag ok">موجود</span></td><td>M4.13</td></tr>
+<tr><td>اجتماعات المهن</td><td>نسخة بسيطة</td><td><span class="tag mod">تعديل كبير</span></td><td>M4.15</td></tr>
+<tr><td>اهتمامات المشاركة، إحصاءات الاجتماعات</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.15</td></tr>
+<tr><td>البحث (22 نوعاً)</td><td>كل الأنواع مع التصدير</td><td><span class="tag ok">موجود</span></td><td>M4.17</td></tr>
+<tr><td>الإحصاءات، والتقارير عبر المدن</td><td>موجود (ينقص المال والزيارات)</td><td><span class="tag mod">تعديل</span></td><td>M4.17</td></tr>
+<tr><td>لوحة المهام</td><td>موجود</td><td><span class="tag ok">موجود</span></td><td>M4.16</td></tr>
+<tr><td>الإشعارات، إرسال رسالة</td><td>موجود</td><td><span class="tag ok">موجود</span></td><td>M4.16</td></tr>
+<tr><td>السجل</td><td>سجل التدقيق</td><td><span class="tag ok">موجود</span></td><td>M4.19</td></tr>
+<tr><td>المظهر الداكن/الفاتح</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M2.4</td></tr>
+<tr><td>النسخ الاحتياطي/الاستعادة</td><td>يصبح مهمة على الخادم، لا شاشة</td><td><span class="tag mod">تعديل</span></td><td>M7.2</td></tr>
+<tr><td>التصدير Excel</td><td>xlsx وcsv لكل القوائم</td><td><span class="tag ok">موجود</span></td><td>M4.18</td></tr>
+<tr><td>طباعة Word (محضر واستبيان الاجتماعات)</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.18</td></tr>
+<tr><td>من نحن، دليل الاستخدام، إرسال اقتراح</td><td>غير موجود</td><td><span class="tag new">جديد</span> (صغير)</td><td>M2.6</td></tr>
+<tr><td>المحادثة (بلا قائمة)</td><td>غير موجود</td><td><span class="tag no">قرار</span> (يُقترح عدم نقلها)</td><td>—</td></tr>
+<tr><td>نموذج الطلب القديم <code>Application_Form</code></td><td>—</td><td><span class="tag no">لا يُنقل</span> (بديله الجديد)</td><td>—</td></tr>
+</table></div>
+</section>
+
+<section>
+<h2>M0.5 — قرارات تحتاج إجابتك</h2>
+<ol>
+<li><b>قاعدة <code>hcsyria_micro_id</code>:</b> نسخة قديمة من حلب تُتجاهل، أم مركز مستقل يُنقل؟</li>
+<li><b>فحص الرقم الوطني في DISC وF2F:</b> اتصال قراءة فقط بقواعدها، أم استيراد دوري للأرقام فقط، أم نؤجله؟</li>
+<li><b>الشاشات المخفية في البرنامج:</b> أيها نبقي؟ ملحقا الزراعة والتأهيل، المشتريات، الملفات التنفيذية، الخط الزمني للقرض، المحادثة.</li>
+<li><b>نسخة حلب الجديدة:</b> عند توفرها نؤكد أنها مثل باقي المدن (المتوقع +18 جدولاً). لا تمنع البدء بـ M1.</li>
+<li><b>لاحقاً (ليست مطلوبة الآن):</b> توكن Kobo ووصول الخادم لـ API (قبل M4.14)، ومدة التشغيل المتوازي مع البرنامج (قبل M7).</li>
+</ol>
+</section>
+
+</div></main>
+</body>
+</html>

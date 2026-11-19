@@ -1,0 +1,1140 @@
+{
+    "generated": "2026-11-19",
+    "note": "Structure only (table and column names). Damascus, Homs, Latakia, AlWadi from 19 Nov 2026 backups; Aleppo from 22 Oct 2026 (no newer backup available; user states its other tables are the same). Diff baseline: docs/planning/source-schemas.json (16 Oct 2026).",
+    "cities": {
+        "damascus": {
+            "archive": "hcsyria_micro_d202611191750",
+            "tables": 143,
+            "columns": 893,
+            "october_tables": 125,
+            "tables_added_since_oct16": [
+                "kobo_form_mapping",
+                "kobo_monitoring_field_mapping",
+                "kobo_monitoring_record",
+                "kobo_monitoring_stage_mapping",
+                "kobo_opening_field_mapping",
+                "kobo_person_review",
+                "kobo_person_review_audit",
+                "kobo_question",
+                "kobo_question_version",
+                "kobo_submission",
+                "kobo_sync_conflict",
+                "kobo_sync_conflict_audit",
+                "kobo_user_mapping",
+                "kobo_visit_schedule",
+                "kobo_visit_visitor",
+                "profession_meeting_attachment",
+                "profession_meeting_career",
+                "profession_meeting_migration"
+            ],
+            "tables_removed_since_oct16": [],
+            "column_changes_since_oct16": {
+                "profession_meeting": {
+                    "added": [
+                        "Record_State",
+                        "Minutes_Notes"
+                    ],
+                    "removed": []
+                }
+            }
+        },
+        "homs": {
+            "archive": "hcsyria_micro_h202611191753",
+            "tables": 142,
+            "columns": 980,
+            "october_tables": 124,
+            "tables_added_since_oct16": [
+                "kobo_form_mapping",
+                "kobo_monitoring_field_mapping",
+                "kobo_monitoring_record",
+                "kobo_monitoring_stage_mapping",
+                "kobo_opening_field_mapping",
+                "kobo_person_review",
+                "kobo_person_review_audit",
+                "kobo_question",
+                "kobo_question_version",
+                "kobo_submission",
+                "kobo_sync_conflict",
+                "kobo_sync_conflict_audit",
+                "kobo_user_mapping",
+                "kobo_visit_schedule",
+                "kobo_visit_visitor",
+                "profession_meeting_attachment",
+                "profession_meeting_career",
+                "profession_meeting_migration"
+            ],
+            "tables_removed_since_oct16": [],
+            "column_changes_since_oct16": {
+                "profession_meeting": {
+                    "added": [
+                        "Record_State",
+                        "Minutes_Notes"
+                    ],
+                    "removed": []
+                }
+            }
+        },
+        "latakia": {
+            "archive": "hcsyria_micro_l202611191755",
+            "tables": 140,
+            "columns": 891,
+            "october_tables": 122,
+            "tables_added_since_oct16": [
+                "kobo_form_mapping",
+                "kobo_monitoring_field_mapping",
+                "kobo_monitoring_record",
+                "kobo_monitoring_stage_mapping",
+                "kobo_opening_field_mapping",
+                "kobo_person_review",
+                "kobo_person_review_audit",
+                "kobo_question",
+                "kobo_question_version",
+                "kobo_submission",
+                "kobo_sync_conflict",
+                "kobo_sync_conflict_audit",
+                "kobo_user_mapping",
+                "kobo_visit_schedule",
+                "kobo_visit_visitor",
+                "profession_meeting_attachment",
+                "profession_meeting_career",
+                "profession_meeting_migration"
+            ],
+            "tables_removed_since_oct16": [],
+            "column_changes_since_oct16": {
+                "profession_meeting": {
+                    "added": [
+                        "Record_State",
+                        "Minutes_Notes"
+                    ],
+                    "removed": []
+                }
+            }
+        },
+        "alwadi": {
+            "archive": "hcsyria_micro_w202611191757",
+            "tables": 141,
+            "columns": 976,
+            "october_tables": 123,
+            "tables_added_since_oct16": [
+                "kobo_form_mapping",
+                "kobo_monitoring_field_mapping",
+                "kobo_monitoring_record",
+                "kobo_monitoring_stage_mapping",
+                "kobo_opening_field_mapping",
+                "kobo_person_review",
+                "kobo_person_review_audit",
+                "kobo_question",
+                "kobo_question_version",
+                "kobo_submission",
+                "kobo_sync_conflict",
+                "kobo_sync_conflict_audit",
+                "kobo_user_mapping",
+                "kobo_visit_schedule",
+                "kobo_visit_visitor",
+                "profession_meeting_attachment",
+                "profession_meeting_career",
+                "profession_meeting_migration"
+            ],
+            "tables_removed_since_oct16": [],
+            "column_changes_since_oct16": {
+                "profession_meeting": {
+                    "added": [
+                        "Record_State",
+                        "Minutes_Notes"
+                    ],
+                    "removed": []
+                }
+            }
+        },
+        "aleppo": {
+            "archive": "hcsyria_micro202610221605",
+            "tables": 122,
+            "columns": 751,
+            "october_tables": 122,
+            "tables_added_since_oct16": [],
+            "tables_removed_since_oct16": [],
+            "column_changes_since_oct16": [],
+            "note": "22 Oct backup; Kobo and PM04 tables not present"
+        }
+    },
+    "table_matrix": {
+        "aganswer": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "age": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "agquestion": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "aid": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "aidperiod": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "aidsource": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "asset": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "assetbenefits": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "assettype": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "backgrounds": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "career": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "category": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "checklist": {
+            "damascus": 40,
+            "homs": 40,
+            "latakia": 40,
+            "alwadi": 40,
+            "aleppo": 40
+        },
+        "checklist_member": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "checklist_opinion": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "checklist_position": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "course": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "databases": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "dept": {
+            "damascus": 2
+        },
+        "donor": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "donorgroup": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "education": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "educationlevel": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "educationtype": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "exefile": {
+            "damascus": 8,
+            "homs": 8,
+            "latakia": 8,
+            "alwadi": 8,
+            "aleppo": 8
+        },
+        "family": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "file": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "fundtype": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "goal": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "illness": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "image": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "imagetype": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "incomesource": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "kobo_form_mapping": {
+            "damascus": 9,
+            "homs": 9,
+            "latakia": 9,
+            "alwadi": 9
+        },
+        "kobo_monitoring_field_mapping": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5
+        },
+        "kobo_monitoring_record": {
+            "damascus": 11,
+            "homs": 11,
+            "latakia": 11,
+            "alwadi": 11
+        },
+        "kobo_monitoring_stage_mapping": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3
+        },
+        "kobo_opening_field_mapping": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5
+        },
+        "kobo_person_review": {
+            "damascus": 8,
+            "homs": 8,
+            "latakia": 8,
+            "alwadi": 8
+        },
+        "kobo_person_review_audit": {
+            "damascus": 13,
+            "homs": 13,
+            "latakia": 13,
+            "alwadi": 13
+        },
+        "kobo_question": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4
+        },
+        "kobo_question_version": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5
+        },
+        "kobo_submission": {
+            "damascus": 21,
+            "homs": 21,
+            "latakia": 21,
+            "alwadi": 21
+        },
+        "kobo_sync_conflict": {
+            "damascus": 14,
+            "homs": 14,
+            "latakia": 14,
+            "alwadi": 14
+        },
+        "kobo_sync_conflict_audit": {
+            "damascus": 10,
+            "homs": 10,
+            "latakia": 10,
+            "alwadi": 10
+        },
+        "kobo_user_mapping": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7
+        },
+        "kobo_visit_schedule": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2
+        },
+        "kobo_visit_visitor": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6
+        },
+        "language": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "level": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "loan": {
+            "damascus": 12,
+            "homs": 12,
+            "latakia": 12,
+            "alwadi": 12,
+            "aleppo": 12
+        },
+        "log": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "loss": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "manualfile": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "maritalstatus": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "material": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "meanswer": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "medicalneeds": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "meprofitmarks": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "mequestion": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "meresultranges": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "mevisit": {
+            "damascus": 14,
+            "homs": 14,
+            "latakia": 14,
+            "alwadi": 14,
+            "aleppo": 14
+        },
+        "mevisit_answer": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "mevisit_user": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "microproject": {
+            "damascus": 35,
+            "homs": 35,
+            "latakia": 35,
+            "alwadi": 35,
+            "aleppo": 35
+        },
+        "microproject_ag_answer": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "microproject_powersource": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "microproject_rehab": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "microproject_rehab_answer": {
+            "damascus": 8,
+            "homs": 8,
+            "latakia": 8,
+            "alwadi": 8,
+            "aleppo": 8
+        },
+        "microproject_risk": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "microproject_score": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "microproject_state": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "microprojectsubtype": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "microprojecttype": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "militarystate": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "office_monitoring": {
+            "damascus": 15,
+            "homs": 15,
+            "latakia": 15,
+            "alwadi": 15,
+            "aleppo": 15
+        },
+        "parish": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "payment": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "person": {
+            "damascus": 32,
+            "homs": 32,
+            "latakia": 36,
+            "alwadi": 32,
+            "aleppo": 32
+        },
+        "person_aidsource": {
+            "damascus": 8,
+            "homs": 8,
+            "latakia": 8,
+            "alwadi": 8,
+            "aleppo": 8
+        },
+        "person_asset": {
+            "damascus": 8,
+            "homs": 8,
+            "latakia": 8,
+            "alwadi": 8,
+            "aleppo": 8
+        },
+        "person_checklistmembers": {
+            "damascus": 9,
+            "homs": 9,
+            "latakia": 9,
+            "alwadi": 9,
+            "aleppo": 9
+        },
+        "person_course": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "person_education": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "person_family": {
+            "damascus": 9,
+            "homs": 9,
+            "latakia": 9,
+            "alwadi": 9,
+            "aleppo": 9
+        },
+        "person_goals": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "person_help": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "person_illness": {
+            "damascus": 9,
+            "homs": 9,
+            "latakia": 9,
+            "alwadi": 9,
+            "aleppo": 9
+        },
+        "person_loss": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "person_microproject": {
+            "damascus": 23,
+            "homs": 23,
+            "latakia": 23,
+            "alwadi": 23,
+            "aleppo": 23
+        },
+        "person_powersource": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "person_workexp": {
+            "damascus": 14,
+            "homs": 14,
+            "latakia": 14,
+            "alwadi": 14,
+            "aleppo": 14
+        },
+        "personstate": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "powersource": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "priest": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "profession_meeting": {
+            "damascus": 15,
+            "homs": 15,
+            "latakia": 15,
+            "alwadi": 15,
+            "aleppo": 13
+        },
+        "profession_meeting_answer": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "profession_meeting_attachment": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7
+        },
+        "profession_meeting_attendee": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "profession_meeting_brand": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "profession_meeting_career": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2
+        },
+        "profession_meeting_challenge": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "profession_meeting_competition": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "profession_meeting_equipment": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "profession_meeting_migration": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2
+        },
+        "profession_meeting_minute": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "profession_meeting_option_answer": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "profession_meeting_participant": {
+            "damascus": 9,
+            "homs": 9,
+            "latakia": 9,
+            "alwadi": 9,
+            "aleppo": 9
+        },
+        "profession_meeting_season": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "profession_option": {
+            "damascus": 6,
+            "homs": 6,
+            "latakia": 6,
+            "alwadi": 6,
+            "aleppo": 6
+        },
+        "profession_question": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "profession_section": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "purchasing": {
+            "damascus": 11,
+            "homs": 11,
+            "latakia": 11,
+            "alwadi": 11,
+            "aleppo": 11
+        },
+        "purchasingcategory": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "rehabanswer": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "rehabquestion": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "rehabvisit": {
+            "damascus": 32,
+            "homs": 32,
+            "latakia": 32,
+            "alwadi": 32,
+            "aleppo": 32
+        },
+        "relation": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "resultstable": {
+            "homs": 89,
+            "alwadi": 89
+        },
+        "risk": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "role": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "score": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "scorevalue": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "specialcase": {
+            "damascus": 8,
+            "homs": 8,
+            "latakia": 8,
+            "alwadi": 8,
+            "aleppo": 8
+        },
+        "specialcasetype": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "state": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "statereason": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "street": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "subcategory": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "t1": {
+            "damascus": 7,
+            "homs": 7,
+            "latakia": 7,
+            "alwadi": 7,
+            "aleppo": 7
+        },
+        "task": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "task_microproject": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "task_user": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "temp_gender": {
+            "damascus": 2
+        },
+        "user": {
+            "damascus": 10,
+            "homs": 10,
+            "latakia": 10,
+            "alwadi": 10,
+            "aleppo": 10
+        },
+        "user_notification": {
+            "damascus": 10,
+            "homs": 10,
+            "latakia": 10,
+            "alwadi": 10,
+            "aleppo": 10
+        },
+        "version": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "visit": {
+            "damascus": 23,
+            "homs": 23,
+            "latakia": 23,
+            "alwadi": 23,
+            "aleppo": 23
+        },
+        "visit_schedule_temp": {
+            "homs": 4
+        },
+        "visit_user": {
+            "damascus": 3,
+            "homs": 3,
+            "latakia": 3,
+            "alwadi": 3,
+            "aleppo": 3
+        },
+        "visitanswers": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        },
+        "visitquestions": {
+            "damascus": 5,
+            "homs": 5,
+            "latakia": 5,
+            "alwadi": 5,
+            "aleppo": 5
+        },
+        "work": {
+            "damascus": 2,
+            "homs": 2,
+            "latakia": 2,
+            "alwadi": 2,
+            "aleppo": 2
+        },
+        "work_exp": {
+            "damascus": 2
+        },
+        "worktype": {
+            "damascus": 4,
+            "homs": 4,
+            "latakia": 4,
+            "alwadi": 4,
+            "aleppo": 4
+        }
+    }
+}

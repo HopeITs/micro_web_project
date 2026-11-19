@@ -6,11 +6,11 @@ Full plan: [rebuild-plan-2026-11.md](../planning/rebuild-plan-2026-11.md). User 
 
 | Task | Depends on | State |
 |---|---|---|
-| M0.1 Freeze desktop source reference (`2273a2d`), recover deleted SQL from git | — | todo |
-| M0.2 Schema inventory of the five current databases incl. Kobo and `profession_*`, diff vs October | M0.1 | todo |
-| M0.3 Screen/menu/role matrix update (9 roles; desktop backdoor not carried over) | M0.1 | todo |
-| M0.4 Parity review update: each feature exists / modify / new | M0.2, M0.3 | todo |
-| M0.5 Open decisions: DISC/F2F access, Kobo token and server reach, parallel-run period | M0.4 | todo |
+| M0.1 Freeze desktop source reference (`2273a2d`), recover deleted SQL from git | — | done 19 Nov; 10 SQL files kept privately outside the repo (one contains staff names), hashes in [M0 report](../planning/m0/m0-baseline.html) |
+| M0.2 Schema inventory of the five current databases incl. Kobo and `profession_*`, diff vs October | M0.1 | done 19 Nov from the user's 19 Nov backups (Damascus, Homs, Latakia, AlWadi) and Aleppo 22 Oct: +18 tables (15 Kobo, 3 profession meetings) and 2 `profession_meeting` columns, nothing else changed; [inventory](../planning/m0/schema-inventory-2026-11-19.json). Newer Aleppo backup still wanted |
+| M0.3 Screen/menu/role matrix update (9 roles; desktop backdoor not carried over) | M0.1 | done 19 Nov ([M0 report](../planning/m0/m0-baseline.html)) |
+| M0.4 Parity review update: each feature exists / modify / new | M0.2, M0.3 | done 19 Nov: 34 screens classified ([M0 report](../planning/m0/m0-baseline.html)) |
+| M0.5 Open decisions: `hcsyria_micro_id`, DISC/F2F access, hidden desktop screens; later Kobo token and parallel-run period | M0.4 | waiting for the user |
 | M1.1–M1.6 Unified schema: naming/keys, project number, other MAX-based ids, lookups, domain schema, accounts, old→new mapping | M0 gate | todo; **needs user approval** |
 | M2.1–M2.3 New migrations, models with city scope, synthetic seeders | M1 gate | todo |
 | M2.4–M2.6 Design tokens (`#BE1F24`), Livewire component library, new layout | M2.4 parallel to M1; M2.6 needs M2.2 | todo |

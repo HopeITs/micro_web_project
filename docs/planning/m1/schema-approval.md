@@ -12,3 +12,14 @@
 - **What needs a new approval:** any change to tables, columns, keys or transfer rules. The changed version gets a new SHA and its own approval.
 - **Not covered by this approval:** production activation, hosting, and importing the real data into a shared environment.
 - **Open item:** the complete Aleppo backup. The 19 November Aleppo file has only 95 tables, so Aleppo's design comes from its 22 October backup. A complete backup will be checked against this schema before M5.
+
+## Addendum v1.1 — account tables
+
+- **Approved by the user:** 19 November 2026, with the word "موافق", after reviewing [m1-schema-review-v1.1.html](m1-schema-review-v1.1.html).
+- **What it does:** the account tables become explicit definitions linked to the unified schema.
+  - New table `legacy_staff_users` replaces `web_principals`.
+  - `web_accounts`, `account_legacy_links`, `account_city_tasks`, `audit_events` and `web_notices` are re-linked.
+  - `web_principals`, `principal_capabilities` and `source_publications` are removed.
+  - No data, permission rule or transfer rule changes.
+- **Approved SHA-256:** `a783e7f335baac175f1fa3bd01905725200b54978c53a4a4b6f7f72b6e93047e`, covering [unified-schema-v1.1.json](unified-schema-v1.1.json) (138 tables). v1 is unchanged and keeps its SHA.
+- **What this allows:** M2 implements v1.1 without asking again.

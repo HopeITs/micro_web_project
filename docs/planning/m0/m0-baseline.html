@@ -57,7 +57,7 @@ ul{margin:6px 0;padding-inline-start:22px}
 <li class="done">M0.2 جرد مخطط القواعد ومقارنته بتشرين الأول — منجز (حلب من نسخة 22 تشرين الأول).</li>
 <li class="done">M0.3 مصفوفة القوائم والأدوار — منجز.</li>
 <li class="done">M0.4 تصنيف الشاشات: موجود / تعديل / جديد — منجز.</li>
-<li>M0.5 القرارات المفتوحة — <b>بانتظار إجابتك</b> (آخر قسم).</li>
+<li class="done">M0.5 القرارات — منجز (آخر قسم). بانتظار نسخة حلب النهائية فقط.</li>
 </ul>
 </section>
 
@@ -105,7 +105,7 @@ ul{margin:6px 0;padding-inline-start:22px}
 <ul>
 <li>جداول خاصة ببعض المدن: <code>dept</code>، <code>temp_gender</code>، <code>work_exp</code> (دمشق)، <code>resultstable</code> (حمص والوادي)، <code>visit_schedule_temp</code> (حمص). تبدو مؤقتة، وستُراجع في M1.</li>
 <li>نسخ XAMPP المحلية (تموز 2026، 109 جداول) قديمة، ولن نعتمد عليها.</li>
-<li>توجد قاعدة سادسة <code>hcsyria_micro_id</code> (108 جداول) فيها 3,886 مشروعاً بنفس أرقام وأسماء حلب.</li>
+<li><code>hcsyria_micro_id</code> (108 جداول) قاعدة حلب قديمة، وتُعامل كحلب.</li>
 </ul>
 </section>
 
@@ -145,14 +145,14 @@ ul{margin:6px 0;padding-inline-start:22px}
 <tr><td>لوحة الإدارة (جدول مشاريع بفلاتر وأعمدة)</td><td>قائمة الطلبات بفلاتر أقل</td><td><span class="tag mod">تعديل</span></td><td>M4.17</td></tr>
 <tr><td>طلب مبدئي/كامل</td><td>نموذج واحد بترتيب الورق</td><td><span class="tag mod">تعديل</span> (الجداول الداخلية، حفظ واحد)</td><td>M4.5</td></tr>
 <tr><td>رقم المشروع</td><td>تسلسل لكل مدينة، غير قابل للتعديل</td><td><span class="tag mod">تعديل</span> (اقتراح + تعديل + فحص)</td><td>M1.2</td></tr>
-<tr><td>ملحقا الزراعة والتأهيل</td><td>غير موجود</td><td><span class="tag no">قرار</span></td><td>M4.6</td></tr>
+<tr><td>ملحقا الزراعة والتأهيل</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.6</td></tr>
 <tr><td>Checklist وطباعته</td><td>موجود مع الطباعة</td><td><span class="tag mod">تعديل</span> (10 فروقات)</td><td>M4.7</td></tr>
 <tr><td>فحص الرقم الوطني</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.4</td></tr>
 <tr><td>القروض والدفعات، جدول الدفعات</td><td>موجود</td><td><span class="tag mod">تعديل</span> (8 فروقات)</td><td>M4.9</td></tr>
 <tr><td>المرفقات</td><td>موجود ومعطّل افتراضياً</td><td><span class="tag mod">تعديل</span></td><td>M4.11</td></tr>
-<tr><td>المشتريات (مخفية في البرنامج)</td><td>محرر اختياري</td><td><span class="tag no">قرار</span></td><td>M4.10</td></tr>
-<tr><td>الملفات التنفيذية (بلا قائمة في البرنامج)</td><td>موجود</td><td><span class="tag no">قرار</span></td><td>M4.10</td></tr>
-<tr><td>الخط الزمني للقرض (بلا قائمة)</td><td>غير موجود</td><td><span class="tag no">قرار</span></td><td>M4.9</td></tr>
+<tr><td>المشتريات (مخفية في البرنامج)</td><td>محرر اختياري</td><td><span class="tag mod">تعديل</span></td><td>M4.10</td></tr>
+<tr><td>الملفات التنفيذية (بلا قائمة في البرنامج)</td><td>موجود</td><td><span class="tag mod">تعديل</span></td><td>M4.10</td></tr>
+<tr><td>الخط الزمني للقرض (بلا قائمة)</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.9</td></tr>
 <tr><td>نماذج الزيارات الستة</td><td>موجود</td><td><span class="tag mod">تعديل</span> (الزوار، الترتيب)</td><td>M4.12</td></tr>
 <tr><td>جدول الزيارات</td><td>موجود مع إعادة الجدولة</td><td><span class="tag mod">تعديل</span></td><td>M4.12</td></tr>
 <tr><td>نتائج الزيارات</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.12</td></tr>
@@ -171,19 +171,19 @@ ul{margin:6px 0;padding-inline-start:22px}
 <tr><td>التصدير Excel</td><td>xlsx وcsv لكل القوائم</td><td><span class="tag ok">موجود</span></td><td>M4.18</td></tr>
 <tr><td>طباعة Word (محضر واستبيان الاجتماعات)</td><td>غير موجود</td><td><span class="tag new">جديد</span></td><td>M4.18</td></tr>
 <tr><td>من نحن، دليل الاستخدام، إرسال اقتراح</td><td>غير موجود</td><td><span class="tag new">جديد</span> (صغير)</td><td>M2.6</td></tr>
-<tr><td>المحادثة (بلا قائمة)</td><td>غير موجود</td><td><span class="tag no">قرار</span> (يُقترح عدم نقلها)</td><td>—</td></tr>
+<tr><td>المحادثة (بلا قائمة)</td><td>غير موجود</td><td><span class="tag no">لا يُنقل</span></td><td>—</td></tr>
 <tr><td>نموذج الطلب القديم <code>Application_Form</code></td><td>—</td><td><span class="tag no">لا يُنقل</span> (بديله الجديد)</td><td>—</td></tr>
 </table></div>
 </section>
 
 <section>
-<h2>M0.5 — قرارات تحتاج إجابتك</h2>
+<h2>M0.5 — القرارات (أجبت عليها 19 تشرين الثاني)</h2>
 <ol>
-<li><b>قاعدة <code>hcsyria_micro_id</code>:</b> نسخة قديمة من حلب تُتجاهل، أم مركز مستقل يُنقل؟</li>
-<li><b>فحص الرقم الوطني في DISC وF2F:</b> اتصال قراءة فقط بقواعدها، أم استيراد دوري للأرقام فقط، أم نؤجله؟</li>
-<li><b>الشاشات المخفية في البرنامج:</b> أيها نبقي؟ ملحقا الزراعة والتأهيل، المشتريات، الملفات التنفيذية، الخط الزمني للقرض، المحادثة.</li>
-<li><b>نسخة حلب الجديدة:</b> عند توفرها نؤكد أنها مثل باقي المدن (المتوقع +18 جدولاً). لا تمنع البدء بـ M1.</li>
-<li><b>لاحقاً (ليست مطلوبة الآن):</b> توكن Kobo ووصول الخادم لـ API (قبل M4.14)، ومدة التشغيل المتوازي مع البرنامج (قبل M7).</li>
+<li><b>قاعدة <code>hcsyria_micro_id</code>:</b> <span class="tag ok">قرار</span> قاعدة حلب قديمة. تُعامل كحلب مثل باقي المحافظات، وستصل نسخة حلب النهائية لاحقاً وتُعتمد هي. لا يوجد مركز سادس.</li>
+<li><b>فحص الرقم الوطني في DISC وF2F:</b> <span class="tag ok">قرار</span> اتصال قراءة فقط بقواعد DISC وF2F، فحص فوري (M4.4).</li>
+<li><b>الشاشات المخفية:</b> <span class="tag ok">قرار</span> تُنقل: ملحقا الزراعة والتأهيل، المشتريات، الملفات التنفيذية، الخط الزمني للقرض. <b>المحادثة لا تُنقل.</b></li>
+<li><b>نسخة حلب النهائية:</b> بانتظارها للتأكد أنها مثل باقي المدن (+18 جدولاً). لا تمنع البدء بـ M1.</li>
+<li><b>لاحقاً:</b> توكن Kobo ووصول الخادم لـ API (قبل M4.14)، ومدة التشغيل المتوازي مع البرنامج (قبل M7).</li>
 </ol>
 </section>
 

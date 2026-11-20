@@ -2,17 +2,15 @@
     "city": "LAT",
     "run": 1,
     "source": "m1src_lat",
-    "checked_at": "2026-11-19T17:16:50+00:00",
+    "checked_at": "2026-11-20T09:37:03+00:00",
     "summary": {
-        "equal": 274,
-        "explained": 5,
+        "equal": 275,
+        "explained": 3,
         "unexplained": 0
     },
     "exceptions": {
-        "reference_missing": 423,
-        "truncated": 45,
         "required_text_empty": 20,
-        "account_unmapped": 12,
+        "reference_missing": 1,
         "name_empty": 1,
         "required_missing": 1,
         "duplicate_answer_set": 1
@@ -37,7 +35,6 @@
             "educationtype": 5,
             "educationlevel": 4,
             "education": 104,
-            "level": 4,
             "goal": 15,
             "illness": 5,
             "medicalneeds": 5,
@@ -157,7 +154,6 @@
             "education_types": 5,
             "education_levels": 4,
             "education_specialties": 104,
-            "education_grades": 4,
             "goals": 15,
             "illnesses": 5,
             "medical_needs": 5,
@@ -263,13 +259,11 @@
             "visit_user": 1
         },
         "exceptions": {
-            "account_unmapped": 12,
             "duplicate_answer_set": 1,
             "name_empty": 1,
-            "reference_missing": 423,
+            "reference_missing": 1,
             "required_missing": 1,
-            "required_text_empty": 20,
-            "truncated": 45
+            "required_text_empty": 20
         },
         "next_project_number": 597
     },
@@ -996,15 +990,6 @@
         },
         {
             "group": "lists",
-            "check": "level → education_grades",
-            "source": 4,
-            "target": 4,
-            "explained": 0,
-            "status": "equal",
-            "note": null
-        },
-        {
-            "group": "lists",
             "check": "goal → goals",
             "source": 15,
             "target": 15,
@@ -1572,11 +1557,11 @@
         },
         {
             "group": "references",
-            "check": "person_educations.education_grade_id ← person_education.Level_ID",
+            "check": "person_educations.education_level_id ← person_education.Level_ID",
             "source": 422,
-            "target": 0,
-            "explained": 422,
-            "status": "explained",
+            "target": 422,
+            "explained": 0,
+            "status": "equal",
             "note": null
         },
         {
@@ -2166,11 +2151,11 @@
         },
         {
             "group": "references",
-            "check": "checklists.professional_test_account_id ← checklist.ProTest_User_ID",
+            "check": "checklists.professional_tester_id ← checklist.ProTest_User_ID",
             "source": 12,
-            "target": 0,
-            "explained": 12,
-            "status": "explained",
+            "target": 12,
+            "explained": 0,
+            "status": "equal",
             "note": null
         },
         {

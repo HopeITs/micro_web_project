@@ -2,17 +2,14 @@
     "city": "DAM",
     "run": 3,
     "source": "m1src_dam",
-    "checked_at": "2026-11-19T17:17:28+00:00",
+    "checked_at": "2026-11-20T09:37:46+00:00",
     "summary": {
-        "equal": 267,
-        "explained": 12,
+        "equal": 268,
+        "explained": 10,
         "unexplained": 0
     },
     "exceptions": {
-        "reference_missing": 1358,
-        "truncated": 829,
         "required_text_empty": 32,
-        "account_unmapped": 21,
         "required_missing": 8,
         "date_out_of_range": 2,
         "name_empty": 1
@@ -37,7 +34,6 @@
             "educationtype": 5,
             "educationlevel": 4,
             "education": 174,
-            "level": 4,
             "goal": 15,
             "illness": 5,
             "medicalneeds": 5,
@@ -187,13 +183,10 @@
             "person_workexp": 4
         },
         "exceptions": {
-            "account_unmapped": 21,
             "date_out_of_range": 2,
             "name_empty": 1,
-            "reference_missing": 1358,
             "required_missing": 8,
-            "required_text_empty": 32,
-            "truncated": 829
+            "required_text_empty": 32
         },
         "next_project_number": 2368
     },
@@ -920,15 +913,6 @@
         },
         {
             "group": "lists",
-            "check": "level → education_grades",
-            "source": 4,
-            "target": 4,
-            "explained": 0,
-            "status": "equal",
-            "note": null
-        },
-        {
-            "group": "lists",
             "check": "goal → goals",
             "source": 15,
             "target": 15,
@@ -1496,11 +1480,11 @@
         },
         {
             "group": "references",
-            "check": "person_educations.education_grade_id ← person_education.Level_ID",
+            "check": "person_educations.education_level_id ← person_education.Level_ID",
             "source": 1358,
-            "target": 0,
-            "explained": 1358,
-            "status": "explained",
+            "target": 1358,
+            "explained": 0,
+            "status": "equal",
             "note": null
         },
         {
@@ -2090,11 +2074,11 @@
         },
         {
             "group": "references",
-            "check": "checklists.professional_test_account_id ← checklist.ProTest_User_ID",
+            "check": "checklists.professional_tester_id ← checklist.ProTest_User_ID",
             "source": 58,
-            "target": 37,
-            "explained": 21,
-            "status": "explained",
+            "target": 58,
+            "explained": 0,
+            "status": "equal",
             "note": null
         },
         {

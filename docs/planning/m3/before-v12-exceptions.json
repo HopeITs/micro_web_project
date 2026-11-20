@@ -1,0 +1,50 @@
+{
+    "ALP": {
+        "reference_missing": 2192,
+        "truncated": 612,
+        "required_text_empty": 602,
+        "project_chosen": 59,
+        "required_missing": 54,
+        "account_unmapped": 3,
+        "name_empty": 1,
+        "sex_unrecognised": 1,
+        "date_out_of_range": 1
+    },
+    "DAM": {
+        "reference_missing": 1358,
+        "truncated": 829,
+        "required_text_empty": 32,
+        "account_unmapped": 21,
+        "required_missing": 8,
+        "date_out_of_range": 2,
+        "name_empty": 1
+    },
+    "HMS": {
+        "truncated": 2125,
+        "required_text_empty": 25,
+        "account_unmapped": 16,
+        "required_missing": 9,
+        "sex_unrecognised": 2,
+        "duplicate_answer_set": 1,
+        "name_empty": 1,
+        "money_rounded": 1,
+        "reference_missing": 1
+    },
+    "LAT": {
+        "reference_missing": 423,
+        "truncated": 45,
+        "required_text_empty": 20,
+        "account_unmapped": 12,
+        "name_empty": 1,
+        "required_missing": 1,
+        "duplicate_answer_set": 1
+    },
+    "WAD": {
+        "truncated": 47,
+        "required_text_empty": 29,
+        "money_rounded": 2,
+        "name_empty": 1,
+        "required_missing": 1,
+        "account_unmapped": 1
+    }
+}

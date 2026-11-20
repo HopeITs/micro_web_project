@@ -2,19 +2,17 @@
     "city": "WAD",
     "run": 2,
     "source": "m1src_wad",
-    "checked_at": "2026-11-19T17:16:59+00:00",
+    "checked_at": "2026-11-20T09:37:17+00:00",
     "summary": {
         "equal": 276,
-        "explained": 3,
+        "explained": 2,
         "unexplained": 0
     },
     "exceptions": {
-        "truncated": 47,
         "required_text_empty": 29,
         "money_rounded": 2,
         "name_empty": 1,
-        "required_missing": 1,
-        "account_unmapped": 1
+        "required_missing": 1
     },
     "run_counts": {
         "read": {
@@ -36,7 +34,6 @@
             "educationtype": 5,
             "educationlevel": 4,
             "education": 178,
-            "level": 4,
             "goal": 15,
             "illness": 5,
             "medicalneeds": 5,
@@ -185,12 +182,10 @@
             "person_illness": 1
         },
         "exceptions": {
-            "account_unmapped": 1,
             "money_rounded": 2,
             "name_empty": 1,
             "required_missing": 1,
-            "required_text_empty": 29,
-            "truncated": 47
+            "required_text_empty": 29
         },
         "next_project_number": 657
     },
@@ -917,15 +912,6 @@
         },
         {
             "group": "lists",
-            "check": "level → education_grades",
-            "source": 4,
-            "target": 4,
-            "explained": 0,
-            "status": "equal",
-            "note": null
-        },
-        {
-            "group": "lists",
             "check": "goal → goals",
             "source": 15,
             "target": 15,
@@ -1493,7 +1479,7 @@
         },
         {
             "group": "references",
-            "check": "person_educations.education_grade_id ← person_education.Level_ID",
+            "check": "person_educations.education_level_id ← person_education.Level_ID",
             "source": 381,
             "target": 381,
             "explained": 0,
@@ -2087,11 +2073,11 @@
         },
         {
             "group": "references",
-            "check": "checklists.professional_test_account_id ← checklist.ProTest_User_ID",
+            "check": "checklists.professional_tester_id ← checklist.ProTest_User_ID",
             "source": 1,
-            "target": 0,
-            "explained": 1,
-            "status": "explained",
+            "target": 1,
+            "explained": 0,
+            "status": "equal",
             "note": null
         },
         {

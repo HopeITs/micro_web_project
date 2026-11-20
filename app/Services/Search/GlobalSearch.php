@@ -6,6 +6,7 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\People\PeopleService;
 use App\Services\ProjectNumberAllocator;
+use App\Support\ArabicSearch;
 use App\Support\Navigation;
 use App\Support\ProjectStatus;
 use Illuminate\Support\Facades\DB;
@@ -93,12 +94,19 @@ final class GlobalSearch
                 $query->where('c.code', $code);
             }
         } else {
-            $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
-            $applicants = DB::table('project_applicants as pa')->join('people as pp', 'pp.id', '=', 'pa.person_id')->whereNull('pa.deleted_at')
-                ->where(fn ($q) => $q->where('pp.first_name', 'like', $like)->orWhere('pp.last_name', 'like', $like)
-                    ->orWhere(DB::raw("CONCAT(pp.first_name, ' ', pp.last_name)"), 'like', $like))
-                ->select('pa.project_id');
-            $query->where(fn ($q) => $q->where('projects.name', 'like', $like)->orWhereIn('projects.id', $applicants));
+            // Every word must match the project's name or a part of the beneficiary's name, Arabic letters folded.
+            foreach (preg_split('/\s+/u', $term) as $word) {
+                $applicants = DB::table('project_applicants as pa')->join('people as pp', 'pp.id', '=', 'pa.person_id')->whereNull('pa.deleted_at')
+                    ->where(function ($q) use ($word) {
+                        foreach (['pp.first_name', 'pp.father_name', 'pp.last_name'] as $column) {
+                            ArabicSearch::orWhereLike($q, $column, $word);
+                        }
+                    })->select('pa.project_id');
+                $query->where(function ($q) use ($word, $applicants) {
+                    ArabicSearch::orWhereLike($q, 'projects.name', $word);
+                    $q->orWhereIn('projects.id', $applicants);
+                });
+            }
         }
         $locale = app()->getLocale();
 
@@ -148,8 +156,8 @@ final class GlobalSearch
         if ($term === '') {
             return true;
         }
-        $needle = Str::lower($term);
+        $needle = Str::lower(ArabicSearch::fold($term));
 
-        return Str::contains(Str::lower($label), $needle) || Str::contains(str_replace('_', ' ', $key), $needle);
+        return Str::contains(Str::lower(ArabicSearch::fold($label)), $needle) || Str::contains(str_replace('_', ' ', $key), $needle);
     }
 }

@@ -4,8 +4,9 @@
     Recent pages and commands (never people or projects) are kept in this browser only.
 --}}
 <div class="hc-cmdk-root" x-data="commandPalette" x-on:keydown.window="globalKey($event)">
-    <button type="button" class="hc-cmdk-trigger" x-on:click="show()" aria-haspopup="dialog" aria-keyshortcuts="Control+K">
-        <x-hc.icon name="search" :size="18"/><span class="hc-cmdk-hint">{{ __('hc.cmdk_trigger') }}</span><kbd class="ltr">Ctrl K</kbd>
+    <button type="button" class="hc-icon-btn hc-cmdk-trigger" x-on:click="show()" aria-haspopup="dialog" aria-keyshortcuts="Control+K"
+            aria-label="{{ __('hc.cmdk_trigger') }}" title="{{ __('hc.cmdk_trigger') }} (Ctrl+K)">
+        <x-hc.icon name="search"/>
     </button>
     <div class="hc-cmdk-backdrop" x-show="open" x-cloak x-on:click="hide()" x-transition.opacity></div>
     <div class="hc-cmdk" role="dialog" aria-modal="true" aria-label="{{ __('hc.cmdk_title') }}" x-show="open" x-cloak x-trap.noscroll="open" x-on:keydown.escape.prevent.stop="hide()">

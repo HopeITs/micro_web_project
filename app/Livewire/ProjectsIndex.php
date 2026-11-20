@@ -6,6 +6,7 @@ use App\Models\City;
 use App\Models\Project;
 use App\Models\ProjectState;
 use App\Services\ProjectNumberAllocator;
+use App\Support\ArabicSearch;
 use App\Support\CityContext;
 use App\Support\ProjectStatus;
 use Illuminate\Contracts\View\View;
@@ -107,11 +108,15 @@ class ProjectsIndex extends Component
                     $query->where('c.code', $code);
                 }
             } else {
-                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
-                $query->where(function ($q) use ($like) {
-                    $q->where('projects.name', 'like', $like)->orWhere('p.first_name', 'like', $like)->orWhere('p.last_name', 'like', $like)
-                        ->orWhere(DB::raw("CONCAT(p.first_name, ' ', p.last_name)"), 'like', $like)->orWhere('p.national_number', 'like', $like);
-                });
+                // Every word must match the project's name, a part of the beneficiary's name (Arabic letters folded) or the national number.
+                foreach (preg_split('/\s+/u', $term) as $word) {
+                    $query->where(function ($q) use ($word) {
+                        foreach (['projects.name', 'p.first_name', 'p.father_name', 'p.last_name'] as $column) {
+                            ArabicSearch::orWhereLike($q, $column, $word);
+                        }
+                        $q->orWhere('p.national_number', 'like', ArabicSearch::like($word));
+                    });
+                }
             }
         }
 

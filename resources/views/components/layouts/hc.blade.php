@@ -28,11 +28,9 @@
     <button class="hc-icon-btn hc-menu-toggle" type="button" @click="nav = !nav" :aria-expanded="nav" aria-controls="hc-sidebar" aria-label="{{ __('hc.menu') }}"><x-hc.icon name="menu"/></button>
     <a class="hc-brand" href="{{ route('home', ['locale' => $locale]) }}" aria-label="{{ __('hc.brand') }} · {{ __('hc.organization') }}">
         <img class="hc-logo-micro" src="{{ asset('assets/brand/micro-projects.svg') }}" alt="{{ __('hc.brand') }}" width="96" height="35">
-        <span class="hc-brand-divider" aria-hidden="true"></span>
-        <img class="hc-logo-hc" src="{{ asset('assets/brand/hope-center.svg') }}" alt="{{ __('hc.organization') }}" width="82" height="28">
     </a>
-    @if($account)<livewire:command-palette />@endif
     <div class="hc-header-actions">
+        @if($account)<livewire:command-palette />@endif
         <div style="position:relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
             <button class="hc-icon-btn" type="button" @click="open = !open" :aria-expanded="open" aria-label="{{ __('hc.theme') }}" title="{{ __('hc.theme') }}">
                 <x-hc.icon name="sun" x-show="theme !== 'dark'"/><x-hc.icon name="moon" x-show="theme === 'dark'" x-cloak/>

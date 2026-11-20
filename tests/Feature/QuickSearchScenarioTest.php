@@ -7,7 +7,9 @@ use App\Livewire\ProjectsIndex;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountProvisioner;
+use App\Services\People\PeopleService;
 use App\Services\Search\GlobalSearch;
+use App\Support\ArabicSearch;
 use App\Support\CityContext;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -90,6 +92,29 @@ class QuickSearchScenarioTest extends TestCase
         // The header carries the palette; the projects list keeps its search term out of the address.
         $this->get('/ar/projects')->assertOk()->assertSeeLivewire(CommandPalette::class);
         Livewire::withQueryParams(['q' => 'leak'])->test(ProjectsIndex::class)->assertSet('search', '');
+    }
+
+    public function test_arabic_letters_are_folded_so_spelling_variants_still_match(): void
+    {
+        $this->assertSame('احمد فاطمه مصطفي', ArabicSearch::fold('أحمد فاطمة مصطفى'));
+        $this->assertSame('اسراء امال', ArabicSearch::fold('إسراء آمال'));
+
+        $account = $this->account('role.data-entry');
+        $person = (int) DB::table('people')->insertGetId([
+            'city_id' => DB::table('cities')->where('code', 'DAM')->value('id'),
+            'first_name' => 'أسامة', 'father_name' => 'مصطفى', 'last_name' => 'الحلبي', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Typed without hamza, with ه for ة and ي for ى: the quick search and the people list both find the person.
+        foreach (['اسامه', 'مصطفي اسامه', 'أسامة'] as $typed) {
+            $found = app(GlobalSearch::class)->search($account, $typed)['people'];
+            $this->assertContains(route('people.show', ['locale' => 'ar', 'person' => $person]), array_column($found, 'url'), $typed);
+        }
+        $list = app(PeopleService::class)->search($account, ['q' => 'اسامه'])->items();
+        $this->assertContains($person, array_map(fn ($p) => (int) $p->id, $list));
+
+        // A page name is folded too: "الاشخاص" finds "الأشخاص والعائلات".
+        $this->assertContains(__('hc.nav_people'), array_column(app(GlobalSearch::class)->search($account, 'الاشخاص')['pages'], 'title'));
     }
 
     public function test_the_path_tiles_count_every_project_once_and_filter_the_list(): void

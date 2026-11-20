@@ -8,6 +8,7 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\ProjectNumberAllocator;
+use App\Support\ArabicSearch;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -98,8 +99,13 @@ final class PeopleService
             } else {
                 foreach (preg_split('/\s+/u', $term) as $word) {
                     $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%';
-                    $query->where(fn (Builder $q) => $q->where('p.first_name', 'like', $like)->orWhere('p.father_name', 'like', $like)
-                        ->orWhere('p.last_name', 'like', $like)->orWhere('p.full_name_en', 'like', $like)->orWhere('f.family_number', 'like', $like));
+                    // Arabic letters folded on both sides (أ/ا، ة/ه، ى/ي), owner request 20 Nov 2026.
+                    $query->where(function (Builder $q) use ($word, $like) {
+                        foreach (['p.first_name', 'p.father_name', 'p.last_name'] as $column) {
+                            ArabicSearch::orWhereLike($q, $column, $word);
+                        }
+                        $q->orWhere('p.full_name_en', 'like', $like)->orWhere('f.family_number', 'like', $like);
+                    });
                 }
             }
         }

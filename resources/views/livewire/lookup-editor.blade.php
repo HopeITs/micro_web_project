@@ -25,7 +25,8 @@
             @foreach($fields as $field => $spec)
                 <x-hc.field :label="__('lookups.fields.'.$field)" :for="'draft-'.$field" :required="$spec['required']" :error="$err('draft.'.$field)">
                     @if($spec['kind'] === 'parent')
-                        <select class="hc-select" id="draft-{{ $field }}" wire:model="draft.{{ $field }}"><option value="">{{ __('lookups.choose') }}</option>@foreach($options[$field] as $o)<option value="{{ $o->id }}">{{ $label($o) }}</option>@endforeach</select>
+                        @if(count($options[$field]) > 8)<x-hc.combo :id="'draft-'.$field" :options="$options[$field]->map(fn ($o) => (object) ['id' => $o->id, 'label' => $label($o)])" wire:model="draft.{{ $field }}"/>@else
+                        <select class="hc-select" id="draft-{{ $field }}" wire:model="draft.{{ $field }}"><option value="">{{ __('lookups.choose') }}</option>@foreach($options[$field] as $o)<option value="{{ $o->id }}">{{ $label($o) }}</option>@endforeach</select>@endif
                     @elseif($spec['kind'] === 'choice')
                         <select class="hc-select" id="draft-{{ $field }}" wire:model="draft.{{ $field }}"><option value="">{{ __('lookups.choose') }}</option>@foreach($spec['options'] as $code)<option value="{{ $code }}">{{ __('lookups.choices.'.$field.'.'.$code) }}</option>@endforeach</select>
                     @else
@@ -64,7 +65,7 @@
                         @foreach($fields as $field => $spec)
                         <td data-label="{{ __('lookups.fields.'.$field) }}">
                             @if($spec['kind'] === 'parent')
-                                <select class="hc-select" wire:model="edit.{{ $field }}" aria-label="{{ __('lookups.fields.'.$field) }}"><option value="">{{ __('lookups.choose') }}</option>@foreach($options[$field] as $o)<option value="{{ $o->id }}">{{ $label($o) }}</option>@endforeach</select>
+                                @if(count($options[$field]) > 8)<x-hc.combo :id="'edit-'.$field" :options="$options[$field]->map(fn ($o) => (object) ['id' => $o->id, 'label' => $label($o)])" wire:model="edit.{{ $field }}"/>@else<select class="hc-select" wire:model="edit.{{ $field }}" aria-label="{{ __('lookups.fields.'.$field) }}"><option value="">{{ __('lookups.choose') }}</option>@foreach($options[$field] as $o)<option value="{{ $o->id }}">{{ $label($o) }}</option>@endforeach</select>@endif
                             @elseif($spec['kind'] === 'choice')
                                 <select class="hc-select" wire:model="edit.{{ $field }}" aria-label="{{ __('lookups.fields.'.$field) }}">@foreach($spec['options'] as $code)<option value="{{ $code }}">{{ __('lookups.choices.'.$field.'.'.$code) }}</option>@endforeach</select>
                             @else

@@ -155,3 +155,39 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
+
+// Type-to-search list (x-hc.combo, M4.5 owner request): a long fixed list filtered as the user types, inside the field itself.
+// Arabic is matched loosely: diacritics are ignored and أ/إ/آ=ا, ة=ه, ى=ي; every typed word must appear in the label or its group.
+document.addEventListener('alpine:init', () => {
+    const fold = (text) => String(text ?? '').toLowerCase().normalize('NFKD')
+        .replace(/[ً-ْٰـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[̀-ͯ]/g, '');
+
+    window.Alpine.data('hcCombo', (options) => ({
+        options: options.map((o) => ({ ...o, id: String(o.id), key: fold(o.label + ' ' + (o.group ?? '')) })),
+        value: '', query: '', open: false, active: -1, limit: 80,
+        init() {
+            this.query = this.selected()?.label ?? '';
+            this.$watch('value', () => { if (!this.open) this.query = this.selected()?.label ?? ''; });
+        },
+        selected() { return this.options.find((o) => o.id === String(this.value ?? '')); },
+        filtered() {
+            const words = fold(this.query).split(/\s+/).filter(Boolean);
+            const typed = words.length > 0 && this.query !== (this.selected()?.label ?? '');
+            const list = typed ? this.options.filter((o) => words.every((w) => o.key.includes(w))) : this.options;
+            return list.slice(0, this.limit);
+        },
+        total() { return this.options.length; },
+        show() { if (!this.open) { this.open = true; this.active = -1; this.$nextTick(() => this.$refs.input.select()); } },
+        close() { this.open = false; this.active = -1; this.query = this.selected()?.label ?? ''; },
+        choose(option) { this.value = option ? option.id : ''; this.query = option ? option.label : ''; this.open = false; this.active = -1; },
+        clear() { this.choose(null); this.$refs.input.focus(); },
+        move(step) {
+            const list = this.filtered();
+            if (!this.open) this.show();
+            if (list.length === 0) return;
+            this.active = (this.active + step + list.length) % list.length;
+            this.$nextTick(() => this.$refs.list?.querySelector(`[data-index="${this.active}"]`)?.scrollIntoView({ block: 'nearest' }));
+        },
+        enter() { const list = this.filtered(); if (this.open && list.length > 0) this.choose(list[Math.max(this.active, 0)]); },
+    }));
+});

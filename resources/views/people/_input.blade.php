@@ -22,7 +22,18 @@
         <select class="hc-select" id="{{ $id }}" {{ $wire }}="{{ $model }}"><option value="">—</option>@foreach($spec['options'] as $code)<option value="{{ $code }}">{{ __('people.choices.'.$field.'.'.$code) }}</option>@endforeach</select>
         @break
     @case('lookup')
-        <select class="hc-select" id="{{ $id }}" {{ $wire }}="{{ $model }}"><option value="">{{ __('people.choose') }}</option>@foreach($options as $o)<option value="{{ $o->id }}">{{ $o->label }}</option>@endforeach</select>
+        @php($dependent = $live || isset($spec['parent']) || ($parents ?? false))
+        @if(count($options) > 8)
+            {{-- Long list: type to search inside the field. Rebuilt when a parent narrows the list. --}}
+            @php($key = $id.'-'.md5(collect($options)->pluck('id')->implode(',')))
+            @if($dependent)
+                <x-hc.combo :id="$id" :options="$options" wire:model.live="{{ $model }}" wire:key="{{ $key }}"/>
+            @else
+                <x-hc.combo :id="$id" :options="$options" wire:model="{{ $model }}" wire:key="{{ $key }}"/>
+            @endif
+        @else
+            <select class="hc-select" id="{{ $id }}" @if($dependent) wire:model.live="{{ $model }}" @else {{ $wire }}="{{ $model }}" @endif><option value="">{{ __('people.choose') }}</option>@foreach($options as $o)<option value="{{ $o->id }}">@if($o->group ?? null){{ $o->group }} · @endif{{ $o->label }}</option>@endforeach</select>
+        @endif
         @break
     @default
         <input class="hc-input @if(in_array($field, ['national_number', 'mobile', 'mobile_2', 'home_phone', 'full_name_en'], true)) ltr @endif" type="text" id="{{ $id }}" {{ $wire }}="{{ $model }}" maxlength="{{ $spec['max'] ?? 255 }}" autocomplete="off" @if(in_array($field, ['national_number', 'mobile', 'mobile_2', 'home_phone'], true)) inputmode="numeric" dir="ltr" @endif>

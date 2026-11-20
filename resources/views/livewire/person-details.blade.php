@@ -1,5 +1,6 @@
 <div>
     @php
+        $gates = collect($fields)->pluck('when')->filter()->unique()->all();
         $show = function ($row, $field, $spec) {
             return match ($spec['kind']) {
                 'lookup' => $row->{$field.'_label'} ?? '—',
@@ -21,7 +22,9 @@
                 <tr wire:key="{{ $kind }}-{{ $row->id }}-edit">
                     @foreach($fields as $field => $spec)
                     <td data-label="{{ __('people.fields.'.$field) }}">
-                        @include('people._input', ['model' => 'edit.'.$field, 'id' => $kind.'-e-'.$field, 'options' => $options[$field] ?? collect()])
+                        @if(isset($spec['when']) && ($edit[$spec['when']] ?? '') !== '1')<span class="muted">—</span>@else
+                        @include('people._input', ['model' => 'edit.'.$field, 'id' => $kind.'-e-'.$field, 'options' => $options[$field] ?? collect(), 'live' => in_array($field, $gates, true)])
+                        @endif
                         @error('edit.'.$field)<p class="hc-error">{{ $message }}</p>@enderror
                     </td>
                     @endforeach
@@ -47,8 +50,9 @@
             <form wire:submit="add" style="margin-block-start:12px;border-block-start:1px solid var(--line);padding-block-start:12px">
                 <div class="hc-form-grid">
                 @foreach($fields as $field => $spec)
+                    @continue(isset($spec['when']) && ($draft[$spec['when']] ?? '') !== '1')
                     <x-hc.field :label="__('people.fields.'.$field)" :for="$kind.'-d-'.$field" :required="$spec['required'] ?? false" :error="$errors->first('draft.'.$field)">
-                        @include('people._input', ['model' => 'draft.'.$field, 'id' => $kind.'-d-'.$field, 'options' => $options[$field] ?? collect()])
+                        @include('people._input', ['model' => 'draft.'.$field, 'id' => $kind.'-d-'.$field, 'options' => $options[$field] ?? collect(), 'live' => in_array($field, $gates, true)])
                     </x-hc.field>
                 @endforeach
                 </div>

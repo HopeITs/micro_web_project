@@ -37,11 +37,11 @@ return [
     'pick_person' => 'Find the person in the city', 'pick_placeholder' => 'At least two letters of the name or national number', 'remove_member' => 'Remove from family',
     'confirm_remove_member' => 'Remove this member from the family? Their own record stays.',
     'no_rows' => 'No data.', 'add_row' => 'Add', 'edit' => 'Edit', 'delete' => 'Delete', 'save' => 'Save', 'cancel' => 'Cancel', 'saving' => 'Saving…',
-    'confirm_delete_row' => 'Delete this row?', 'yes' => 'Yes', 'no' => 'No', 'male' => 'Male', 'female' => 'Female', 'choose' => 'Choose…',
+    'confirm_delete_row' => 'Delete this row?', 'yes' => 'Yes', 'no' => 'No', 'male' => 'Male', 'female' => 'Female', 'choose' => 'Choose…', 'type_to_search' => 'Type to search or choose…', 'no_match' => 'No match.', 'type_more' => 'Type more to narrow the list.',
     'no_projects' => 'Has not applied for a project.', 'created' => 'Person registered.', 'updated' => 'Changes saved.',
     'errors' => [
         'required' => 'This field is required.', 'too_long' => 'At most :max characters.', 'date' => 'Enter a valid date.', 'number' => 'Enter a valid number.', 'choice' => 'Choose a value from the list.',
         'duplicates' => 'Someone may be the same person (see the warning above). Check, then confirm if you want to save anyway.', 'empty_row' => 'Fill at least one field.',
-        'already_member' => 'This person is already in the family.', 'self_member' => 'A person cannot be removed from their own family on their page.', 'pick_person' => 'Pick the person from the search results.',
+        'already_member' => 'This person is already in the family.', 'self_member' => 'A person cannot be removed from their own family on their page.', 'pick_person' => 'Pick the person from the search results.', 'parent' => 'This value does not belong to the chosen :parent.',
     ],
 ];

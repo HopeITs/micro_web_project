@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -215,6 +216,78 @@ class ApplicationFormScenarioTest extends TestCase
         Livewire::test(ApplicationForm::class, ['projectId' => $project])->set('form.project.name', 'وصف لم يُحفظ')->call('autosave');
         Livewire::test(ApplicationForm::class, ['projectId' => $project])->assertSet('form.project.name', 'مشغل خياطة منزلي')
             ->assertSee(__('applications.drafts.pending_title', [], 'ar'))->call('restoreDraft')->assertSet('form.project.name', 'وصف لم يُحفظ');
+    }
+
+    public function test_dependent_lists_follow_their_parent(): void
+    {
+        $this->damascusClerk();
+        $field = (int) DB::table('careers')->whereNotNull('project_subcategory_id')->value('project_subcategory_id');
+        $inField = DB::table('careers')->where('project_subcategory_id', $field)->where('is_active', true)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $other = (int) DB::table('careers')->where('project_subcategory_id', '<>', $field)->value('id');
+        $form = $this->newPreliminary()->set('form.project.project_subcategory_id', (string) $field);
+        $this->assertEqualsCanonicalizing($inField, $form->viewData('options')['career_id']->pluck('id')->all(), 'careers narrowed to the field');
+
+        // A career of another field is refused; changing the field clears a career that no longer belongs.
+        $form->set('form.project.career_id', (string) $other)->call('save')->assertHasErrors('form.project.career_id');
+        $form->set('form.project.career_id', (string) $inField[0])->set('form.project.project_subcategory_id', (string) DB::table('project_subcategories')->where('id', '<>', $field)->value('id'))
+            ->assertSet('form.project.career_id', '');
+        // Choosing a career first fills its field.
+        $form->set('form.project.project_subcategory_id', '')->set('form.project.career_id', (string) $other)
+            ->assertSet('form.project.project_subcategory_id', (string) DB::table('careers')->where('id', $other)->value('project_subcategory_id'));
+
+        $type = (int) DB::table('project_subtypes')->value('project_type_id');
+        $subtype = (int) DB::table('project_subtypes')->where('project_type_id', $type)->value('id');
+        $form->set('form.project.project_type_id', (string) $type)->set('form.project.project_subtype_id', (string) $subtype)
+            ->set('form.project.project_type_id', (string) DB::table('project_types')->where('id', '<>', $type)->value('id'))->assertSet('form.project.project_subtype_id', '');
+        // Long lists come with their group for searching (specialty → education type).
+        $this->assertTrue($form->viewData('gridOptions')['educations']['education_specialty_id']->contains(fn ($o) => $o->group !== null));
+    }
+
+    public function test_yes_no_questions_open_their_tables_and_no_takes_rows_out_with_undo(): void
+    {
+        $this->damascusClerk();
+        $form = $this->newPreliminary()->call('addRow', 'educations')->assertCount('form.grids.educations', 0);
+        $form->set('form.applicant.has_education', '1')->call('addRow', 'educations')->assertCount('form.grids.educations', 1)
+            ->set('form.grids.educations.0.education_level_id', $this->id('education_levels'))
+            ->set('form.applicant.has_education', '0')->assertCount('form.grids.educations', 0)->assertSee(__('applications.gate.undo', [], 'ar'))
+            ->call('undoSwitch', 'has_education')->assertSet('form.applicant.has_education', '1')->assertCount('form.grids.educations', 1);
+
+        // "Works now: No" still allows previous jobs, as previous jobs.
+        $form->set('form.applicant.has_work', '0')->call('addRow', 'work_experiences')->assertSet('form.grids.work_experiences.0.status', 'no');
+        $form->set('form.grids.work_experiences.0.occupation_id', $this->id('occupations'))->call('save')->assertHasNoErrors();
+        $person = (int) DB::table('project_applicants')->latest('id')->value('person_id');
+        $this->assertSame(1, DB::table('person_work_experiences')->where('person_id', $person)->where('status', 'no')->count());
+        $this->assertSame(1, DB::table('person_educations')->where('person_id', $person)->count());
+    }
+
+    public function test_a_no_answer_cannot_be_saved_with_its_rows(): void
+    {
+        $this->damascusClerk();
+        $state = app(ApplicationService::class)->blank(auth()->user(), $this->city('DAM'));
+        $state['person']['first_name'] = 'سامر';
+        $state['person']['last_name'] = 'تجربة';
+        $state['project']['name'] = 'وصف';
+        $state['applicant']['has_loss'] = '0';
+        $state['grids']['losses'] = [['id' => null, 'loss_type_id' => $this->id('loss_types'), 'year_text' => '2013', 'note' => '']];
+        $state['applicant']['has_debts'] = '0';
+        $state['applicant']['debts_amount'] = '500';
+        try {
+            app(ApplicationService::class)->save(auth()->user(), $state, null, true);
+            $this->fail('saved a "No" answer together with its rows');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('grids.losses.0.loss_type_id', $e->errors());
+            $this->assertArrayHasKey('applicant.debts_amount', $e->errors());
+        }
+    }
+
+    public function test_row_columns_open_with_their_yes_no_column(): void
+    {
+        $this->damascusClerk();
+        $form = $this->newPreliminary()->set('form.applicant.has_illness', '1')->call('addRow', 'illnesses')
+            ->set('form.grids.illnesses.0.illness_id', $this->id('illnesses'))->set('form.grids.illnesses.0.has_medical_aid', '0')
+            ->set('form.grids.illnesses.0.donor_text', 'جهة')->call('save')->assertHasNoErrors();
+        $person = (int) DB::table('project_applicants')->latest('id')->value('person_id');
+        $this->assertNull(DB::table('person_illnesses')->where('person_id', $person)->value('donor_text'), 'medical-aid details are cleared when the answer is No');
     }
 
     public function test_roles_and_cities(): void

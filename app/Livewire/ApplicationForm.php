@@ -51,6 +51,9 @@ class ApplicationForm extends Component
     /** An older draft of this application that may be restored (edit page). */
     public string $pendingDraftAt = '';
 
+    /** @var array<string, array{rows: list<array>, fields: array<string, string>}> what a "No" answer took out, per question */
+    public array $undo = [];
+
     public function mount(?int $projectId = null, ?int $personId = null, ?string $draft = null): void
     {
         $service = app(ApplicationService::class);
@@ -123,13 +126,89 @@ class ApplicationForm extends Component
         if (preg_match('/^form\.(person\.(national_number|first_name|last_name|father_name)|family_number)$/', $property)) {
             $this->confirmed = false;
         }
-        if ($property === 'form.project.project_type_id') {
-            $this->form['project']['project_subtype_id'] = '';
+        if (preg_match('/^form\.project\.(\w+)$/', $property, $m)) {
+            $this->followParents($m[1]);
+        }
+        if (preg_match('/^form\.applicant\.(\w+)$/', $property, $m) && isset(ApplicationFields::SWITCHES[$m[1]]) && ($this->form['applicant'][$m[1]] ?? '') !== '1') {
+            $this->closeSwitch($m[1]);
         }
         $this->readinessChecked = false;
         if (str_starts_with($property, 'form.')) {
             $this->dirty = true;
         }
+    }
+
+    /**
+     * Dependent lists: a changed parent clears a child that no longer belongs to it; a career chosen before its field fills the field.
+     */
+    private function followParents(string $changed): void
+    {
+        $fields = ApplicationFields::flat(ApplicationFields::PROJECT, 'full');
+        foreach ($fields as $field => $spec) {
+            if (($spec['parent'] ?? null) === $changed && ($this->form['project'][$field] ?? '') !== '') {
+                $parent = (int) DB::table($spec['table'])->where('id', (int) $this->form['project'][$field])->value($spec['parent_column']);
+                if ((string) $parent !== (string) $this->form['project'][$changed]) {
+                    $this->form['project'][$field] = '';
+                }
+            }
+        }
+        $spec = $fields[$changed] ?? [];
+        if (isset($spec['parent']) && ($this->form['project'][$changed] ?? '') !== '' && ($this->form['project'][$spec['parent']] ?? '') === '') {
+            $this->form['project'][$spec['parent']] = (string) (DB::table($spec['table'])->where('id', (int) $this->form['project'][$changed])->value($spec['parent_column']) ?? '');
+        }
+    }
+
+    /** "No" (or no answer) to a question: its rows and fields leave the form, kept for undo until saving. */
+    private function closeSwitch(string $switch): void
+    {
+        $rule = ApplicationFields::SWITCHES[$switch];
+        $taken = ['rows' => [], 'fields' => []];
+        if (isset($rule['grid'])) {
+            $kind = $rule['grid'];
+            $keep = [];
+            foreach ($this->form['grids'][$kind] as $row) {
+                if (ApplicationFields::governed($switch, $row)) {
+                    $taken['rows'][] = $row;
+                    if (! empty($row['id'])) {
+                        $this->form['removed'][$kind][] = (int) $row['id'];
+                    }
+                } else {
+                    $keep[] = $row;
+                }
+            }
+            $this->form['grids'][$kind] = $keep;
+        }
+        foreach ($rule['fields'] ?? [] as $field) {
+            if (($this->form['applicant'][$field] ?? '') !== '') {
+                $taken['fields'][$field] = $this->form['applicant'][$field];
+                $this->form['applicant'][$field] = '';
+            }
+        }
+        if ($taken['rows'] !== [] || $taken['fields'] !== []) {
+            $this->undo[$switch] = $taken;
+        }
+    }
+
+    /** Brings back what answering "No" took out, and answers "Yes" again. */
+    public function undoSwitch(string $switch): void
+    {
+        $taken = $this->undo[$switch] ?? null;
+        if ($taken === null || ! isset(ApplicationFields::SWITCHES[$switch])) {
+            return;
+        }
+        $rule = ApplicationFields::SWITCHES[$switch];
+        if (isset($rule['grid'])) {
+            $kind = $rule['grid'];
+            $ids = array_map(fn ($r) => (int) ($r['id'] ?? 0), $taken['rows']);
+            $this->form['removed'][$kind] = array_values(array_diff($this->form['removed'][$kind] ?? [], $ids));
+            $this->form['grids'][$kind] = array_merge($this->form['grids'][$kind], $taken['rows']);
+        }
+        foreach ($taken['fields'] as $field => $value) {
+            $this->form['applicant'][$field] = $value;
+        }
+        $this->form['applicant'][$switch] = '1';
+        unset($this->undo[$switch]);
+        $this->dirty = true;
     }
 
     /** Called every 20 seconds by the page: keeps an encrypted draft when something changed. */
@@ -222,7 +301,19 @@ class ApplicationForm extends Component
     {
         $this->dirty = true;
         isset(ApplicationFields::GRIDS[$kind]) || abort(404);
-        $this->form['grids'][$kind][] = ['id' => null] + array_fill_keys(array_keys(ApplicationFields::grid($kind)['fields']), '');
+        $row = ['id' => null] + array_fill_keys(array_keys(ApplicationFields::grid($kind)['fields']), '');
+        $switch = ApplicationFields::gridSwitches()[$kind] ?? null;
+        if ($switch !== null && ($this->form['applicant'][$switch] ?? '') !== '1') {
+            $only = ApplicationFields::SWITCHES[$switch]['only'] ?? null;
+            if ($only === null) {
+                return; // the whole table opens only after "Yes"
+            }
+            // Only the governed rows are closed: a new row is of the other kind (a previous job).
+            foreach ($only as $field => $value) {
+                $row[$field] = $value === 'yes' ? 'no' : '';
+            }
+        }
+        $this->form['grids'][$kind][] = $row;
     }
 
     public function removeRow(string $kind, int $index): void
@@ -295,11 +386,9 @@ class ApplicationForm extends Component
         $city = (int) $this->form['city'];
         $stage = $this->form['stage'];
         $projectFields = ApplicationFields::flat(ApplicationFields::PROJECT, 'full');
-        $options = $people->optionsFor($projectFields + PersonFields::personFlat(), $city, $this->form['project'] + $this->form['person']);
-        $subtypes = DB::table('project_subtypes')->where('is_active', true)->when($this->form['project']['project_type_id'] ?? '', fn ($q, $t) => $q->where('project_type_id', (int) $t))
-            ->orderBy('sort_order')->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
-        $en = app()->getLocale() === 'en';
-        $options['project_subtype_id'] = $subtypes->map(fn ($o) => (object) ['id' => (int) $o->id, 'label' => $en && $o->name_en ? $o->name_en : $o->name_ar]);
+        // Person and project both have street_id: their options are built apart so each keeps its own value.
+        $personOptions = $people->optionsFor(PersonFields::personFlat(), $city, $this->form['person']);
+        $options = $people->optionsFor($projectFields, $city, $this->form['project']);
         $gridOptions = [];
         foreach (ApplicationFields::grids($stage) as $kind) {
             $gridOptions[$kind] = $people->optionsFor(ApplicationFields::grid($kind)['fields'], $city);
@@ -316,12 +405,7 @@ class ApplicationForm extends Component
             'projectGroups' => array_map(fn ($g) => array_filter($g, fn ($s) => $stage === 'full' || ! ($s['full'] ?? false)), ApplicationFields::PROJECT),
             'applicantGroups' => array_map(fn ($g) => array_filter($g, fn ($s) => $stage === 'full' || ! ($s['full'] ?? false)), ApplicationFields::APPLICANT),
             'personGroups' => array_map(fn ($g) => array_diff_key($g, $stage === 'full' ? [] : array_flip(ApplicationFields::PERSON_FULL_ONLY)), PersonFields::PERSON),
-            'options' => $options, 'gridOptions' => $gridOptions, 'grids' => ApplicationFields::grids($stage),
-            'subcategoryGroups' => DB::table('project_subcategories as s')->join('project_categories as c', 'c.id', '=', 's.project_category_id')
-                ->where(fn ($q) => $q->where('s.is_active', true)->orWhere('s.id', (int) ($this->form['project']['project_subcategory_id'] ?: 0)))
-                ->orderBy('c.sort_order')->orderBy('c.name_ar')->orderBy('s.sort_order')->orderBy('s.name_ar')
-                ->get(['s.id', 's.name_ar', 's.name_en', 'c.name_ar as category_ar', 'c.name_en as category_en'])
-                ->groupBy(fn ($s) => $en && $s->category_en ? $s->category_en : $s->category_ar),
+            'options' => $options, 'personOptions' => $personOptions, 'gridOptions' => $gridOptions, 'grids' => ApplicationFields::grids($stage),
             'duplicates' => $duplicates,
             'holders' => $this->form['person_id'] ? collect() : $people->familyHolders($city, (string) $this->form['family_number']),
             'picks' => $this->form['person_id'] === null && $this->projectId === null ? $people->pick($account, $city, $this->personSearch) : collect(),

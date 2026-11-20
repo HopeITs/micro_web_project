@@ -20,8 +20,10 @@
                         @include('people._input', ['model' => 'edit.education_specialty_id', 'field' => 'education_specialty_id', 'spec' => \App\Services\People\PersonFields::MEMBER['education_specialty_id'], 'id' => 'e-spec', 'options' => $options['education_specialty_id']])
                     </td>
                     <td data-label="{{ __('people.fields.has_work') }}">
-                        @include('people._input', ['model' => 'edit.has_work', 'field' => 'has_work', 'spec' => \App\Services\People\PersonFields::MEMBER['has_work'], 'id' => 'e-work', 'options' => collect()])
+                        @include('people._input', ['model' => 'edit.has_work', 'field' => 'has_work', 'spec' => \App\Services\People\PersonFields::MEMBER['has_work'], 'id' => 'e-work', 'options' => collect(), 'live' => true])
+                        @if(($edit['has_work'] ?? '') === '1')
                         @include('people._input', ['model' => 'edit.work_name', 'field' => 'work_name', 'spec' => \App\Services\People\PersonFields::MEMBER['work_name'], 'id' => 'e-wname', 'options' => collect()])
+                        @endif
                     </td>
                     <td style="white-space:nowrap"><x-hc.button size="sm" icon="check" wire:click="saveEdit">{{ __('people.save') }}</x-hc.button> <x-hc.button size="sm" variant="ghost" wire:click="cancel">{{ __('people.cancel') }}</x-hc.button></td>
                 </tr>
@@ -79,8 +81,9 @@
                     </x-hc.field>
                 @endif
                 @foreach(\App\Services\People\PersonFields::MEMBER as $field => $spec)
+                    @continue(isset($spec['when']) && ($member[$spec['when']] ?? '') !== '1')
                     <x-hc.field :label="__('people.fields.'.$field)" :for="'m-'.$field" :error="$errors->first('member.'.$field)">
-                        @include('people._input', ['model' => 'member.'.$field, 'id' => 'm-'.$field, 'options' => $options[$field] ?? collect()])
+                        @include('people._input', ['model' => 'member.'.$field, 'id' => 'm-'.$field, 'options' => $options[$field] ?? collect(), 'live' => $field === 'has_work'])
                     </x-hc.field>
                 @endforeach
                 </div>

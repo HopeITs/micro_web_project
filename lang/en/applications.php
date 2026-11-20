@@ -28,6 +28,8 @@ return [
         'assets' => 'Property', 'aid_sources' => 'Help from organisations', 'aid_received' => 'Aid received', 'power_sources' => 'Home power sources', 'goals' => 'Loan goals',
         'materials' => 'Budget (materials)', 'project_power_sources' => 'Project power sources', 'risks' => 'Risks',
     ],
+    'gate' => ['closed' => 'Answer "Yes" to add rows here.', 'previous_only' => 'The current job is added after answering Yes; previous jobs can always be added.', 'taken' => ':count rows and fields were taken out because the answer is No. Nothing is deleted before saving.', 'undo' => 'Undo', 'column' => 'Opens after answering Yes to ":question".'],
+    'filtered_by' => 'List narrowed to the chosen :parent.',
     'add_row' => 'Add row', 'remove_row' => 'Remove row',
     'pick_beneficiary' => 'Registered beneficiary?', 'pick_hint' => 'Search and pick them to fill their details and family; or fill the fields below for a new person.',
     'registered_person' => 'Registered person', 'open_person' => 'Open their page', 'other_person' => 'Someone else', 'use_this_person' => 'Use this person',
@@ -41,6 +43,6 @@ return [
         'pending_title' => 'This application has an unsaved draft', 'pending' => 'From :time. You may restore it over the current data or delete it.', 'restore' => 'Restore draft',
     ],
     'errors' => [
-        'subtype' => 'The type detail does not belong to the chosen project type.', 'number' => 'Enter a valid project number.', 'fix' => 'The form has :count errors; fix them, then save.',
+        'subtype' => 'The type detail does not belong to the chosen project type.', 'switch_no' => 'The answer to ":question" is No; remove this or change the answer.', 'number' => 'Enter a valid project number.', 'fix' => 'The form has :count errors; fix them, then save.',
     ],
 ];

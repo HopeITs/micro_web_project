@@ -183,10 +183,7 @@ final class ApplicationService
         $current = $projectId ? (array) DB::table('projects')->where('id', $projectId)->first() : [];
         $project = $collect(fn () => $this->people->validate(ApplicationFields::flat(ApplicationFields::PROJECT, 'full'), $state['project'], $city, $current, 'project.'));
         if ($project !== []) {
-            if (($project['project_subtype_id'] ?? null) && ($project['project_type_id'] ?? null)
-                && ! DB::table('project_subtypes')->where('id', $project['project_subtype_id'])->where('project_type_id', $project['project_type_id'])->exists()) {
-                $errors['project.project_subtype_id'] = [__('applications.errors.subtype')];
-            }
+            // Type detail ↔ type and career ↔ field are checked by the dependent-list rule of PeopleService::validate.
             if ($stage === 'full' && $stageRules) {
                 foreach (['fund_type_id', 'requested_amount'] as $field) {
                     if ($project[$field] === null) {
@@ -211,6 +208,22 @@ final class ApplicationService
                     continue; // an untouched empty row
                 }
                 $grids[$kind][] = ['id' => isset($row['id']) && $row['id'] ? (int) $row['id'] : null] + $values;
+            }
+        }
+        // A "No" answer cannot be saved together with the rows or fields it closes (ApplicationFields::SWITCHES).
+        foreach (ApplicationFields::SWITCHES as $switch => $rule) {
+            if (($applicant[$switch] ?? null) !== false) {
+                continue;
+            }
+            foreach (isset($rule['grid']) ? array_values($state['grids'][$rule['grid']] ?? []) : [] as $i => $row) {
+                if (ApplicationFields::governed($switch, $row) && array_filter(array_diff_key($row, ['id' => 0]), fn ($v) => $v !== '' && $v !== null) !== []) {
+                    $errors["grids.{$rule['grid']}.$i.".array_key_first(ApplicationFields::grid($rule['grid'])['fields'])] = [__('applications.errors.switch_no', ['question' => __('applications.fields.'.$switch)])];
+                }
+            }
+            foreach ($rule['fields'] ?? [] as $field) {
+                if (($applicant[$field] ?? null) !== null) {
+                    $errors['applicant.'.$field] = [__('applications.errors.switch_no', ['question' => __('applications.fields.'.$switch)])];
+                }
             }
         }
         if ($errors !== []) {

@@ -55,7 +55,7 @@ final class PersonFields
     public const DETAILS = [
         'educations' => ['table' => 'person_educations', 'fields' => [
             'education_level_id' => ['kind' => 'lookup', 'table' => 'education_levels'],
-            'education_specialty_id' => ['kind' => 'lookup', 'table' => 'education_specialties'],
+            'education_specialty_id' => ['kind' => 'lookup', 'table' => 'education_specialties', 'group' => ['table' => 'education_types', 'column' => 'education_type_id']],
         ]],
         'work_experiences' => ['table' => 'person_work_experiences', 'fields' => [
             // The desktop W_Status: yes = the current job, no = a previous one.
@@ -87,9 +87,9 @@ final class PersonFields
             'illness_id' => ['kind' => 'lookup', 'table' => 'illnesses'],
             'note' => ['kind' => 'textarea'],
             'has_medical_aid' => ['kind' => 'bool'],
-            'donor_text' => ['kind' => 'textarea'],
-            'aid_source_id' => ['kind' => 'lookup', 'table' => 'aid_sources'],
-            'aid_period_id' => ['kind' => 'lookup', 'table' => 'aid_periods'],
+            'donor_text' => ['kind' => 'textarea', 'when' => 'has_medical_aid'],
+            'aid_source_id' => ['kind' => 'lookup', 'table' => 'aid_sources', 'when' => 'has_medical_aid'],
+            'aid_period_id' => ['kind' => 'lookup', 'table' => 'aid_periods', 'when' => 'has_medical_aid'],
             'medical_need_id' => ['kind' => 'lookup', 'table' => 'medical_needs'],
         ]],
         'assets' => ['table' => 'person_assets', 'fields' => [
@@ -128,9 +128,9 @@ final class PersonFields
     public const MEMBER = [
         'relation_id' => ['kind' => 'lookup', 'table' => 'relations'],
         'education_level_id' => ['kind' => 'lookup', 'table' => 'education_levels'],
-        'education_specialty_id' => ['kind' => 'lookup', 'table' => 'education_specialties'],
+        'education_specialty_id' => ['kind' => 'lookup', 'table' => 'education_specialties', 'group' => ['table' => 'education_types', 'column' => 'education_type_id']],
         'has_work' => ['kind' => 'bool'],
-        'work_name' => ['kind' => 'textarea'],
+        'work_name' => ['kind' => 'textarea', 'when' => 'has_work'],
     ];
 
     /** @return array<string, array> every person field, flat */

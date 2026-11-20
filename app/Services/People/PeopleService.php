@@ -193,23 +193,47 @@ final class PeopleService
     // ---------------------------------------------------------------- lists
 
     /** Active values of a list for a select, plus the current value when it was hidden since. */
-    public function options(string $table, ?int $city = null, mixed $keep = null): Collection
+    /**
+     * Values of a list for a select: active ones (plus the current value when it was hidden since), only those under the chosen parent
+     * when the list depends on another field (`$parent` = [column, value]), and with their group's name (`$group` = [table, column]) so
+     * a long list can be searched and shown by group.
+     *
+     * @return Collection<int, object{id: int, label: string, group: ?string}>
+     */
+    public function options(string $table, ?int $city = null, mixed $keep = null, ?array $parent = null, ?array $group = null): Collection
     {
         $en = app()->getLocale() === 'en';
+        $query = DB::table($table.' as o')->where(fn ($q) => $q->where('o.is_active', true)->when($keep, fn ($q) => $q->orWhere('o.id', (int) $keep)))
+            ->when($city !== null, fn ($q) => $q->where('o.city_id', $city))
+            ->when($parent !== null && $parent[1] !== null && $parent[1] !== '', fn ($q) => $q->where(fn ($w) => $w->where('o.'.$parent[0], (int) $parent[1])->when($keep, fn ($k) => $k->orWhere('o.id', (int) $keep))));
+        $columns = ['o.id', 'o.name_ar', 'o.name_en'];
+        if ($group !== null) {
+            $query->leftJoin($group['table'].' as g', 'g.id', '=', 'o.'.$group['column'])->orderBy('g.sort_order')->orderBy('g.name_ar');
+            $columns[] = 'g.name_ar as group_ar';
+            $columns[] = 'g.name_en as group_en';
+        }
 
-        return DB::table($table)->where(fn ($q) => $q->where('is_active', true)->when($keep, fn ($q) => $q->orWhere('id', (int) $keep)))
-            ->when($city !== null, fn ($q) => $q->where('city_id', $city))
-            ->orderBy('sort_order')->orderBy('name_ar')->get(['id', 'name_ar', 'name_en'])
-            ->map(fn ($o) => (object) ['id' => (int) $o->id, 'label' => $en && $o->name_en ? $o->name_en : $o->name_ar]);
+        return $query->orderBy('o.sort_order')->orderBy('o.name_ar')->get($columns)
+            ->map(fn ($o) => (object) [
+                'id' => (int) $o->id, 'label' => $en && $o->name_en ? $o->name_en : $o->name_ar,
+                'group' => $group === null ? null : ($en && $o->group_en ? $o->group_en : $o->group_ar),
+            ]);
     }
 
-    /** Options for every lookup field of a field set. @param  array<string, array>  $fields  @return array<string, Collection> */
-    public function optionsFor(array $fields, int $city, array $current = []): array
+    /**
+     * Options for every lookup field of a field set. `$values` holds the form's current values: they keep a hidden current value
+     * selectable and give the parent value of dependent lists.
+     *
+     * @param  array<string, array>  $fields
+     * @return array<string, Collection>
+     */
+    public function optionsFor(array $fields, int $city, array $values = []): array
     {
         $out = [];
         foreach ($fields as $field => $spec) {
             if ($spec['kind'] === 'lookup') {
-                $out[$field] = $this->options($spec['table'], ($spec['city'] ?? false) ? $city : null, $current[$field] ?? null);
+                $parent = isset($spec['parent']) ? [$spec['parent_column'], $values[$spec['parent']] ?? null] : null;
+                $out[$field] = $this->options($spec['table'], ($spec['city'] ?? false) ? $city : null, $values[$field] ?? null, $parent, $spec['group'] ?? null);
             }
         }
 
@@ -276,8 +300,20 @@ final class PeopleService
                         $ok = DB::table($spec['table'])->where('id', $id)->when($spec['city'] ?? false, fn ($q) => $q->where('city_id', $city))
                             ->where(fn ($q) => $q->where('is_active', true)->orWhere('id', (int) ($current[$field] ?? 0)))->exists();
                         $ok ? $value = $id : $error = __('people.errors.choice');
+                        // A dependent list: the value must belong to the chosen parent (an unchanged old value is kept as is).
+                        $parentValue = isset($spec['parent']) ? ($input[$spec['parent']] ?? null) : null;
+                        if ($ok && $parentValue !== null && $parentValue !== '' && $id !== (int) ($current[$field] ?? 0)
+                            && (int) DB::table($spec['table'])->where('id', $id)->value($spec['parent_column']) !== (int) $parentValue) {
+                            $value = null;
+                            $error = __('people.errors.parent', ['parent' => __('applications.fields.'.$spec['parent'])]);
+                        }
                     }
                     break;
+            }
+            // A column opened by a yes/no column of the same row ("works" → work, "medical aid" → its source): cleared unless "Yes".
+            if (isset($spec['when']) && ! in_array($input[$spec['when']] ?? null, [true, 1, '1'], true)) {
+                $value = null;
+                $error = null;
             }
             if ($error === null && $value === null && ($spec['required'] ?? false)) {
                 $error = __('people.errors.required');

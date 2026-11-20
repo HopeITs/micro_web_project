@@ -17,12 +17,13 @@ final class ApplicationFields
     public const PROJECT = [
         // استمارة المشروع
         'project' => [
-            'project_subcategory_id' => ['kind' => 'lookup', 'table' => 'project_subcategories', 'group_by' => 'project_category_id'],
-            'career_id' => ['kind' => 'lookup', 'table' => 'careers'],
+            'project_subcategory_id' => ['kind' => 'lookup', 'table' => 'project_subcategories', 'group' => ['table' => 'project_categories', 'column' => 'project_category_id']],
+            // The careers of the chosen field only (283 in all); choosing a career first fills its field.
+            'career_id' => ['kind' => 'lookup', 'table' => 'careers', 'parent' => 'project_subcategory_id', 'parent_column' => 'project_subcategory_id'],
             'speciality' => ['kind' => 'text', 'max' => 255],
             'project_type_id' => ['kind' => 'lookup', 'table' => 'project_types'],
             'request_date' => ['kind' => 'date'],
-            'project_subtype_id' => ['kind' => 'lookup', 'table' => 'project_subtypes', 'parent' => 'project_type_id'],
+            'project_subtype_id' => ['kind' => 'lookup', 'table' => 'project_subtypes', 'parent' => 'project_type_id', 'parent_column' => 'project_type_id'],
             'name' => ['kind' => 'textarea', 'required' => true],
             'requested_amount' => ['kind' => 'decimal', 'full' => true],
             'fund_type_id' => ['kind' => 'lookup', 'table' => 'fund_types', 'full' => true],
@@ -79,6 +80,48 @@ final class ApplicationFields
             'has_help' => ['kind' => 'bool'],
         ],
     ];
+
+    /**
+     * Yes/no questions that open their own table or fields (owner request, 20 Nov 2026): the table sits right under its question and
+     * rows can be added only after "Yes". `only` limits the rule to some rows: "works now" governs the current job, while previous
+     * jobs can always be entered (owner decision). Answering "No" takes the governed rows and fields out, with an undo, until saving.
+     */
+    public const SWITCHES = [
+        'has_work' => ['grid' => 'work_experiences', 'only' => ['status' => 'yes']],
+        'has_education' => ['grid' => 'educations'],
+        'has_courses' => ['grid' => 'courses'],
+        'has_loss' => ['grid' => 'losses'],
+        'has_illness' => ['grid' => 'illnesses'],
+        'has_assets' => ['grid' => 'assets'],
+        'has_aid_sources' => ['grid' => 'aid_sources', 'fields' => ['aid_source_note']],
+        'has_help' => ['grid' => 'aid_received'],
+        'has_debts' => ['fields' => ['debts_amount', 'debts_note']],
+    ];
+
+    /** Whether a grid row is governed by its question (all rows, or those matching `only`). */
+    public static function governed(string $switch, array $row): bool
+    {
+        foreach (self::SWITCHES[$switch]['only'] ?? [] as $field => $value) {
+            if (($row[$field] ?? null) !== $value) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return array<string, string> grid => its question */
+    public static function gridSwitches(): array
+    {
+        $out = [];
+        foreach (self::SWITCHES as $switch => $rule) {
+            if (isset($rule['grid'])) {
+                $out[$rule['grid']] = $switch;
+            }
+        }
+
+        return $out;
+    }
 
     /** Person fields the desktop hides on the preliminary form. */
     public const PERSON_FULL_ONLY = ['full_name_en', 'registration_place', 'priest_id', 'second_priest_id', 'mobile_2', 'military_service', 'military_service_note', 'military_period', 'military_service_date', 'military_in_war'];

@@ -49,7 +49,7 @@ final class SyncExportRoles extends Command
                 if ($account === null || ! isset(AccessRoles::ROLES[$row->role])) {
                     continue;
                 }
-                foreach (array_intersect(AccountAccess::EXPORT_CAPABILITIES, AccessRoles::capabilities($row->role)) as $capability) {
+                foreach (array_intersect(AccountAccess::ADDED_CAPABILITIES, AccessRoles::capabilities($row->role)) as $capability) {
                     $held = DB::table('account_city_capabilities')->where('account_id', $row->account_id)->where('city_id', $row->city_id)->where('capability', $capability)->exists();
                     if (! $held) {
                         $provisioner->grant($account, (int) $row->city_id, $capability, $decision);

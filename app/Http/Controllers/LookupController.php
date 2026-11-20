@@ -4,33 +4,35 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Services\Reports\LookupService;
+use App\Services\Lookups\LookupAdminService;
+use App\Services\Lookups\LookupCatalog;
 use App\Services\Reports\TableExport;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/** The lookup tables, listed with their row counts and exported whole (Excel or CSV). */
+/** M4.2: the lists overview, one list's editor (Livewire `LookupEditor`) and its Excel/CSV export. */
 final class LookupController
 {
-    /** @return array<string, mixed> */
-    private function filters(Request $request): array
+    public function index(Request $request, LookupAdminService $lookups): View
     {
-        return $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'format' => ['nullable', 'in:xlsx,csv']]);
+        return view('lookups.index', ['lists' => collect($lookups->overview($request->user()))->groupBy('group')]);
     }
 
-    public function index(Request $request, string $locale, LookupService $lookups): View
+    public function show(Request $request, string $locale, string $list, LookupAdminService $lookups): View
     {
-        $filters = $this->filters($request);
+        abort_unless(LookupCatalog::exists($list), 404);
+        $lookups->cities($request->user())->isNotEmpty() || abort(403);
 
-        return view('admin.lookups', $lookups->index($request->user(), $filters) + ['filters' => $filters, 'selectedCities' => array_map('intval', $filters['cities'] ?? [])]);
+        return view('lookups.show', ['list' => $list, 'definition' => LookupCatalog::get($list)]);
     }
 
-    public function export(Request $request, string $locale, string $table, LookupService $lookups, TableExport $export): StreamedResponse
+    public function export(Request $request, string $locale, string $list, LookupAdminService $lookups, TableExport $export): StreamedResponse
     {
-        $filters = $this->filters($request);
-        [$headings, $rows] = $lookups->exportRows($request->user(), $table, $filters);
+        abort_unless(LookupCatalog::exists($list), 404);
+        $data = $request->validate(['city' => ['nullable', 'integer', 'min:1'], 'format' => ['nullable', 'in:xlsx,csv']]);
+        [$headings, $rows] = $lookups->export($request->user(), $list, LookupCatalog::get($list)['city'] ? (int) ($data['city'] ?? 0) : null);
 
-        return $export->stream(TableExport::format($filters['format'] ?? null), 'lookup-'.$table.'-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));
+        return $export->stream(TableExport::format($data['format'] ?? null), 'list-'.$list.'-'.now()->format('Ymd-His'), $headings, $rows, [0, count($headings) - 2], app()->isLocale('ar'));
     }
 }

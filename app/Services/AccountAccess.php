@@ -14,11 +14,16 @@ final class AccountAccess
         'special_cases.delete', 'visits.delete', 'me_visits.view', 'me_visits.manage', 'me_visits.delete', 'imported.delete',
         'profession_meetings.view', 'profession_meetings.manage', 'profession_meetings.delete',
         'tasks.view', 'tasks.manage', 'tasks.manage_all', 'notifications.view', 'notifications.send', 'accounts.manage',
+        // M4.2 (owner decision of 20 Nov 2026): maintaining the lists; held by the administrator and data-entry roles.
+        'lookups.manage',
         // Export rules (owner decision of 27 Oct 2026): money exports, every other data export, and the three attachment categories.
         'finance.export', 'reports.export', 'attachments.personal', 'attachments.legal', 'attachments.financial'];
 
     /** The capabilities added by the export rules; roles that already exist receive them through `staff:sync-export-roles`. */
     public const EXPORT_CAPABILITIES = ['finance.export', 'reports.export', 'attachments.personal', 'attachments.legal', 'attachments.financial'];
+
+    /** Capabilities added to roles after accounts were already assigned them; `staff:sync-export-roles` grants them to existing holders. */
+    public const ADDED_CAPABILITIES = [...self::EXPORT_CAPABILITIES, 'lookups.manage'];
 
     /** Image category (as the desktop's `imagetype.Category` spells it) → the grant that opens it. */
     public const ATTACHMENT_CATEGORIES = ['ثبوتيات شخصية - Personal' => 'attachments.personal', 'أوراق قانونية - Legal' => 'attachments.legal', 'أوراق مالية - Financial' => 'attachments.financial'];

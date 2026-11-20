@@ -39,6 +39,7 @@ final class Navigation
             ['key' => 'statistics', 'icon' => 'chart', 'capability' => 'applications.view', 'task' => 'M4.17'],
             ['key' => 'tasks', 'icon' => 'task', 'capability' => 'tasks.view', 'task' => 'M4.16'],
             ['key' => 'accounts', 'icon' => 'shield', 'route' => 'admin.accounts.index', 'capability' => 'accounts.manage'],
+            ['key' => 'lookups', 'icon' => 'clipboard', 'route' => 'lookups.index', 'capability' => 'lookups.manage'],
             ['key' => 'design', 'icon' => 'settings', 'route' => 'design', 'capability' => 'accounts.manage'],
         ],
     ];
@@ -60,7 +61,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'admin.accounts.index' => 'admin.*', default => $route
+                        'projects.index' => 'projects.*', 'admin.accounts.index' => 'admin.*', 'lookups.index' => 'lookups.*', default => $route
                     }),
                 ];
             }

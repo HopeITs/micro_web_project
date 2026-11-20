@@ -53,6 +53,6 @@ return [
         'me_visits' => ['view' => 'View M&E visits', 'manage' => 'Edit M&E visits', 'delete' => 'Delete M&E visits'],
         'profession_meetings' => ['view' => 'View profession meetings', 'manage' => 'Edit profession meetings', 'delete' => 'Delete profession meetings'],
         'imported' => ['delete' => 'Delete and restore imported records'], 'tasks' => ['view' => 'View the task board', 'manage' => 'Change the tasks they are responsible for', 'manage_all' => 'Change any task'],
-        'notifications' => ['view' => 'Read notifications', 'send' => 'Send messages'], 'accounts' => ['manage' => 'Administer accounts'],
+        'notifications' => ['view' => 'Read notifications', 'send' => 'Send messages'], 'accounts' => ['manage' => 'Administer accounts'], 'lookups' => ['manage' => 'Edit the lists'],
     ],
 ];

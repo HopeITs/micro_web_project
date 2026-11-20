@@ -35,6 +35,7 @@ final class AccountAuditTrail
         'attachments.download.started' => ['attachment_record'], 'attachments.download.succeeded' => ['attachment_record'],
         'attachments.download.failed' => ['attachment_record'], 'attachments.download.denied' => [],
         'legacy.restored' => ['legacy_link'], 'capability.granted' => ['capability_grant'], 'capability.revoked' => ['capability_grant'],
+        'lookups.created' => ['lookup_value'], 'lookups.updated' => ['lookup_value'], 'lookups.hidden' => ['lookup_value'], 'lookups.shown' => ['lookup_value'], 'lookups.deleted' => ['lookup_value'], 'lookups.exported' => [],
     ];
 
     public static function validDecision(string $decision): bool
@@ -59,6 +60,8 @@ final class AccountAuditTrail
                 'meeting_entity' => DB::table('op_profession_meeting')->where('id', $subjectId)->where('city_id', $city)->exists(),
                 'family_entity' => DB::table('op_family')->where('id', $subjectId)->where('city_id', $city)->exists(),
                 'account' => $subjectAccount === $subjectId && DB::table('web_accounts')->where('id', $subjectId)->exists(),
+                // A list value (M4.2): the decision names the list ("lookup:<key>"); a deleted value no longer exists, so only the shape is checked.
+                'lookup_value' => $decision !== null && str_starts_with($decision, 'lookup:'),
                 'legacy_link' => DB::table('account_legacy_links')->where('id', $subjectId)->where('account_id', $subjectAccount)->exists(),
                 'capability_grant' => DB::table('account_city_capabilities')->where('id', $subjectId)->where('account_id', $subjectAccount)->where('city_id', $city)->exists(),
                 'project_record' => DB::table('source_records as r')->join('sources as s', 's.id', '=', 'r.source_id')->where('r.id', $subjectId)->where('s.city_id', $city)->where('r.table_id', app(SourceCatalog::class)->tableId('microproject'))->exists(),

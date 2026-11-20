@@ -13,7 +13,7 @@ class PeopleIndex extends Component
 {
     use WithPagination;
 
-    #[Url(as: 'q', except: '')]
+    /** Not kept in the URL: it may be a national number or a name (docs/planning/ux-borrowed-features-2026-11.md, F3 security). */
     public string $search = '';
 
     /** @var list<int> */

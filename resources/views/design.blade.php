@@ -10,8 +10,10 @@
                 <x-hc.button :disabled="true">غير متاح</x-hc.button>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px">
-                <x-hc.badge tone="ok">ممول</x-hc.badge><x-hc.badge tone="warn">قيد الدراسة</x-hc.badge><x-hc.badge tone="danger">مرفوض</x-hc.badge>
-                <x-hc.badge tone="info">منتهي</x-hc.badge><x-hc.badge tone="brand">كامل</x-hc.badge><x-hc.badge>أولي</x-hc.badge><x-hc.badge tone="warn">بالانتظار</x-hc.badge><x-hc.badge tone="danger">منسحب</x-hc.badge>
+                @foreach(['On Hold' => 'تسجيل أولي', 'Waiting' => 'بالانتظار', 'Under Review' => 'قيد الدراسة', 'Delayed' => 'مؤجل', 'Rejected' => 'مرفوض', 'Withdrew' => 'منسحب', 'Accepted' => 'مقبول', 'Financed' => 'ممول', 'Canceled' => 'ملغى', 'Finished' => 'منتهي', 'Closed' => 'مغلق'] as $state => $name)
+                    <x-hc.badge :tone="\App\Support\ProjectStatus::tone($state)" :icon="\App\Support\ProjectStatus::icon($state)">{{ $name }}</x-hc.badge>
+                @endforeach
+                <x-hc.badge tone="brand">كامل</x-hc.badge><x-hc.badge>أولي</x-hc.badge>
                 <x-hc.project-number code="DAM" :number="2354"/>
             </div>
         </x-hc.card>
@@ -36,11 +38,15 @@
         </x-hc.section>
         <x-hc.card :title="__('hc.path_title')">
             <div class="hc-grid">
-                <x-hc.stage-bar current="assessment" note="قيد الدراسة"/>
+                @php($status = \App\Support\ProjectStatus::class)
+                @php($p = $status::path('Under Review'))
+                <x-hc.stage-bar :current="$p['current']" :mode="$p['mode']" :tone="$p['tone']" note="قيد الدراسة"/>
                 <x-hc.next-step title="أكمل الـ Checklist وأرسله للقرار" waiting="موظف التقييم · حلب" since="منذ 9 أيام" :late="true" href="#" action="فتح الـ Checklist"/>
-                <x-hc.stage-bar current="implementation" note="ممول"/>
-                <x-hc.next-step title="زيارة الافتتاح خلال أسبوعين من التمويل" waiting="الفريق الميداني · دمشق" since="موعدها 27 نوفمبر" href="#" action="جدولة الزيارة"/>
-                <x-hc.stage-bar current="decision" :stopped="true" note="مرفوض"/>
+                @foreach([['Delayed', [], 'مؤجل'], ['Rejected', [], 'مرفوض'], ['Withdrew', ['On Hold', 'Under Review'], 'منسحب'], ['Accepted', [], 'مقبول'], ['Financed', [], 'ممول'], ['Canceled', ['Financed'], 'ملغى'], ['Finished', [], 'منتهي'], ['Closed', [], 'مغلق']] as [$state, $earlier, $name])
+                    @php($p = $status::path($state, $earlier))
+                    <x-hc.stage-bar :current="$p['current']" :mode="$p['mode']" :tone="$p['tone']" :note="$name"/>
+                    @if($state === 'Financed')<x-hc.next-step title="زيارة الافتتاح خلال أسبوعين من التمويل" waiting="الفريق الميداني · دمشق" since="موعدها 27 نوفمبر" href="#" action="جدولة الزيارة"/>@endif
+                @endforeach
             </div>
         </x-hc.card>
         <x-hc.card title="أرقام موجزة وفلاتر سريعة">

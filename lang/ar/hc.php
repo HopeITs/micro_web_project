@@ -46,7 +46,7 @@ return [
     'pwa_name' => 'المشاريع الصغيرة · مركز الرجاء', 'pwa_description' => 'نظام إدارة المشاريع الصغيرة في مركز الرجاء.', 'pwa_install' => 'تثبيت التطبيق',
     'pwa_ios_title' => 'تثبيت التطبيق على الآيفون أو الآيباد', 'pwa_ios_step1' => 'في Safari اضغط زر المشاركة', 'pwa_ios_step2' => 'اختر «إضافة إلى الشاشة الرئيسية».', 'pwa_ios_step3' => 'اضغط «إضافة»، فتظهر أيقونة المشاريع الصغيرة بين تطبيقاتك.', 'pwa_ok' => 'تم',
     // U1/F2/F3 shared components
-    'path_title' => 'مسار الطلب', 'path_intake' => 'تسجيل', 'path_assessment' => 'تقييم', 'path_decision' => 'قرار', 'path_funding' => 'تمويل', 'path_implementation' => 'تنفيذ ومتابعة', 'path_closing' => 'إغلاق',
-    'path_now' => 'الآن', 'path_stopped' => 'متوقف', 'path_state_done' => 'مكتملة', 'path_state_now' => 'المرحلة الحالية', 'path_state_todo' => 'لم تبدأ', 'path_state_stopped' => 'توقف الطلب هنا',
+    'path_title' => 'مسار الطلب', 'path_intake' => 'تسجيل', 'path_assessment' => 'تقييم', 'path_decision' => 'قرار', 'path_funding' => 'تمويل', 'path_followup' => 'متابعة', 'path_closing' => 'إغلاق',
+    'path_now' => 'الآن', 'path_stopped' => 'متوقف', 'path_state_done' => 'مكتملة', 'path_state_now' => 'المرحلة الحالية', 'path_state_todo' => 'لم تبدأ', 'path_state_stopped' => 'توقف الطلب هنا', 'path_state_paused' => 'متوقف مؤقتاً', 'path_state_withdrawn' => 'انسحب المستفيد هنا', 'path_state_complete' => 'اكتمل المسار',
     'next_step' => 'الخطوة التالية', 'waiting_on' => 'بانتظار: :who', 'quick_filters' => 'فلاتر سريعة',
 ];

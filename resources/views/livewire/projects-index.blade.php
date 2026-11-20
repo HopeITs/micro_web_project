@@ -54,7 +54,7 @@
                         <td data-label="{{ __('hc.project') }}">{{ $p->name ?: __('hc.not_set') }}</td>
                         <td data-label="{{ __('hc.city') }}">{{ $en ? $p->city_en : $p->city_ar }}</td>
                         <td data-label="{{ __('hc.stage') }}"><x-hc.badge :tone="$p->application_stage === 'full' ? 'brand' : null">{{ __('hc.stage_'.$p->application_stage) }}</x-hc.badge></td>
-                        <td data-label="{{ __('hc.state') }}">@if($stateName)<x-hc.badge :tone="$tone">{{ $stateName }}</x-hc.badge>@else{{ __('hc.not_set') }}@endif</td>
+                        <td data-label="{{ __('hc.state') }}">@if($stateName)<x-hc.badge :tone="$tone" :icon="\App\Support\ProjectStatus::icon($p->state_en)">{{ $stateName }}</x-hc.badge>@else{{ __('hc.not_set') }}@endif</td>
                         <td data-label="{{ __('hc.request_date') }}" class="num">{{ $p->request_date?->format('Y-m-d') ?? __('hc.not_set') }}</td>
                         <td data-label="{{ __('hc.requested') }}" class="num">{{ $p->requested_amount !== null ? number_format((float) $p->requested_amount) : __('hc.not_set') }}</td>
                     </tr>

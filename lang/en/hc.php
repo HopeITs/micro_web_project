@@ -41,7 +41,7 @@ return [
     'pwa_name' => 'Micro Projects · Hope Center', 'pwa_description' => 'Micro Projects management at Hope Center.', 'pwa_install' => 'Install the app',
     'pwa_ios_title' => 'Install on iPhone or iPad', 'pwa_ios_step1' => 'In Safari, tap the Share button', 'pwa_ios_step2' => 'Choose “Add to Home Screen”.', 'pwa_ios_step3' => 'Tap “Add”: the Micro Projects icon appears with your apps.', 'pwa_ok' => 'Done',
     // U1/F2/F3 shared components
-    'path_title' => 'Application path', 'path_intake' => 'Intake', 'path_assessment' => 'Assessment', 'path_decision' => 'Decision', 'path_funding' => 'Funding', 'path_implementation' => 'Implementation', 'path_closing' => 'Closing',
-    'path_now' => 'Now', 'path_stopped' => 'Stopped', 'path_state_done' => 'done', 'path_state_now' => 'current stage', 'path_state_todo' => 'not started', 'path_state_stopped' => 'the application stopped here',
+    'path_title' => 'Application path', 'path_intake' => 'Intake', 'path_assessment' => 'Assessment', 'path_decision' => 'Decision', 'path_funding' => 'Funding', 'path_followup' => 'Follow-up', 'path_closing' => 'Closing',
+    'path_now' => 'Now', 'path_stopped' => 'Stopped', 'path_state_done' => 'done', 'path_state_now' => 'current stage', 'path_state_todo' => 'not started', 'path_state_stopped' => 'the application stopped here', 'path_state_paused' => 'paused', 'path_state_withdrawn' => 'the beneficiary withdrew here', 'path_state_complete' => 'path complete',
     'next_step' => 'Next step', 'waiting_on' => 'Waiting on: :who', 'quick_filters' => 'Quick filters',
 ];

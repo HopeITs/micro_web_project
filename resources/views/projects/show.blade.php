@@ -6,6 +6,7 @@
     $loan = $project->loans->first();
     $stateEn = $current?->projectState?->name_en;
     $status = \App\Support\ProjectStatus::class;
+    $path = $status::path($stateEn, $project->projectStateHistory->reject(fn ($h) => $h->is_current)->map(fn ($h) => $h->projectState?->name_en)->values()->all());
 @endphp
 <x-layouts.hc :title="\App\Services\ProjectNumberAllocator::display($project->city->code, $project->project_number)">
     <p style="margin-block-end:12px"><a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('projects.index', ['locale' => app()->getLocale()]) }}"><x-hc.icon name="arrow" :size="16" class="hc-back-icon"/>{{ __('hc.back') }}</a></p>
@@ -16,14 +17,14 @@
             <p>{{ $person ? trim($person->first_name.' '.$person->father_name.' '.$person->last_name) : '' }}</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            @if($current)<x-hc.badge :tone="$status::tone($stateEn)" style="font-size:.9rem;padding:4px 14px">{{ $label($current->projectState) }}</x-hc.badge>@endif
+            @if($current)<x-hc.badge :tone="$status::tone($stateEn)" :icon="$status::icon($stateEn)" style="font-size:.9rem;padding:4px 14px">{{ $label($current->projectState) }}</x-hc.badge>@endif
             @if(app(\App\Services\Applications\ApplicationService::class)->canWrite(auth()->user(), (int) $project->city_id))
                 <x-hc.button icon="settings" variant="secondary" :href="route('applications.edit', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('applications.edit') }}</x-hc.button>
             @endif
         </div>
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
-    @if($current)<x-hc.stage-bar :current="$status::stage($stateEn)" :stopped="$status::stopped($stateEn)" :note="$label($current->projectState)" style="margin-block-end:20px"/>@endif
+    @if($current)<x-hc.stage-bar :current="$path['current']" :mode="$path['mode']" :tone="$path['tone']" :note="$label($current->projectState)" style="margin-block-end:20px"/>@endif
 
     <div class="hc-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); align-items:start">
         <div class="hc-grid">

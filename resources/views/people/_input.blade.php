@@ -18,6 +18,9 @@
     @case('sex')
         <select class="hc-select" id="{{ $id }}" wire:model.live="{{ $model }}"><option value="">—</option><option value="male">{{ __('people.male') }}</option><option value="female">{{ __('people.female') }}</option></select>
         @break
+    @case('choice')
+        <select class="hc-select" id="{{ $id }}" {{ $wire }}="{{ $model }}"><option value="">—</option>@foreach($spec['options'] as $code)<option value="{{ $code }}">{{ __('people.choices.'.$field.'.'.$code) }}</option>@endforeach</select>
+        @break
     @case('lookup')
         <select class="hc-select" id="{{ $id }}" {{ $wire }}="{{ $model }}"><option value="">{{ __('people.choose') }}</option>@foreach($options as $o)<option value="{{ $o->id }}">{{ $o->label }}</option>@endforeach</select>
         @break

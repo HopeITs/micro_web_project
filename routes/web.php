@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountAdminController;
 use App\Http\Controllers\AccountPasswordController;
+use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
@@ -36,6 +37,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('/projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
             Route::view('/design', 'design')->name('design');
+
+            // M4.5 application form (ApplicationService rechecks applications.manage + people.manage per city).
+            Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
+            Route::get('/applications/{project}/edit', [ApplicationController::class, 'edit'])->whereNumber('project')->name('applications.edit');
 
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');

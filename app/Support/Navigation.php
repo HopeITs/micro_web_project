@@ -19,7 +19,7 @@ final class Navigation
             ['key' => 'projects', 'icon' => 'folder', 'route' => 'projects.index', 'capability' => 'projects.view'],
         ],
         'applications' => [
-            ['key' => 'new_application', 'icon' => 'plus', 'capability' => 'applications.manage', 'task' => 'M4.5'],
+            ['key' => 'new_application', 'icon' => 'plus', 'route' => 'applications.create', 'capability' => 'applications.manage'],
             ['key' => 'people', 'icon' => 'users', 'route' => 'people.index', 'capability' => 'people.view'],
             ['key' => 'checklist', 'icon' => 'clipboard', 'capability' => 'assessments.view', 'task' => 'M4.7'],
             ['key' => 'national_number', 'icon' => 'id', 'route' => 'people.national', 'capability' => 'people.view'],

@@ -23,6 +23,9 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             @if($person->national_number)<x-hc.button icon="id" variant="ghost" :href="route('people.national', ['locale' => $locale, 'person' => $person->id])">{{ __('national.from_person') }}</x-hc.button>@endif
             @if($editable)<x-hc.button icon="settings" variant="secondary" :href="route('people.edit', ['locale' => $locale, 'person' => $person->id])">{{ __('people.edit_title') }}</x-hc.button>@endif
+            @if(app(\App\Services\Applications\ApplicationService::class)->canWrite(auth()->user(), (int) $person->city_id))
+                <x-hc.button icon="plus" :href="route('applications.create', ['locale' => $locale, 'person' => $person->id])">{{ __('applications.new') }}</x-hc.button>
+            @endif
         </div>
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif

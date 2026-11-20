@@ -15,8 +15,14 @@
             <h1><x-hc.project-number :code="$project->city->code" :number="$project->project_number"/> · {{ $project->name }}</h1>
             <p>{{ $person ? trim($person->first_name.' '.$person->father_name.' '.$person->last_name) : '' }}</p>
         </div>
-        @if($current)<x-hc.badge :tone="$status::tone($stateEn)" style="font-size:.9rem;padding:4px 14px">{{ $label($current->projectState) }}</x-hc.badge>@endif
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            @if($current)<x-hc.badge :tone="$status::tone($stateEn)" style="font-size:.9rem;padding:4px 14px">{{ $label($current->projectState) }}</x-hc.badge>@endif
+            @if(app(\App\Services\Applications\ApplicationService::class)->canWrite(auth()->user(), (int) $project->city_id))
+                <x-hc.button icon="settings" variant="secondary" :href="route('applications.edit', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('applications.edit') }}</x-hc.button>
+            @endif
+        </div>
     </div>
+    @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
     @if($current)<x-hc.stage-bar :current="$status::stage($stateEn)" :stopped="$status::stopped($stateEn)" :note="$label($current->projectState)" style="margin-block-end:20px"/>@endif
 
     <div class="hc-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); align-items:start">

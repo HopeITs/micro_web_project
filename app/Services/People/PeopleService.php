@@ -259,7 +259,9 @@ final class PeopleService
                     $value = $empty ? null : in_array($raw, [true, 1, '1', 'yes', 'true'], true);
                     break;
                 case 'sex':
-                    $value = $empty ? null : (in_array($raw, ['male', 'female'], true) ? $raw : null);
+                case 'choice':
+                    $allowed = $spec['options'] ?? ['male', 'female'];
+                    $value = $empty ? null : (in_array($raw, $allowed, true) ? $raw : null);
                     $empty || $value !== null || $error = __('people.errors.choice');
                     break;
                 case 'lookup':
@@ -318,15 +320,28 @@ final class PeopleService
         return DB::transaction(function () use ($account, $city, $values, $familyNumber) {
             $now = now();
             $id = (int) DB::table('people')->insertGetId($values + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
-            $family = $familyNumber === '' ? null : DB::table('families')->where('city_id', $city)->where('family_number', $familyNumber)->whereNull('deleted_at')->value('id');
-            $family ??= DB::table('families')->insertGetId(['city_id' => $city, 'family_number' => $familyNumber !== '' ? $familyNumber : $this->nextFamilyNumber($city), 'created_at' => $now, 'updated_at' => $now]);
-            DB::table('family_members')->insert([
-                'city_id' => $city, 'family_id' => $family, 'person_id' => $id, 'relation_id' => $this->beneficiaryRelation(), 'provider_person_id' => $id, 'created_at' => $now, 'updated_at' => $now,
-            ]);
+            $this->joinFamily($id, $city, $familyNumber);
             $this->audit->record($account->id, 'people.created', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id);
 
             return $id;
         });
+    }
+
+    /**
+     * Puts a person (with no family yet) in the family of this book number in the city, or in a new family, as its beneficiary
+     * ("مستفيد", provider of itself). Callers authorize.
+     */
+    public function joinFamily(int $personId, int $city, string $familyNumber): int
+    {
+        $now = now();
+        $familyNumber = trim($familyNumber);
+        $family = $familyNumber === '' ? null : DB::table('families')->where('city_id', $city)->where('family_number', $familyNumber)->whereNull('deleted_at')->value('id');
+        $family ??= DB::table('families')->insertGetId(['city_id' => $city, 'family_number' => $familyNumber !== '' ? $familyNumber : $this->nextFamilyNumber($city), 'created_at' => $now, 'updated_at' => $now]);
+        DB::table('family_members')->insert([
+            'city_id' => $city, 'family_id' => $family, 'person_id' => $personId, 'relation_id' => $this->beneficiaryRelation(), 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+
+        return (int) $family;
     }
 
     public function update(WebAccount $account, int $id, array $input, bool $confirmed): void

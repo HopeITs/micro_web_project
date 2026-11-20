@@ -5,6 +5,7 @@
                 'lookup' => $row->{$field.'_label'} ?? '—',
                 'bool' => $row->{$field} === null ? '—' : ($row->{$field} ? __('people.yes') : __('people.no')),
                 'decimal' => $row->{$field} === null ? '—' : number_format((float) $row->{$field}),
+                'choice' => filled($row->{$field}) ? __('people.choices.'.$field.'.'.$row->{$field}) : '—',
                 default => filled($row->{$field}) ? $row->{$field} : '—',
             };
         };

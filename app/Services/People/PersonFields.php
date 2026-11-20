@@ -58,6 +58,8 @@ final class PersonFields
             'education_specialty_id' => ['kind' => 'lookup', 'table' => 'education_specialties'],
         ]],
         'work_experiences' => ['table' => 'person_work_experiences', 'fields' => [
+            // The desktop W_Status: yes = the current job, no = a previous one.
+            'status' => ['kind' => 'choice', 'options' => ['yes', 'no']],
             'occupation_id' => ['kind' => 'lookup', 'table' => 'occupations'],
             'work_type_id' => ['kind' => 'lookup', 'table' => 'work_types'],
             'description' => ['kind' => 'textarea'],

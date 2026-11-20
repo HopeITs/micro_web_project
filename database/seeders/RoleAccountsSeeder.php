@@ -25,10 +25,10 @@ final class RoleAccountsSeeder extends Seeder
 
     public const DECISION = 'seed:test-role-accounts';
 
-    /** username => role; `super.admin` is an extra administrator kept from the first local test round. */
+    /** username => role; `super.admin` is an extra administrator kept from the first local test round, `judy` the owner's own (20 Nov 2026). */
     public static function accounts(): array
     {
-        $accounts = ['super.admin' => 'administrator'];
+        $accounts = ['super.admin' => 'administrator', 'judy' => 'administrator'];
         foreach (array_keys(AccessRoles::ROLES) as $role) {
             $accounts['role.'.$role] = $role;
         }

@@ -36,7 +36,7 @@ final class AccountAccess
 
         return DB::table('cities as c')->join('account_city_capabilities as g', 'g.city_id', '=', 'c.id')
             ->where('g.account_id', $account->getKey())->where('g.capability', $capability)->whereNull('g.revoked_at')
-            ->orderBy('c.id')->get(['c.id', 'c.name_en', 'c.name_ar']);
+            ->orderBy('c.id')->get(['c.id', 'c.code', 'c.name_en', 'c.name_ar']);
     }
 
     /** Cities where the account holds every one of the capabilities. */

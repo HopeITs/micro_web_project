@@ -1,12 +1,11 @@
-<x-layouts.app :title="__('account.change_title')" :operational="true">
-    <div class="page-heading"><div><p class="eyebrow">{{ __('projects.workspace') }}</p><h1>{{ __('account.change_title') }}</h1><p class="page-description">{{ __('account.change_intro', ['min' => \App\Services\AccountPasswords::MIN_LENGTH]) }}</p></div></div>
-    @include('people.messages')
-    @if($forced)<div class="form-message" role="note">{{ __('account.first_login') }}</div>@endif
-    <section class="card">
-        <form method="POST" action="{{ route('account.password.update', ['locale' => app()->getLocale()]) }}">@csrf
-            <x-ui.input id="password" name="password" type="password" :label="__('account.new_password')" autocomplete="new-password" required />
-            <x-ui.input id="password_confirmation" name="password_confirmation" type="password" :label="__('account.confirm_password')" autocomplete="new-password" required />
-            <x-ui.button type="submit">{{ __('account.change') }}</x-ui.button>
+<x-layouts.hc :title="__('account.change_title')">
+    <div class="hc-page-head"><div><p class="hc-eyebrow">{{ __('hc.account') }}</p><h1>{{ __('account.change_title') }}</h1><p>{{ __('account.change_intro', ['min' => \App\Services\AccountPasswords::MIN_LENGTH]) }}</p></div></div>
+    @if($forced)<x-hc.alert type="warning" style="margin-block-end:16px">{{ __('account.first_login') }}</x-hc.alert>@endif
+    <x-hc.card style="max-width:520px">
+        <form method="POST" action="{{ route('account.password.update', ['locale' => app()->getLocale()]) }}" class="hc-grid" style="gap:16px">@csrf
+            <x-hc.field :label="__('account.new_password')" for="password" :required="true"><input class="hc-input ltr" id="password" name="password" type="password" autocomplete="new-password" required></x-hc.field>
+            <x-hc.field :label="__('account.confirm_password')" for="password_confirmation" :required="true"><input class="hc-input ltr" id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required></x-hc.field>
+            <div><x-hc.button type="submit" icon="check">{{ __('account.change') }}</x-hc.button></div>
         </form>
-    </section>
-</x-layouts.app>
+    </x-hc.card>
+</x-layouts.hc>

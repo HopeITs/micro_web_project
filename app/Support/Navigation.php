@@ -38,7 +38,7 @@ final class Navigation
             ['key' => 'search', 'icon' => 'search', 'capability' => 'projects.view', 'task' => 'M4.17'],
             ['key' => 'statistics', 'icon' => 'chart', 'capability' => 'applications.view', 'task' => 'M4.17'],
             ['key' => 'tasks', 'icon' => 'task', 'capability' => 'tasks.view', 'task' => 'M4.16'],
-            ['key' => 'accounts', 'icon' => 'shield', 'capability' => 'accounts.manage', 'task' => 'M4.1'],
+            ['key' => 'accounts', 'icon' => 'shield', 'route' => 'admin.accounts.index', 'capability' => 'accounts.manage'],
             ['key' => 'design', 'icon' => 'settings', 'route' => 'design', 'capability' => 'accounts.manage'],
         ],
     ];
@@ -59,7 +59,9 @@ final class Navigation
                 $out[$group][] = [
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
-                    'current' => $route !== null && request()->routeIs($route === 'projects.index' ? 'projects.*' : $route),
+                    'current' => $route !== null && request()->routeIs(match ($route) {
+                        'projects.index' => 'projects.*', 'admin.accounts.index' => 'admin.*', default => $route
+                    }),
                 ];
             }
         }

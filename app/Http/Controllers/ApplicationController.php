@@ -17,7 +17,10 @@ final class ApplicationController
         $applications->cities($request->user()) !== [] || abort(403);
         $person = $request->integer('person') ?: null;
 
-        return view('applications.create', ['personId' => $person]);
+        $draft = $request->query('draft');
+        $draft = is_string($draft) && preg_match('/\A[a-z0-9-]{8,64}\z/', $draft) === 1 ? $draft : null;
+
+        return view('applications.create', ['personId' => $person, 'draft' => $draft]);
     }
 
     public function edit(Request $request, string $locale, int $project, ApplicationService $applications): View

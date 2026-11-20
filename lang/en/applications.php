@@ -34,6 +34,12 @@ return [
     'family_from_person' => 'The registered person\'s family; managed on their page.',
     'check_ready' => 'Check completeness', 'ready' => 'The full application is ready to save.', 'save' => 'Save', 'save_new' => 'Save application',
     'created' => 'Application saved.', 'updated' => 'Changes saved.',
+    'drafts' => [
+        'title' => 'My drafts', 'intro' => 'Forms not saved yet. They are kept encrypted every 20 seconds while you type, only you can see them, and they are removed after :days days.',
+        'saved' => 'Last kept', 'resume' => 'Resume', 'discard' => 'Delete draft', 'confirm_discard' => 'Delete this draft for good?', 'edit_of_saved' => 'Edit of a saved application',
+        'saved_at' => 'Draft kept :time', 'autosave_hint' => 'An encrypted copy of the form is kept automatically so you can recover it if the connection drops or the page closes.',
+        'pending_title' => 'This application has an unsaved draft', 'pending' => 'From :time. You may restore it over the current data or delete it.', 'restore' => 'Restore draft',
+    ],
     'errors' => [
         'subtype' => 'The type detail does not belong to the chosen project type.', 'number' => 'Enter a valid project number.', 'fix' => 'The form has :count errors; fix them, then save.',
     ],

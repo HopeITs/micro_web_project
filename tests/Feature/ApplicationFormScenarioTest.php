@@ -11,6 +11,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -23,6 +24,7 @@ class ApplicationFormScenarioTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local'); // drafts are autosaved; never into the real private disk
         $this->seed(DatabaseSeeder::class);
     }
 
@@ -180,6 +182,39 @@ class ApplicationFormScenarioTest extends TestCase
         $form = $this->newPreliminary()->set('form.person.national_number', $existing->national_number)->assertSee(__('people.duplicates_title', [], 'ar'))
             ->call('save')->assertHasErrors('confirm');
         $form->set('confirmed', true)->call('save')->assertHasNoErrors();
+    }
+
+    public function test_drafts_are_kept_resumed_private_and_removed_after_saving(): void
+    {
+        Storage::fake('local');
+        $clerk = $this->damascusClerk();
+        $form = $this->newPreliminary()->call('autosave')->assertSet('dirty', false);
+        $draftId = $form->get('draftId');
+        $files = Storage::disk('local')->allFiles('application-drafts/'.$clerk->id);
+        $this->assertCount(1, $files);
+        // Encrypted at rest: the typed name is not readable in the file.
+        $this->assertStringNotContainsString('منيرفا', Storage::disk('local')->get($files[0]));
+
+        $this->get('/ar/applications/create')->assertSee(__('applications.drafts.title', [], 'ar'))->assertSee('منيرفا');
+        Livewire::withQueryParams([])->test(ApplicationForm::class, ['draft' => $draftId])->assertSet('form.person.first_name', 'منيرفا')
+            ->assertSet('form.project.name', 'مشغل خياطة منزلي')->call('save')->assertHasNoErrors();
+        $this->assertSame([], Storage::disk('local')->allFiles('application-drafts/'.$clerk->id), 'the draft is removed once the application is saved');
+
+        // Another account cannot open it.
+        $this->newPreliminary()->call('autosave');
+        $this->actingAs(WebAccount::where('username', 'role.data-entry')->firstOrFail());
+        $this->get('/ar/applications/create')->assertDontSee('منيرفا');
+    }
+
+    public function test_an_edit_keeps_one_draft_that_can_be_restored(): void
+    {
+        Storage::fake('local');
+        $this->damascusClerk();
+        $this->newPreliminary()->call('save');
+        $project = (int) DB::table('projects')->where('name', 'مشغل خياطة منزلي')->value('id');
+        Livewire::test(ApplicationForm::class, ['projectId' => $project])->set('form.project.name', 'وصف لم يُحفظ')->call('autosave');
+        Livewire::test(ApplicationForm::class, ['projectId' => $project])->assertSet('form.project.name', 'مشغل خياطة منزلي')
+            ->assertSee(__('applications.drafts.pending_title', [], 'ar'))->call('restoreDraft')->assertSet('form.project.name', 'وصف لم يُحفظ');
     }
 
     public function test_roles_and_cities(): void

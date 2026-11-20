@@ -1,4 +1,4 @@
-<div x-data x-on:form-errors.window="$nextTick(() => document.querySelector('.hc-error, .hc-alert-danger')?.scrollIntoView({block: 'center', behavior: 'smooth'}))">
+<div wire:poll.20s="autosave" x-data x-on:form-errors.window="$nextTick(() => document.querySelector('.hc-error, .hc-alert-danger')?.scrollIntoView({block: 'center', behavior: 'smooth'}))">
     @php
         $en = app()->getLocale() === 'en';
         $locale = app()->getLocale();
@@ -7,6 +7,12 @@
     @endphp
     <form wire:submit="save">
     <div class="hc-grid">
+        @if($pendingDraftAt !== '')
+            <x-hc.alert type="info" :title="__('applications.drafts.pending_title')">
+                {{ __('applications.drafts.pending', ['time' => $pendingDraftAt]) }}
+                <span style="display:flex;gap:8px;margin-block-start:8px"><x-hc.button size="sm" wire:click="restoreDraft">{{ __('applications.drafts.restore') }}</x-hc.button><x-hc.button size="sm" variant="ghost" wire:click="discardDraft">{{ __('applications.drafts.discard') }}</x-hc.button></span>
+            </x-hc.alert>
+        @endif
         {{-- City, stage and project number --}}
         <x-hc.card>
             <div class="hc-form-grid" style="align-items:end">
@@ -138,7 +144,8 @@
     <x-hc.action-bar>
         <a class="hc-btn hc-btn-ghost" href="{{ $projectId ? route('projects.show', ['locale' => $locale, 'project' => $projectId]) : route('projects.index', ['locale' => $locale]) }}">{{ __('people.cancel') }}</a>
         <span class="spacer"></span>
-        <span wire:loading class="muted">{{ __('people.saving') }}</span>
+        @if($draftSavedAt !== '')<span class="muted" style="font-size:.85rem" title="{{ __('applications.drafts.autosave_hint') }}"><x-hc.icon name="check" :size="14"/> {{ __('applications.drafts.saved_at', ['time' => $draftSavedAt]) }}</span>@endif
+        <span wire:loading wire:target="save" class="muted">{{ __('people.saving') }}</span>
         @if($stage === 'full')<x-hc.button variant="secondary" icon="check" wire:click="checkReadiness">{{ __('applications.check_ready') }}</x-hc.button>@endif
         <x-hc.button type="submit" icon="check" wire:loading.attr="disabled">{{ $projectId ? __('applications.save') : __('applications.save_new') }}</x-hc.button>
     </x-hc.action-bar>

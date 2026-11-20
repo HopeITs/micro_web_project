@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Services\Applications\ApplicationFields;
 use App\Services\Applications\ApplicationService;
+use App\Services\Drafts\ApplicationDraftStore;
 use App\Services\People\PeopleService;
 use App\Services\People\PersonFields;
 use App\Services\ProjectNumberAllocator;
@@ -38,16 +39,46 @@ class ApplicationForm extends Component
 
     public bool $readinessChecked = false;
 
-    public function mount(?int $projectId = null, ?int $personId = null): void
+    /** The draft this form autosaves to (one per application being edited, a new one per new form). */
+    #[Locked]
+    public string $draftId = '';
+
+    /** Changed since the last autosave. */
+    public bool $dirty = false;
+
+    public string $draftSavedAt = '';
+
+    /** An older draft of this application that may be restored (edit page). */
+    public string $pendingDraftAt = '';
+
+    public function mount(?int $projectId = null, ?int $personId = null, ?string $draft = null): void
     {
         $service = app(ApplicationService::class);
+        $drafts = app(ApplicationDraftStore::class);
         $account = auth()->user();
+        if ($draft !== null && $projectId === null) {
+            $saved = $drafts->load($account, $draft) ?? abort(404);
+            if ($saved['project_id'] !== null) {
+                $this->redirectRoute('applications.edit', ['locale' => app()->getLocale(), 'project' => $saved['project_id']]);
+
+                return;
+            }
+            $this->form = $saved['state'];
+            $this->draftId = $draft;
+            $this->draftSavedAt = substr((string) $saved['saved_at'], 11, 5);
+
+            return;
+        }
         if ($projectId !== null) {
             $this->form = $service->load($account, $projectId);
             $service->canWrite($account, (int) $this->form['city']) || abort(403);
             $this->projectId = $projectId;
             $this->savedStage = $this->form['stage'];
+            $this->draftId = ApplicationDraftStore::newId($projectId);
+            $pending = $drafts->load($account, $this->draftId);
+            $this->pendingDraftAt = $pending ? str_replace('T', ' ', substr((string) $pending['saved_at'], 0, 16)) : '';
         } else {
+            $this->draftId = ApplicationDraftStore::newId();
             $cities = $service->cities($account);
             $cities !== [] || abort(403);
             $city = $cities[0];
@@ -60,6 +91,7 @@ class ApplicationForm extends Component
             if ($personId !== null) {
                 $this->pickPerson($personId);
             }
+            $this->dirty = false;
         }
     }
 
@@ -70,6 +102,7 @@ class ApplicationForm extends Component
 
     public function updatedFormCity(): void
     {
+        $this->dirty = true;
         if ($this->projectId !== null) {
             return;
         }
@@ -94,10 +127,44 @@ class ApplicationForm extends Component
             $this->form['project']['project_subtype_id'] = '';
         }
         $this->readinessChecked = false;
+        if (str_starts_with($property, 'form.')) {
+            $this->dirty = true;
+        }
+    }
+
+    /** Called every 20 seconds by the page: keeps an encrypted draft when something changed. */
+    public function autosave(): void
+    {
+        if (! $this->dirty || $this->draftId === '') {
+            return;
+        }
+        app(ApplicationDraftStore::class)->save(auth()->user(), $this->draftId, $this->form, $this->projectId);
+        $this->dirty = false;
+        $this->draftSavedAt = now()->format('H:i');
+    }
+
+    /** Edit page: replaces the form with the older draft of this application. */
+    public function restoreDraft(): void
+    {
+        $saved = app(ApplicationDraftStore::class)->load(auth()->user(), $this->draftId);
+        if ($saved !== null && (int) ($saved['project_id'] ?? 0) === $this->projectId) {
+            $this->form = $saved['state'];
+            $this->form['city'] = (int) $this->form['city'];
+            $this->dirty = true;
+        }
+        $this->pendingDraftAt = '';
+    }
+
+    public function discardDraft(): void
+    {
+        app(ApplicationDraftStore::class)->discard(auth()->user(), $this->draftId);
+        $this->pendingDraftAt = '';
+        $this->draftSavedAt = '';
     }
 
     public function setStage(string $stage): void
     {
+        $this->dirty = true;
         if ($this->savedStage === 'full') {
             return;
         }
@@ -108,6 +175,7 @@ class ApplicationForm extends Component
     /** Takes a registered person of the city as the beneficiary, with their family and sub-tables. */
     public function pickPerson(int $id): void
     {
+        $this->dirty = true;
         $people = app(PeopleService::class);
         $person = $people->person(auth()->user(), $id);
         (int) $person->city_id === (int) $this->form['city'] || abort(404);
@@ -134,6 +202,7 @@ class ApplicationForm extends Component
     /** Back to a new beneficiary (only before the application is saved). */
     public function newPerson(): void
     {
+        $this->dirty = true;
         if ($this->projectId !== null) {
             return;
         }
@@ -151,12 +220,14 @@ class ApplicationForm extends Component
 
     public function addRow(string $kind): void
     {
+        $this->dirty = true;
         isset(ApplicationFields::GRIDS[$kind]) || abort(404);
         $this->form['grids'][$kind][] = ['id' => null] + array_fill_keys(array_keys(ApplicationFields::grid($kind)['fields']), '');
     }
 
     public function removeRow(string $kind, int $index): void
     {
+        $this->dirty = true;
         $row = $this->form['grids'][$kind][$index] ?? null;
         if ($row === null) {
             return;
@@ -206,9 +277,12 @@ class ApplicationForm extends Component
         } catch (ValidationException $e) {
             $this->showErrors($e);
             $this->dispatch('form-errors');
+            $this->dirty = true;
+            $this->autosave(); // keep the typed work even when it cannot be saved yet
 
             return;
         }
+        app(ApplicationDraftStore::class)->discard(auth()->user(), $this->draftId);
         session()->flash('status', $this->projectId ? __('applications.updated') : __('applications.created'));
         $this->redirectRoute('projects.show', ['locale' => app()->getLocale(), 'project' => $id]);
     }

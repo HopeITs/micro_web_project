@@ -58,7 +58,7 @@ code{direction:ltr;unicode-bidi:embed;font-size:13px}
 <section><h2>الخلاصة</h2>
 <div class="kpis">
 <div class="kpi"><b><?= number_format($totals['rows']) ?></b><span>صف منقول</span></div>
-<div class="kpi"><b>10,519</b><span>مشروع في 5 مدن</span></div>
+<div class="kpi"><b><?= number_format(array_sum(array_map(fn ($r) => (int) ($pick($r, 'numbers', 'project numbers (set equality)')['target'] ?? 0), $reports))) ?></b><span>مشروع في 5 مدن</span></div>
 <div class="kpi"><b><?= $totals['equal'] + $totals['explained'] ?></b><span>فحص مطابقة</span></div>
 <div class="kpi ok"><b><?= $totals['unexplained'] ?></b><span>فرق غير مفسّر</span></div>
 <div class="kpi"><b><?= number_format($totals['exceptions']) ?></b><span>قيمة مسجلة للمراجعة</span></div>
@@ -73,7 +73,7 @@ code{direction:ltr;unicode-bidi:embed;font-size:13px}
 <td class="n"><?= $e($p['target'] ?? '') ?></td><td class="n"><?= $e($n['target'] ?? '') ?></td><td class="n"><?= $r['summary']['equal'] ?></td><td class="n"><?= $r['summary']['explained'] ?></td>
 <td class="n ok"><?= $r['summary']['unexplained'] ?></td><td class="n"><?= number_format(array_sum($r['exceptions'])) ?></td></tr>
 <?php endforeach; ?></table></div>
-<div class="note">حلب منقولة من نسخة 22 تشرين الأول لأن نسخة 19 تشرين الثاني ناقصة (95 جدولاً). يُعاد نقلها عند توفر نسخة كاملة.</div>
+<div class="note">حلب منقولة من النسخة الكاملة 20 تشرين الثاني (140 جدولاً، مع جداول كوبو ولقاءات المهن). باقي المدن من نسخ 19 تشرين الثاني.</div>
 </section>
 
 <section><h2>أثر ملحق v1.2</h2><p>نفس النقل قبل وبعد التصحيحات المعتمدة:</p><div class="table"><table>
@@ -87,7 +87,7 @@ code{direction:ltr;unicode-bidi:embed;font-size:13px}
 <?php $all = []; foreach ($reports as $r) { $all += $r['exceptions']; } foreach (array_keys($all) as $k): ?><tr><td><?= $e($kinds[$k] ?? $k) ?></td>
 <?php foreach ($cities as $code => $name): ?><td class="n"><?= number_format($reports[$code]['exceptions'][$k] ?? 0) ?></td><?php endforeach; ?></tr>
 <?php endforeach; ?></table></div>
-<p>أكبرها: 602 شخصاً في حلب بدون كنية في المصدر، و52 سطر زائر فارغاً في حلب (بدون مستخدم أصلاً). كل هذه الزيارات لها زوار آخرون مسجلون، فلم يضع أي زائر.</p></section>
+<p>أكبرها: 602 شخصاً في حلب بدون كنية في المصدر، و52 سطر زائر فارغاً في حلب (بدون مستخدم أصلاً). كل هذه الزيارات لها زوار آخرون مسجلون، فلم يضع أي زائر. في كوبو حلب: 14 ربط مستخدم بدون رقم نموذج، و5 روابط لزيارات أو سجلات غير موجودة في المصدر.</p></section>
 </div></main></body></html>
 <?php
 file_put_contents(__DIR__.'/m3-transfer-report.html', ob_get_clean());

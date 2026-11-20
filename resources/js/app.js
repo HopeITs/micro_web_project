@@ -105,3 +105,53 @@ document.addEventListener('alpine:init', () => {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh); else refresh();
     document.addEventListener('livewire:navigated', refresh);
 })();
+
+// F3 Ctrl+K search (resources/views/livewire/command-palette.blade.php). Recent items are pages and
+// commands only (never a person or a project), kept in this browser.
+document.addEventListener('alpine:init', () => {
+    const RECENT_KEY = 'mp.cmdk.recent';
+    const readRecent = () => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]').slice(0, 5); } catch (_) { return []; } };
+
+    window.Alpine.data('commandPalette', () => ({
+        open: false,
+        active: -1,
+        recent: readRecent(),
+        show() {
+            this.open = true;
+            this.active = -1;
+            this.$nextTick(() => { this.$refs.input.focus(); this.$refs.input.select(); });
+        },
+        hide() { this.open = false; },
+        globalKey(event) {
+            const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]');
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                this.open ? this.hide() : this.show();
+            } else if (event.key === '/' && !typing && !this.open) {
+                event.preventDefault();
+                this.show();
+            }
+        },
+        items() { return [...this.$refs.list.querySelectorAll('[data-cmdk-item]')]; },
+        move(step) {
+            const items = this.items();
+            if (!items.length) return;
+            this.active = (this.active + step + items.length) % items.length;
+            items.forEach((item, i) => {
+                item.classList.toggle('is-active', i === this.active);
+                item.setAttribute('aria-selected', i === this.active ? 'true' : 'false');
+            });
+            items[this.active].scrollIntoView({ block: 'nearest' });
+        },
+        choose() {
+            const items = this.items();
+            const target = items[this.active] || items[0];
+            if (target) target.click();
+        },
+        remember(item) {
+            const list = [item, ...readRecent().filter((r) => r.url !== item.url)].slice(0, 5);
+            try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (_) {}
+            this.recent = list;
+        },
+    }));
+});

@@ -44,4 +44,10 @@ return [
     'path_title' => 'Application path', 'path_intake' => 'Intake', 'path_assessment' => 'Assessment', 'path_decision' => 'Decision', 'path_funding' => 'Funding', 'path_followup' => 'Follow-up', 'path_closing' => 'Closing',
     'path_now' => 'Now', 'path_stopped' => 'Stopped', 'path_state_done' => 'done', 'path_state_now' => 'current stage', 'path_state_todo' => 'not started', 'path_state_stopped' => 'the application stopped here', 'path_state_paused' => 'paused', 'path_state_withdrawn' => 'the beneficiary withdrew here', 'path_state_complete' => 'path complete',
     'next_step' => 'Next step', 'waiting_on' => 'Waiting on: :who', 'quick_filters' => 'Quick filters',
+    // F3 Ctrl+K search
+    'cmdk_trigger' => 'Search a person, project or page', 'cmdk_title' => 'Quick search', 'cmdk_placeholder' => 'Name, national number, project number like DAM-1001, or a page…',
+    'cmdk_recent' => 'Recently opened', 'cmdk_commands' => 'Actions', 'cmdk_projects' => 'Projects', 'cmdk_people' => 'People', 'cmdk_pages' => 'Pages',
+    'cmdk_none_title' => 'No results', 'cmdk_none' => 'Try part of the name, the national number or the project number.', 'cmdk_move' => 'to move', 'cmdk_open' => 'to open', 'cmdk_close' => 'to close',
+    'cmd_new_application' => 'New application', 'cmd_new_person' => 'Add a person', 'cmd_national_check' => 'Check a national number', 'cmd_change_password' => 'Change password',
+    'path_group_intake' => 'Intake', 'path_group_assessment' => 'Assessment', 'path_group_decision' => 'Decision (delayed)', 'path_group_funding' => 'Funding', 'path_group_followup' => 'Follow-up', 'path_group_closing' => 'Closing', 'path_group_stopped' => 'Stopped',
 ];

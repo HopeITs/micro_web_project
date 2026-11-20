@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\ProjectState;
 use App\Services\ProjectNumberAllocator;
 use App\Support\CityContext;
+use App\Support\ProjectStatus;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -14,13 +15,19 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-/** Projects of the permitted cities: instant search (CITY-#### / number / names) and filters kept in the URL. */
+/**
+ * Projects of the permitted cities: instant search (CITY-#### / number / names), filters kept in the URL, and
+ * count tiles per stage of the application path (F3). The search term can hold a beneficiary's name or national
+ * number, so it stays out of the URL (UX plan F3, same rule as the people list).
+ */
 class ProjectsIndex extends Component
 {
     use WithPagination;
 
-    #[Url(as: 'q', except: '')]
     public string $search = '';
+
+    #[Url(except: '')]
+    public string $path = '';
 
     /** @var list<int> */
     #[Url(as: 'city', except: [])]
@@ -34,9 +41,15 @@ class ProjectsIndex extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['search', 'stage', 'state'], true) || str_starts_with($property, 'cities')) {
+        if (in_array($property, ['search', 'stage', 'state', 'path'], true) || str_starts_with($property, 'cities')) {
             $this->resetPage();
         }
+    }
+
+    public function togglePath(string $group): void
+    {
+        $this->path = $this->path === $group || ! array_key_exists($group, ProjectStatus::groups()) ? '' : $group;
+        $this->resetPage();
     }
 
     public function toggleCity(int $id): void
@@ -49,11 +62,11 @@ class ProjectsIndex extends Component
 
     public function clearFilters(): void
     {
-        $this->reset('search', 'cities', 'stage', 'state');
+        $this->reset('search', 'cities', 'stage', 'state', 'path');
         $this->resetPage();
     }
 
-    private function query(): Builder
+    private function query(bool $withPath = true): Builder
     {
         $current = DB::table('project_state_history')->select('project_id', 'project_state_id')->where('is_current', true)->whereNull('deleted_at');
         $applicant = DB::table('project_applicants as pa')->join('people as pp', 'pp.id', '=', 'pa.person_id')
@@ -76,6 +89,10 @@ class ProjectsIndex extends Component
         }
         if (in_array($this->stage, ['preliminary', 'full'], true)) {
             $query->where('projects.application_stage', $this->stage);
+        }
+        $groups = ProjectStatus::groups();
+        if ($withPath && isset($groups[$this->path])) {
+            $query->whereIn('st.name_en', $groups[$this->path]);
         }
         if ($this->state !== '' && ctype_digit($this->state)) {
             $query->where('cs.project_state_id', (int) $this->state);
@@ -101,12 +118,21 @@ class ProjectsIndex extends Component
         return $query->orderByDesc('projects.request_date')->orderBy('c.code')->orderByDesc('projects.project_number');
     }
 
+    /** @return array<string, int> group => projects matching every other filter */
+    private function pathCounts(): array
+    {
+        $byState = $this->query(false)->reorder()->toBase()->select('st.name_en')->selectRaw('COUNT(*) as n')->groupBy('st.name_en')->pluck('n', 'name_en');
+
+        return array_map(fn (array $states) => (int) collect($states)->sum(fn ($state) => $byState[$state] ?? 0), ProjectStatus::groups());
+    }
+
     public function render(): View
     {
         $permitted = app(CityContext::class)->cityIds();
 
         return view('livewire.projects-index', [
             'projects' => $this->query()->paginate(15),
+            'pathCounts' => $this->pathCounts(),
             'cityOptions' => City::whereIn('id', $permitted)->orderBy('id')->get(['id', 'code', 'name_ar', 'name_en']),
             'stateOptions' => ProjectState::ordered()->get(['id', 'name_ar', 'name_en']),
         ]);

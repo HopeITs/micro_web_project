@@ -335,3 +335,41 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-chip.is-active span { background: color-mix(in srgb, var(--surface) 20%, transparent); color: var(--surface); }
 .hc-empty-action { margin-block-start: 16px; display: flex; justify-content: center; }
 @media (pointer: coarse) { .hc-chip { min-height: 44px; } }
+
+/* ------------------------------------------------------------------ F3 Ctrl+K search */
+.hc-cmdk-root { display: contents; }
+.hc-cmdk-trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; min-width: 240px; padding: 0 10px 0 12px; margin-inline: auto; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--muted); font: inherit; font-size: .88rem; cursor: pointer; }
+.hc-cmdk-trigger:hover { border-color: var(--line-strong); color: var(--ink-2); }
+.hc-cmdk-trigger:focus-visible { outline: none; box-shadow: var(--focus); }
+.hc-cmdk-hint { flex: 1; text-align: start; }
+.hc-cmdk kbd, .hc-cmdk-trigger kbd { font: inherit; font-size: .72rem; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.hc-cmdk-backdrop { position: fixed; inset: 0; z-index: 70; background: rgb(20 19 21 / .45); }
+.hc-cmdk { position: fixed; z-index: 71; inset-block-start: 10vh; inset-inline: 0; margin-inline: auto; width: min(640px, calc(100vw - 32px)); max-height: 76vh; display: flex; flex-direction: column; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.hc-cmdk-field { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-block-end: 1px solid var(--line); color: var(--muted); }
+.hc-cmdk-input { flex: 1; min-width: 0; min-height: 40px; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.02rem; outline: none; }
+.hc-cmdk-input::-webkit-search-cancel-button { display: none; }
+.hc-cmdk-busy { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line-strong); border-block-start-color: var(--brand); animation: hc-spin .7s linear infinite; }
+@keyframes hc-spin { to { transform: rotate(360deg); } }
+.hc-cmdk-list { overflow-y: auto; padding: 6px 8px 10px; }
+.hc-cmdk-label { margin: 10px 8px 4px; font-size: .72rem; font-weight: 700; letter-spacing: .03em; color: var(--muted); }
+.hc-cmdk-item { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 10px; border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; }
+.hc-cmdk-item:hover, .hc-cmdk-item.is-active { background: var(--surface-2); }
+.hc-cmdk-item.is-active { box-shadow: inset 3px 0 0 var(--brand); }
+[dir="rtl"] .hc-cmdk-item.is-active { box-shadow: inset -3px 0 0 var(--brand); }
+.hc-cmdk-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; background: var(--surface-2); color: var(--ink-2); }
+.hc-cmdk-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hc-cmdk-text strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-cmdk-text small { color: var(--muted); font-size: .8rem; }
+.hc-cmdk-foot { display: flex; flex-wrap: wrap; gap: 16px; padding: 8px 16px; border-block-start: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+.hc-cmdk-foot kbd { margin-inline-end: 2px; }
+@media (max-width: 760px) {
+    .hc-cmdk-trigger { min-width: 0; width: 40px; padding: 0; justify-content: center; border-radius: 50%; margin-inline: auto 0; }
+    .hc-cmdk-trigger .hc-cmdk-hint, .hc-cmdk-trigger kbd, .hc-cmdk-foot { display: none; }
+    .hc-cmdk { inset-block-start: 0; width: 100vw; max-height: 100dvh; height: 100dvh; border-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .hc-cmdk-busy { animation: none; } }
+.hc-counts-path { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.hc-counts-path .hc-count { flex-direction: column; align-items: flex-start; gap: 4px; min-height: 72px; }
+.hc-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.hc-chip[aria-pressed="true"] span { color: var(--surface); background: transparent; }
+@media (max-width: 560px) { .hc-counts-path { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

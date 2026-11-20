@@ -1,5 +1,10 @@
 <div>
     @php($en = app()->getLocale() === 'en')
+    <div class="hc-counts hc-counts-path" role="group" aria-label="{{ __('hc.path_title') }}" style="margin-block-end:16px">
+        @foreach($pathCounts as $group => $count)
+            <x-hc.count-tile :count="$count" :label="__('hc.path_group_'.$group)" :tone="\App\Support\ProjectStatus::groupTone($group)" :active="$path === $group" wire:click="togglePath('{{ $group }}')"/>
+        @endforeach
+    </div>
     <x-hc.card :flush="true">
         <div class="hc-toolbar">
             <div class="hc-field grow">
@@ -33,7 +38,7 @@
                 @endforeach
             </div>
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('hc.results', ['count' => number_format($projects->total())]) }}</span>
-            @if($search !== '' || $cities !== [] || $stage !== '' || $state !== '')
+            @if($search !== '' || $cities !== [] || $stage !== '' || $state !== '' || $path !== '')
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('hc.clear') }}</x-hc.button>
             @endif
         </div>

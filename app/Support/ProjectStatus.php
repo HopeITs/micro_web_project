@@ -94,6 +94,28 @@ final class ProjectStatus
         return ['current' => $stage, 'mode' => self::mode($stateEn), 'tone' => self::tone($stateEn)];
     }
 
+    /**
+     * Groups for the count tiles over the projects list (F3): the six stages hold the states still on the path,
+     * and "stopped" holds rejected, withdrew and cancelled, so each state is counted exactly once.
+     *
+     * @return array<string, list<string>> group => English state names
+     */
+    public static function groups(): array
+    {
+        $groups = array_fill_keys([...self::STAGES, 'stopped'], []);
+        foreach (self::MAP as $state => [, , $stage, $mode]) {
+            $groups[in_array($mode, [self::STOPPED, self::WITHDRAWN], true) ? 'stopped' : $stage][] = $state;
+        }
+
+        return $groups;
+    }
+
+    /** The tone of a count tile: the tone its states share, red for stopped. */
+    public static function groupTone(string $group): ?string
+    {
+        return ['assessment' => 'warn', 'decision' => 'warn', 'funding' => 'info', 'followup' => 'ok', 'closing' => 'ok', 'stopped' => 'danger'][$group] ?? null;
+    }
+
     /** @return list<array{key: string, label: string}> */
     public static function stages(): array
     {

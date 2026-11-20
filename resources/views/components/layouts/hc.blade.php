@@ -31,6 +31,7 @@
         <span class="hc-brand-divider" aria-hidden="true"></span>
         <img class="hc-logo-hc" src="{{ asset('assets/brand/hope-center.svg') }}" alt="{{ __('hc.organization') }}" width="82" height="28">
     </a>
+    @if($account)<livewire:command-palette />@endif
     <div class="hc-header-actions">
         <div style="position:relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
             <button class="hc-icon-btn" type="button" @click="open = !open" :aria-expanded="open" aria-label="{{ __('hc.theme') }}" title="{{ __('hc.theme') }}">

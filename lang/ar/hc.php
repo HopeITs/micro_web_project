@@ -49,4 +49,10 @@ return [
     'path_title' => 'مسار الطلب', 'path_intake' => 'تسجيل', 'path_assessment' => 'تقييم', 'path_decision' => 'قرار', 'path_funding' => 'تمويل', 'path_followup' => 'متابعة', 'path_closing' => 'إغلاق',
     'path_now' => 'الآن', 'path_stopped' => 'متوقف', 'path_state_done' => 'مكتملة', 'path_state_now' => 'المرحلة الحالية', 'path_state_todo' => 'لم تبدأ', 'path_state_stopped' => 'توقف الطلب هنا', 'path_state_paused' => 'متوقف مؤقتاً', 'path_state_withdrawn' => 'انسحب المستفيد هنا', 'path_state_complete' => 'اكتمل المسار',
     'next_step' => 'الخطوة التالية', 'waiting_on' => 'بانتظار: :who', 'quick_filters' => 'فلاتر سريعة',
+    // F3 Ctrl+K search
+    'cmdk_trigger' => 'ابحث عن شخص أو مشروع أو صفحة', 'cmdk_title' => 'البحث السريع', 'cmdk_placeholder' => 'اسم، رقم وطني، رقم مشروع مثل DAM-1001، أو صفحة…',
+    'cmdk_recent' => 'فتحتها مؤخراً', 'cmdk_commands' => 'إجراءات', 'cmdk_projects' => 'المشاريع', 'cmdk_people' => 'الأشخاص', 'cmdk_pages' => 'الصفحات',
+    'cmdk_none_title' => 'لا توجد نتائج', 'cmdk_none' => 'جرّب جزءاً من الاسم، أو الرقم الوطني، أو رقم المشروع.', 'cmdk_move' => 'للتنقل', 'cmdk_open' => 'للفتح', 'cmdk_close' => 'للإغلاق',
+    'cmd_new_application' => 'طلب جديد', 'cmd_new_person' => 'إضافة شخص', 'cmd_national_check' => 'فحص رقم وطني', 'cmd_change_password' => 'تغيير كلمة المرور',
+    'path_group_intake' => 'تسجيل', 'path_group_assessment' => 'دراسة', 'path_group_decision' => 'قرار (مؤجل)', 'path_group_funding' => 'تمويل', 'path_group_followup' => 'متابعة', 'path_group_closing' => 'انتهاء', 'path_group_stopped' => 'متوقف',
 ];

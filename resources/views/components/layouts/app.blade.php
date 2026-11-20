@@ -20,6 +20,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
+    @include('partials.pwa-head')
     <title>{{ $title ?? __('ui.foundation') }} · {{ __('ui.brand') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    @include('partials.pwa-head')
     <title>{{ __('hc.login_title') }} · {{ __('hc.brand') }}</title>
     <script>try { var t = localStorage.getItem('hc.theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -38,6 +39,7 @@
             <x-hc.button type="submit" icon="arrow" style="width:100%">{{ __('hc.login') }}</x-hc.button>
             <p class="hc-hint">{{ __('hc.login_note') }}</p>
         </form>
+        <div class="hc-auth-install"><x-hc.install-app variant="button"/></div>
     </main>
 </div>
 </body>

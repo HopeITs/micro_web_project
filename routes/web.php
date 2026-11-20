@@ -5,6 +5,7 @@ use App\Http\Controllers\AccountPasswordController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
+use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Middleware\RequireCurrentAccount;
@@ -19,6 +20,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => redirect()->route(auth()->check() ? 'home' : 'auth.login', ['locale' => 'ar']));
 
 Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::class)->group(function () {
+    // F1 installable app: one public manifest per language (no account data in it).
+    Route::get('/manifest.webmanifest', ManifestController::class)->name('pwa.manifest');
+
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AuthController::class, 'show'])->name('auth.login');
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.attempt');

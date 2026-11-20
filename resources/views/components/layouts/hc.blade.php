@@ -14,6 +14,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    @include('partials.pwa-head')
     <title>{{ $title ? $title.' · ' : '' }}{{ __('hc.brand') }}</title>
     <script>try { var t = localStorage.getItem('hc.theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -48,6 +49,7 @@
             <div class="hc-dropdown" x-show="open" x-cloak>
                 <div class="who"><strong class="ltr">{{ $account->username }}</strong>{{ __('hc.signed_in') }}</div>
                 @if(Route::has('account.password'))<a href="{{ route('account.password', ['locale' => $locale]) }}"><x-hc.icon name="settings" :size="18"/>{{ __('account.change_title') }}</a>@endif
+                <x-hc.install-app x-on:click="open = false"/>
                 <form method="POST" action="{{ route('auth.logout', ['locale' => $locale]) }}">@csrf<button type="submit"><x-hc.icon name="logout" :size="18"/>{{ __('hc.logout') }}</button></form>
             </div>
         </div>

@@ -265,3 +265,13 @@ h3 { font-size: 1rem; font-weight: 700; }
 :root[data-theme="dark"] .hc-logo-micro, :root[data-theme="dark"] .hc-logo-hc, :root[data-theme="dark"] .hc-auth-micro { filter: brightness(0) invert(.92); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hc-logo-micro, :root:not([data-theme="light"]) .hc-logo-hc, :root:not([data-theme="light"]) .hc-auth-micro { filter: brightness(0) invert(.92); } }
 @media (max-width: 560px) { .hc-logo-hc, .hc-brand-divider { display: none; } .hc-logo-micro { height: 30px; } }
+
+/* ------------------------------------------------------------------ F1 install the app */
+.hc-dropdown .hc-install-item[hidden], [data-pwa-install][hidden] { display: none; }
+.hc-install-dialog { margin: auto; width: min(420px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); padding: 24px; box-shadow: var(--shadow); }
+.hc-install-dialog::backdrop { background: rgb(20 19 21 / .45); }
+.hc-install-dialog h2 { margin: 0 0 12px; font-size: 1.15rem; }
+.hc-install-dialog ol { margin: 0 0 20px; padding-inline-start: 22px; display: grid; gap: 8px; }
+.hc-install-dialog form { display: flex; justify-content: flex-end; }
+.hc-install-share { display: inline-flex; vertical-align: middle; color: var(--info); }
+.hc-auth-install { display: flex; justify-content: center; margin-block-start: 12px; }

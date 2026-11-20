@@ -37,4 +37,7 @@ return [
     'legacy_number' => 'Number in the city program', 'not_set' => '—',
 
     'design_title' => 'Design components', 'design_intro' => 'The shared components of every screen in the Hope Center identity.',
+    // F1 installable app
+    'pwa_name' => 'Micro Projects · Hope Center', 'pwa_description' => 'Micro Projects management at Hope Center.', 'pwa_install' => 'Install the app',
+    'pwa_ios_title' => 'Install on iPhone or iPad', 'pwa_ios_step1' => 'In Safari, tap the Share button', 'pwa_ios_step2' => 'Choose “Add to Home Screen”.', 'pwa_ios_step3' => 'Tap “Add”: the Micro Projects icon appears with your apps.', 'pwa_ok' => 'Done',
 ];

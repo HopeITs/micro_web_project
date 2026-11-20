@@ -58,3 +58,50 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
+
+// F1 installable app (docs/planning/ux-borrowed-features-2026-11.md): register the service worker
+// (shell files + offline page only, see public/sw.js) and drive every "Install the app" button.
+(() => {
+    const workerUrl = document.querySelector('meta[name="mp-service-worker"]')?.content;
+    if (workerUrl && 'serviceWorker' in navigator && window.isSecureContext) {
+        window.addEventListener('load', () => navigator.serviceWorker.register(workerUrl).catch(() => undefined));
+    }
+
+    const standalone = () => window.matchMedia('(display-mode: standalone)').matches
+        || window.matchMedia('(display-mode: window-controls-overlay)').matches
+        || window.navigator.standalone === true;
+    const appleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    let deferredPrompt = null;
+
+    const buttons = () => document.querySelectorAll('[data-pwa-install]');
+    const refresh = () => {
+        const show = !standalone() && (deferredPrompt !== null || appleMobile);
+        buttons().forEach((button) => { button.hidden = !show; });
+    };
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        refresh();
+    });
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; refresh(); });
+
+    document.addEventListener('click', async (event) => {
+        const button = event.target instanceof Element ? event.target.closest('[data-pwa-install]') : null;
+        if (!button) return;
+        if (deferredPrompt) {
+            const prompt = deferredPrompt;
+            deferredPrompt = null;
+            await prompt.prompt();
+            await prompt.userChoice.catch(() => undefined);
+            refresh();
+            return;
+        }
+        const dialog = document.querySelector('[data-pwa-ios]');
+        if (dialog instanceof HTMLDialogElement) dialog.showModal();
+    });
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh); else refresh();
+    document.addEventListener('livewire:navigated', refresh);
+})();

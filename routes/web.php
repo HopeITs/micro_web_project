@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AccountAdminController;
+use App\Http\Controllers\AccountPasswordController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProjectController;
@@ -22,10 +24,31 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::middleware([RequireCurrentAccount::class, RestrictToPermittedCities::class])->group(function () {
+            Route::get('/account/password', [AccountPasswordController::class, 'edit'])->name('account.password');
+            Route::post('/account/password', [AccountPasswordController::class, 'update'])->block(10, 10)->name('account.password.update');
             Route::get('/', HomeController::class)->name('home');
             Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('/projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
             Route::view('/design', 'design')->name('design');
+
+            // M4.1 accounts, roles and task responsibilities (every action rechecks accounts.manage per city in AccountAdminService).
+            Route::get('/admin/accounts', [AccountAdminController::class, 'index'])->name('admin.accounts.index');
+            Route::get('/admin/accounts/new', [AccountAdminController::class, 'create'])->name('admin.accounts.new');
+            Route::post('/admin/accounts', [AccountAdminController::class, 'store'])->block(10, 10)->name('admin.accounts.store');
+            Route::post('/admin/accounts/plain', [AccountAdminController::class, 'storePlain'])->block(10, 10)->name('admin.accounts.store-plain');
+            Route::get('/admin/staff', [AccountAdminController::class, 'staff'])->name('admin.staff');
+            Route::get('/admin/tasks', [AccountAdminController::class, 'tasks'])->name('admin.tasks');
+            Route::post('/admin/tasks', [AccountAdminController::class, 'saveTasks'])->block(10, 10)->name('admin.tasks.save');
+            Route::prefix('/admin/accounts/{account}')->where(['account' => '[1-9][0-9]{0,18}', 'link' => '[1-9][0-9]{0,18}'])->group(function () {
+                Route::get('/', [AccountAdminController::class, 'show'])->name('admin.accounts.show');
+                Route::post('/capabilities', [AccountAdminController::class, 'capabilities'])->block(10, 10)->name('admin.accounts.capabilities');
+                Route::post('/role', [AccountAdminController::class, 'role'])->block(10, 10)->name('admin.accounts.role');
+                Route::post('/role/revoke', [AccountAdminController::class, 'roleRevoke'])->block(10, 10)->name('admin.accounts.role-revoke');
+                Route::post('/email', [AccountAdminController::class, 'email'])->block(10, 10)->name('admin.accounts.email');
+                Route::post('/links', [AccountAdminController::class, 'link'])->block(10, 10)->name('admin.accounts.link');
+                Route::post('/links/{link}', [AccountAdminController::class, 'linkState'])->block(10, 10)->name('admin.accounts.link-state');
+                Route::post('/disable', [AccountAdminController::class, 'disable'])->block(10, 10)->name('admin.accounts.disable');
+            });
         });
     });
 });

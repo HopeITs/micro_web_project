@@ -15,7 +15,7 @@ final class AccountAdminController
 {
     public function index(Request $request, string $locale, AccountAdminService $accounts): View
     {
-        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'city' => ['nullable', 'integer', 'min:1'], 'status' => ['nullable', 'in:active,disabled']]);
+        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'city' => ['nullable', 'integer', 'min:1'], 'status' => ['nullable', 'in:active,disabled'], 'role' => ['nullable', 'string', 'in:'.implode(',', array_keys(AccessRoles::ROLES))]]);
 
         return view('admin.accounts', $accounts->index($request->user(), $filters) + ['filters' => $filters]);
     }
@@ -28,7 +28,7 @@ final class AccountAdminController
     public function store(Request $request, string $locale, AccountAdminService $accounts): RedirectResponse
     {
         $data = $request->validate([
-            'identities' => ['required', 'array', 'min:1', 'max:20'], 'identities.*' => ['string', 'max:40'], 'credential' => ['required', 'string', 'max:40'],
+            'identities' => ['required', 'array', 'min:1', 'max:20'], 'identities.*' => ['integer', 'min:1'], 'credential' => ['required', 'integer', 'min:1'],
             'username' => ['nullable', 'string', 'max:200'], 'email' => ['nullable', 'string', 'max:190'], 'confirm' => ['nullable', 'in:1'], 'roles' => ['nullable', 'array', 'max:20'], 'roles.*' => ['nullable', 'string', 'max:40'],
         ]);
         $id = $accounts->create($request->user(), $data);
@@ -59,9 +59,8 @@ final class AccountAdminController
 
     public function link(Request $request, string $locale, string $account, AccountAdminService $accounts): RedirectResponse
     {
-        $data = $request->validate(['identity' => ['required', 'string', 'regex:/\A[1-9][0-9]{0,9}:[1-9][0-9]{0,18}\z/']]);
-        [$source, $record] = array_map('intval', explode(':', $data['identity']));
-        $accounts->link($request->user(), $this->id($account), $source, $record);
+        $data = $request->validate(['identity' => ['required', 'integer', 'min:1']]);
+        $accounts->link($request->user(), $this->id($account), (int) $data['identity']);
 
         return $this->back($locale, $account)->with('status', __('admin.linked'));
     }

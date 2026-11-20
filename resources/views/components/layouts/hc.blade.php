@@ -47,6 +47,7 @@
             <button class="hc-icon-btn" type="button" @click="open = !open" :aria-expanded="open" aria-label="{{ __('hc.account') }}"><x-hc.icon name="user"/></button>
             <div class="hc-dropdown" x-show="open" x-cloak>
                 <div class="who"><strong class="ltr">{{ $account->username }}</strong>{{ __('hc.signed_in') }}</div>
+                @if(Route::has('account.password'))<a href="{{ route('account.password', ['locale' => $locale]) }}"><x-hc.icon name="settings" :size="18"/>{{ __('account.change_title') }}</a>@endif
                 <form method="POST" action="{{ route('auth.logout', ['locale' => $locale]) }}">@csrf<button type="submit"><x-hc.icon name="logout" :size="18"/>{{ __('hc.logout') }}</button></form>
             </div>
         </div>

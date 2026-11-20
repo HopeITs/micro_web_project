@@ -3,6 +3,7 @@
 namespace App\Services\Transfer;
 
 use App\Services\AccessRoles;
+use App\Support\UnifiedSchema;
 use Database\Seeders\CitiesSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -69,7 +70,7 @@ final class UnifiedImporter
     {
         $this->log = $log ?? fn () => null;
         $this->now = now()->format('Y-m-d H:i:s');
-        $this->schema = \App\Support\UnifiedSchema::load(); // refuses anything but the approved version
+        $this->schema = UnifiedSchema::load(); // refuses anything but the approved version
         $this->openSource($sourceDb);
         $this->prepareCity($cityCode);
         if (DB::table('projects')->where('city_id', $this->cityId)->exists()) {
@@ -470,6 +471,7 @@ final class UnifiedImporter
             }
             if ($skip) {
                 $this->stats['skipped'][$src] = ($this->stats['skipped'][$src] ?? 0) + 1;
+
                 continue;
             }
             $batch[] = $row;
@@ -532,6 +534,7 @@ final class UnifiedImporter
                 $visitId = $this->ids['visits'][(string) $r->Visit_ID] ?? null;
                 if ($visitId === null) {
                     $this->exception($src, $r->ID, 'Visit_ID', 'reference_missing', $r->Visit_ID, 'answers not transferred');
+
                     continue;
                 }
                 if (isset($seen[$visitId])) {
@@ -556,6 +559,7 @@ final class UnifiedImporter
             $choices = $projects[$c->person_id] ?? collect();
             if ($choices->isEmpty()) {
                 $this->exception('checklist', $c->legacy_id, 'Person_ID', 'project_not_found', $c->person_id, 'checklist kept without project');
+
                 continue;
             }
             $pick = $choices->first();
@@ -578,11 +582,13 @@ final class UnifiedImporter
             $kobo = $fromKobo[$v->legacy_id] ?? null;
             if ($kobo !== null && ($id = $this->ids['projects'][(string) $kobo] ?? null)) {
                 DB::table('me_visits')->where('id', $v->id)->update(['project_id' => $id]);
+
                 continue;
             }
             $choices = $projects[$v->person_id] ?? collect();
             if ($choices->isEmpty()) {
                 $this->exception('mevisit', $v->legacy_id, 'Person_ID', 'project_not_found', $v->person_id, 'visit kept without project');
+
                 continue;
             }
             $pick = $choices->first();
@@ -774,6 +780,7 @@ final class UnifiedImporter
                 if ($account === null || $task === null) {
                     $this->exception('task_user', $r->TU_ID, $account === null ? 'User_ID' : 'Task_ID', 'reference_missing', $account === null ? $r->User_ID : $r->Task_ID, 'responsibility not transferred');
                 }
+
                 continue;
             }
             $seen["{$account}-{$task}"] = true;

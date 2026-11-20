@@ -2,6 +2,7 @@
 
 namespace App\Services\Transfer;
 
+use App\Support\UnifiedSchema;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -21,7 +22,7 @@ final class Reconciler
         config(['database.connections.source.database' => $sourceDb]);
         DB::purge('source');
         $src = DB::connection('source');
-        $schema = \App\Support\UnifiedSchema::tables();
+        $schema = UnifiedSchema::tables();
         $city = DB::table('cities')->where('code', strtoupper($cityCode))->first() ?? throw new RuntimeException('City not imported.');
         $run = DB::table('migration_runs')->where('city_id', $city->id)->where('status', 'completed')->orderByDesc('id')->first() ?? throw new RuntimeException('No completed run.');
         $tables = collect($src->select('SELECT table_name AS t FROM information_schema.tables WHERE table_schema = ?', [$sourceDb]))->pluck('t')->all();

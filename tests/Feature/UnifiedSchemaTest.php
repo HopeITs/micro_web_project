@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Support\UnifiedSchema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -13,16 +14,15 @@ class UnifiedSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
-
     private function schema(): array
     {
-        return \App\Support\UnifiedSchema::load();
+        return UnifiedSchema::load();
     }
 
     public function test_the_schema_file_is_the_approved_version(): void
     {
-        $this->assertSame(\App\Support\UnifiedSchema::approved()['sha256'], $this->schema()['sha256']);
-        $this->assertSame('7cbd347ebd5f3db58796724c01ab9339b263a1e1e300d7be4287fdde2098266a', \App\Support\UnifiedSchema::approved()['sha256'], 'approved.php changed: record the new approval first');
+        $this->assertSame(UnifiedSchema::approved()['sha256'], $this->schema()['sha256']);
+        $this->assertSame('7cbd347ebd5f3db58796724c01ab9339b263a1e1e300d7be4287fdde2098266a', UnifiedSchema::approved()['sha256'], 'approved.php changed: record the new approval first');
     }
 
     public function test_every_approved_table_and_column_exists(): void

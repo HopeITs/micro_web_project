@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Support\UnifiedSchema;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -16,7 +17,7 @@ final class ReferenceListsSeeder extends Seeder
 {
     public function run(): void
     {
-        $schema = \App\Support\UnifiedSchema::tables();
+        $schema = UnifiedSchema::tables();
         $lists = json_decode(file_get_contents(database_path('seeders/data/reference-lists.json')), true)['lists'];
 
         // Insert lists that others reference first.

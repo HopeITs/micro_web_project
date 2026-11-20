@@ -32,6 +32,21 @@ return [
 
     'connections' => [
 
+        // M4.4: read-only connection to the DISC and F2F databases for the national number check (column-level SELECT only).
+        'national_check' => [
+            'driver' => 'mysql',
+            'host' => env('NATIONAL_CHECK_HOST', '127.0.0.1'),
+            'port' => env('NATIONAL_CHECK_PORT', '3306'),
+            'database' => '',
+            'username' => env('NATIONAL_CHECK_USERNAME'),
+            'password' => env('NATIONAL_CHECK_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'options' => [PDO::ATTR_TIMEOUT => 3],
+        ],
+
         // M3 transfer: a restored desktop city database, read with a SELECT-only account.
         // The database name is chosen per run (unified:import --source-db=...).
         'source' => [

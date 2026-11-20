@@ -36,6 +36,7 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');
             Route::get('/people/create', [PeopleController::class, 'create'])->name('people.create');
+            Route::get('/national-check', [PeopleController::class, 'national'])->name('people.national');
             Route::get('/people/{person}', [PeopleController::class, 'show'])->whereNumber('person')->name('people.show');
             Route::get('/people/{person}/edit', [PeopleController::class, 'edit'])->whereNumber('person')->name('people.edit');
 

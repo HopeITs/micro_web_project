@@ -20,7 +20,10 @@
             <h1>{{ \App\Services\People\PeopleService::fullName($person) }}</h1>
             <p>@if($person->national_number)<span class="ltr num">{{ $person->national_number }}</span> · @endif{{ $person->birth_date ? substr($person->birth_date, 0, 10) : '' }}</p>
         </div>
-        @if($editable)<x-hc.button icon="settings" variant="secondary" :href="route('people.edit', ['locale' => $locale, 'person' => $person->id])">{{ __('people.edit_title') }}</x-hc.button>@endif
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @if($person->national_number)<x-hc.button icon="id" variant="ghost" :href="route('people.national', ['locale' => $locale, 'person' => $person->id])">{{ __('national.from_person') }}</x-hc.button>@endif
+            @if($editable)<x-hc.button icon="settings" variant="secondary" :href="route('people.edit', ['locale' => $locale, 'person' => $person->id])">{{ __('people.edit_title') }}</x-hc.button>@endif
+        </div>
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
 

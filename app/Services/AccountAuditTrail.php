@@ -35,7 +35,7 @@ final class AccountAuditTrail
         'attachments.download.started' => ['attachment_record'], 'attachments.download.succeeded' => ['attachment_record'],
         'attachments.download.failed' => ['attachment_record'], 'attachments.download.denied' => [],
         'legacy.restored' => ['legacy_link'], 'capability.granted' => ['capability_grant'], 'capability.revoked' => ['capability_grant'],
-        'lookups.created' => ['lookup_value'], 'lookups.updated' => ['lookup_value'], 'lookups.hidden' => ['lookup_value'], 'lookups.shown' => ['lookup_value'], 'lookups.deleted' => ['lookup_value'], 'lookups.exported' => [],
+        'national.checked' => [], 'lookups.created' => ['lookup_value'], 'lookups.updated' => ['lookup_value'], 'lookups.hidden' => ['lookup_value'], 'lookups.shown' => ['lookup_value'], 'lookups.deleted' => ['lookup_value'], 'lookups.exported' => [],
     ];
 
     public static function validDecision(string $decision): bool

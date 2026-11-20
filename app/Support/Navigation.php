@@ -22,7 +22,7 @@ final class Navigation
             ['key' => 'new_application', 'icon' => 'plus', 'capability' => 'applications.manage', 'task' => 'M4.5'],
             ['key' => 'people', 'icon' => 'users', 'route' => 'people.index', 'capability' => 'people.view'],
             ['key' => 'checklist', 'icon' => 'clipboard', 'capability' => 'assessments.view', 'task' => 'M4.7'],
-            ['key' => 'national_number', 'icon' => 'id', 'capability' => 'people.view', 'task' => 'M4.4'],
+            ['key' => 'national_number', 'icon' => 'id', 'route' => 'people.national', 'capability' => 'people.view'],
         ],
         'finance' => [
             ['key' => 'loans', 'icon' => 'wallet', 'capability' => 'finance.manage', 'task' => 'M4.9'],
@@ -61,7 +61,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'admin.accounts.index' => 'admin.*', 'lookups.index' => 'lookups.*', 'people.index' => 'people.*', default => $route
+                        'projects.index' => 'projects.*', 'admin.accounts.index' => 'admin.*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], default => $route
                     }),
                 ];
             }

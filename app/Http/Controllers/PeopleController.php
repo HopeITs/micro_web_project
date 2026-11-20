@@ -28,6 +28,14 @@ final class PeopleController
         return view('people.create');
     }
 
+    /** M4.4: the national number check (Livewire NationalCheck). */
+    public function national(Request $request, PeopleService $people): View
+    {
+        $people->cityIds($request->user()) !== [] || abort(403);
+
+        return view('people.national');
+    }
+
     public function show(Request $request, string $locale, int $person, PeopleService $people): View
     {
         $row = $people->person($request->user(), $person);

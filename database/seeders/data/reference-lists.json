@@ -4133,36 +4133,6 @@
                 "education_type_id": 5
             }
         ],
-        "education_grades": [
-            {
-                "legacy_id": 6,
-                "name_ar": "A",
-                "name_en": null,
-                "sort_order": 0,
-                "description": "بحاجة بشكل عام ( عائلياً و كمشروع)"
-            },
-            {
-                "legacy_id": 7,
-                "name_ar": "BP",
-                "name_en": null,
-                "sort_order": 0,
-                "description": "بحاجة فقط من ناحية المشروع"
-            },
-            {
-                "legacy_id": 8,
-                "name_ar": "BF",
-                "name_en": null,
-                "sort_order": 0,
-                "description": "بحاجة فقط من ناحية الوضع العائلي"
-            },
-            {
-                "legacy_id": 9,
-                "name_ar": "C",
-                "name_en": null,
-                "sort_order": 0,
-                "description": "ليس بحاجة بشكل عام (عائلياً وكمشروع)"
-            }
-        ],
         "goals": [
             {
                 "legacy_id": 1,

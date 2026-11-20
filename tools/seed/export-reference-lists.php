@@ -12,7 +12,8 @@
 $root = dirname(__DIR__, 2);
 $db = $argv[1] ?? 'm1src_dam';
 $pdo = new PDO("mysql:host=127.0.0.1;dbname={$db};charset=utf8mb4", 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-$schema = json_decode(file_get_contents($root.'/docs/planning/m1/unified-schema-v1.1.json'), true);
+$approved = require $root.'/database/schema/approved.php';
+$schema = json_decode(file_get_contents($root.'/'.$approved['file']), true);
 
 $skip = ['donors', 'donor_groups', 'streets', 'priests', 'checklist_members'];
 $nameColumn = ['parish' => ['Name_ar', 'Name_en'], 'level' => ['Level_Symbol', null], 'work' => ['W_Name', null], 'task' => ['T_Name', null],

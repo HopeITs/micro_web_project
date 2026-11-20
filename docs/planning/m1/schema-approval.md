@@ -23,3 +23,16 @@
   - No data, permission rule or transfer rule changes.
 - **Approved SHA-256:** `a783e7f335baac175f1fa3bd01905725200b54978c53a4a4b6f7f72b6e93047e`, covering [unified-schema-v1.1.json](unified-schema-v1.1.json) (138 tables). v1 is unchanged and keeps its SHA.
 - **What this allows:** M2 implements v1.1 without asking again.
+
+## Addendum v1.2 — corrections found by the real-data transfer
+
+- **Approved by the user:** 20 November 2026, with the word "موافق", after reviewing [m1-schema-review-v1.2.html](m1-schema-review-v1.2.html).
+- **What it changes:**
+  - A person's education status links to `education_levels`; `education_grades` (desktop `level`, unused by the program) is removed.
+  - The checklist professional tester links to `checklist_members`.
+  - `web_notices.legacy_pay_key` keeps the desktop notice codes.
+  - Longer national number, phone, work-years and desktop-log fields.
+  - The added transfer rules.
+- **Checked before approval:** the desktop code links `Level_ID` to `educationlevel` (Search_Form.cs:2312) and fills the tester list from the visitor members (CheckList_Form.cs:305).
+- **Approved SHA-256:** `7cbd347ebd5f3db58796724c01ab9339b263a1e1e300d7be4287fdde2098266a`, covering [unified-schema-v1.2.json](unified-schema-v1.2.json) (137 tables, 1,485 columns). v1 and v1.1 are unchanged.
+- **What this allows:** M2/M3 implement v1.2 without asking again.

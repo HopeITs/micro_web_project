@@ -9,8 +9,8 @@ use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * M3.2 — moves one restored desktop city database into the unified schema v1.1, following the approved
- * transfer specification (docs/planning/m1/unified-schema-v1.1.json: source tables, source columns and
+ * M3.2 — moves one restored desktop city database into the approved unified schema, following the approved
+ * transfer specification (the approved version in database/schema/approved.php: source tables, source columns and
  * transforms). Reads the source through the SELECT-only `source` connection; writes the default connection.
  * Every value that cannot be moved exactly is written to migration_exceptions. A city is imported once:
  * the run refuses a city that already has projects.
@@ -69,10 +69,7 @@ final class UnifiedImporter
     {
         $this->log = $log ?? fn () => null;
         $this->now = now()->format('Y-m-d H:i:s');
-        $this->schema = json_decode(file_get_contents(base_path('docs/planning/m1/unified-schema-v1.1.json')), true);
-        if ($this->schema['sha256'] !== 'a783e7f335baac175f1fa3bd01905725200b54978c53a4a4b6f7f72b6e93047e') {
-            throw new RuntimeException('The transfer only follows the approved unified schema v1.1.');
-        }
+        $this->schema = \App\Support\UnifiedSchema::load(); // refuses anything but the approved version
         $this->openSource($sourceDb);
         $this->prepareCity($cityCode);
         if (DB::table('projects')->where('city_id', $this->cityId)->exists()) {
@@ -745,7 +742,8 @@ final class UnifiedImporter
             }
             $rows[] = ['city_id' => $this->cityId, 'legacy_id' => (int) $r->ID, 'account_id' => $this->accounts[(int) $r->User_ID] ?? null,
                 'sender_account_id' => $this->accounts[(int) $r->Sender_ID] ?? null, 'project_id' => $this->ids['projects'][(string) $r->MicroProject_ID] ?? null,
-                'project_number' => $r->MicroProject_ID ? (int) $r->MicroProject_ID : null, 'loan_installment_id' => $r->Pay_ID ? ($installments[(string) $r->Pay_ID] ?? null) : null,
+                'project_number' => $r->MicroProject_ID ? (int) $r->MicroProject_ID : null, 'loan_installment_id' => (int) $r->Pay_ID > 0 ? ($installments[(string) $r->Pay_ID] ?? null) : null,
+                'legacy_pay_key' => $r->Pay_ID === null ? null : (int) $r->Pay_ID, // v1.2: desktop notice codes (-21 Kobo, -3 purchases, ...)
                 'kind' => Transforms::noticeKind($r->Body, $r->Pay_ID), 'notice_date' => $date, 'original_date' => $date, 'title' => mb_substr((string) $r->P_Name, 0, 255),
                 'body' => (string) $r->Body, 'note' => $r->Note, 'change_reason' => null, 'seen' => (bool) $r->Seen, 'retired_by_kobo' => false, 'created_at' => $this->now];
             if (count($rows) === 500) {

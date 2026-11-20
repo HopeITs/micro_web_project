@@ -16,7 +16,7 @@ final class ReferenceListsSeeder extends Seeder
 {
     public function run(): void
     {
-        $schema = json_decode(file_get_contents(base_path('docs/planning/m1/unified-schema-v1.1.json')), true)['tables'];
+        $schema = \App\Support\UnifiedSchema::tables();
         $lists = json_decode(file_get_contents(database_path('seeders/data/reference-lists.json')), true)['lists'];
 
         // Insert lists that others reference first.

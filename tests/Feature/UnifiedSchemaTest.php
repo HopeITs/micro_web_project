@@ -7,28 +7,28 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * The database built by the migrations must match the approved unified schema v1.1 exactly.
+ * The database built by the migrations must match the approved unified schema (database/schema/approved.php) exactly.
  */
 class UnifiedSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const APPROVED_SHA = 'a783e7f335baac175f1fa3bd01905725200b54978c53a4a4b6f7f72b6e93047e';
 
     private function schema(): array
     {
-        return json_decode(file_get_contents(base_path('docs/planning/m1/unified-schema-v1.1.json')), true);
+        return \App\Support\UnifiedSchema::load();
     }
 
     public function test_the_schema_file_is_the_approved_version(): void
     {
-        $this->assertSame(self::APPROVED_SHA, $this->schema()['sha256']);
+        $this->assertSame(\App\Support\UnifiedSchema::approved()['sha256'], $this->schema()['sha256']);
+        $this->assertSame('7cbd347ebd5f3db58796724c01ab9339b263a1e1e300d7be4287fdde2098266a', \App\Support\UnifiedSchema::approved()['sha256'], 'approved.php changed: record the new approval first');
     }
 
     public function test_every_approved_table_and_column_exists(): void
     {
         $tables = $this->schema()['tables'];
-        $this->assertCount(138, $tables);
+        $this->assertCount(137, $tables);
 
         foreach ($tables as $name => $table) {
             $this->assertTrue(Schema::hasTable($name), "missing table {$name}");

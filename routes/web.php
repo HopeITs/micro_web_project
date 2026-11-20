@@ -5,6 +5,7 @@ use App\Http\Controllers\AccountPasswordController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
+use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Middleware\RequireCurrentAccount;
 use App\Http\Middleware\RestrictToPermittedCities;
@@ -31,6 +32,12 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('/projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
             Route::view('/design', 'design')->name('design');
+
+            // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
+            Route::get('/people', [PeopleController::class, 'index'])->name('people.index');
+            Route::get('/people/create', [PeopleController::class, 'create'])->name('people.create');
+            Route::get('/people/{person}', [PeopleController::class, 'show'])->whereNumber('person')->name('people.show');
+            Route::get('/people/{person}/edit', [PeopleController::class, 'edit'])->whereNumber('person')->name('people.edit');
 
             // M4.2 lists (every action rechecks lookups.manage per city / in all cities in LookupAdminService).
             Route::get('/lookups', [LookupController::class, 'index'])->name('lookups.index');

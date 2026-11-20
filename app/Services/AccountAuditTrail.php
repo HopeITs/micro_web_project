@@ -55,10 +55,10 @@ final class AccountAuditTrail
         }
         if ($subjectType !== null) {
             $validSubject = match ($subjectType) {
-                'application_entity' => DB::table('op_microproject')->where('id', $subjectId)->where('city_id', $city)->exists(),
-                'person_entity' => DB::table('op_person')->where('id', $subjectId)->where('city_id', $city)->exists(),
-                'meeting_entity' => DB::table('op_profession_meeting')->where('id', $subjectId)->where('city_id', $city)->exists(),
-                'family_entity' => DB::table('op_family')->where('id', $subjectId)->where('city_id', $city)->exists(),
+                'application_entity' => DB::table('projects')->where('id', $subjectId)->where('city_id', $city)->exists(),
+                'person_entity' => DB::table('people')->where('id', $subjectId)->where('city_id', $city)->exists(),
+                'meeting_entity' => DB::table('profession_meetings')->where('id', $subjectId)->where('city_id', $city)->exists(),
+                'family_entity' => DB::table('families')->where('id', $subjectId)->where('city_id', $city)->exists(),
                 'account' => $subjectAccount === $subjectId && DB::table('web_accounts')->where('id', $subjectId)->exists(),
                 // A list value (M4.2): the decision names the list ("lookup:<key>"); a deleted value no longer exists, so only the shape is checked.
                 'lookup_value' => $decision !== null && str_starts_with($decision, 'lookup:'),

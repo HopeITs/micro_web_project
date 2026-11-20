@@ -1,66 +1,65 @@
-<x-layouts.app :title="$person->c_P_FirstName.' '.$person->c_P_LastName" :operational="true">
-    <a class="back-link" href="{{ route('people.index', ['locale' => app()->getLocale()]) }}">{{ __('people.back') }}</a>
-    <div class="page-heading"><div><p class="eyebrow">{{ app()->isLocale('ar') ? $person->city_name_ar : $person->city_name_en }}</p><h1>{{ $person->c_P_FirstName }} {{ $person->c_P_LastName }}</h1></div></div>
-    <p class="field-hint"><a class="record-link" href="{{ route('details.family.export', ['locale' => app()->getLocale(), 'person' => $person->id, 'format' => 'xlsx']) }}">{{ __('search.export_family') }}</a> · <a class="record-link" href="{{ route('details.family.export', ['locale' => app()->getLocale(), 'person' => $person->id, 'format' => 'csv']) }}">{{ __('reports.export_csv') }}</a></p>
-    @include('people.messages')
-    @if($canManage)
-    <details class="card people-form" open><summary>{{ __('people.person') }}</summary>
-        <form method="POST" action="{{ route('people.update', ['locale' => app()->getLocale(), 'person' => $person->id]) }}">
-            @csrf @method('PUT')@include('people.version', ['formKey' => 'person'])
-            @include('people.fields', ['fields' => $metadata['person'], 'options' => $options['person'], 'row' => $person, 'prefix' => 'person', 'groups' => true])
-            <label class="people-confirm"><input type="checkbox" name="confirm_duplicate" value="1"> {{ __('people.confirm_duplicate') }}</label>
-            <x-ui.button type="submit">{{ __('people.save') }}</x-ui.button>
-        </form>
-    </details>
-    @else
-    <section class="card"><dl class="project-details">@foreach($metadata['person'] as $name => $field)<div><dt>{{ __('people.fields.'.$field['label']) }}</dt><dd class="preserve-text">{{ $person->{$name} ?? '—' }}</dd></div>@endforeach
-@include('people.references', ['row' => $person])</dl></section>
-    @endif
-    <section class="card people-form"><h2>{{ __('people.families') }}</h2>
-        @forelse($families as $membership)<div class="people-history"><strong>{{ $membership->c_F_Number ?? '—' }}</strong><dl class="project-details">@foreach($metadata['families'] as $name => $field)<div><dt>{{ __('people.fields.'.$field['label']) }}</dt><dd>{{ $membership->{$name} ?? '—' }}</dd></div>@endforeach
-@include('people.references', ['row' => $membership])</dl>
-            @if($canManage && $membership->familyId)
-            <details><summary>{{ __('people.edit_membership') }}</summary><form method="POST" action="{{ route('people.family', ['locale' => app()->getLocale(), 'person' => $person->id]) }}">@csrf
-                @include('people.version', ['formKey' => 'membership-'.$membership->id])
-                <input type="hidden" name="membership_id" value="{{ $membership->id }}"><input type="hidden" name="family_id" value="{{ $membership->familyId }}">
-                @include('people.provider', ['providerForm' => 'membership-'.$membership->id, 'providerId' => $membership->providerId])
-                @include('people.fields', ['fields' => $metadata['families'], 'options' => $options['families'], 'row' => $membership, 'prefix' => 'membership-'.$membership->id])
-                <x-ui.button type="submit">{{ __('people.save') }}</x-ui.button>
-            </form></details>
-            @endif
-        </div>@empty<p>{{ __('people.no_entries') }}</p>@endforelse
-        @if($canManage)
-        <form method="GET" action="{{ route('people.show', ['locale' => app()->getLocale(), 'person' => $person->id]) }}"><div class="field"><label for="family-search">{{ __('people.find_family') }}</label><input class="input" id="family-search" name="family_search" value="{{ $familySearch }}" maxlength="50"></div><x-ui.button type="submit">{{ __('projects.apply_filters') }}</x-ui.button></form>
-        @if($familyChoices->isNotEmpty())
-        <form method="POST" action="{{ route('people.family', ['locale' => app()->getLocale(), 'person' => $person->id]) }}">@csrf
-@include('people.version', ['formKey' => 'membership'])
-            <div class="field"><label for="family-choice">{{ __('people.families') }}</label><select class="input" id="family-choice" name="family_id">@foreach($familyChoices as $family)<option value="{{ $family->id }}" @selected(old('_form') === 'membership' && (string) old('family_id') === (string) $family->id)>{{ $family->c_F_Number }} · #{{ $family->id }}</option>@endforeach</select></div>
-            @include('people.provider', ['providerForm' => 'membership', 'providerId' => null])
-            @include('people.fields', ['fields' => $metadata['families'], 'options' => $options['families'], 'row' => null, 'prefix' => 'membership'])
-            <x-ui.button type="submit">{{ __('people.link_family') }}</x-ui.button>
-        </form>
-        @elseif($familySearch !== '')<p>{{ __('people.no_entries') }}</p>@endif
-        @endif
-    </section>
-    @foreach(['education', 'workexp', 'course'] as $kind)
-    <section class="card people-form"><h2>{{ __('people.'.$kind) }}</h2>
-        @forelse($$kind as $detail)
-        <details class="people-history"><summary>{{ __('people.entry') }} {{ $loop->iteration }}</summary>
-            @if($canManage)<form method="POST" action="{{ route('people.detail', ['locale' => app()->getLocale(), 'person' => $person->id, 'kind' => $kind]) }}">@csrf
-@include('people.version', ['formKey' => $kind.'-'.$detail->id])<input type="hidden" name="detail_id" value="{{ $detail->id }}">
-                @include('people.fields', ['fields' => $metadata[$kind], 'options' => $options[$kind], 'row' => $detail, 'prefix' => $kind.'-'.$detail->id])
-                <x-ui.button type="submit">{{ __('people.save') }}</x-ui.button>
-            </form>@else<dl class="project-details">@foreach($metadata[$kind] as $name => $field)<div><dt>{{ __('people.fields.'.$field['label']) }}</dt><dd class="preserve-text">{{ $detail->{$name} ?? '—' }}</dd></div>@endforeach
-@include('people.references', ['row' => $detail])</dl>@endif
-        </details>
-        @empty<p>{{ __('people.no_entries') }}</p>@endforelse
-        @if($canManage)<details class="people-history"><summary>{{ __('people.add_entry') }}</summary>
-            <form method="POST" action="{{ route('people.detail', ['locale' => app()->getLocale(), 'person' => $person->id, 'kind' => $kind]) }}">@csrf
-@include('people.version', ['formKey' => $kind.'-new'])
-                @include('people.fields', ['fields' => $metadata[$kind], 'options' => $options[$kind], 'row' => null, 'prefix' => $kind.'-new'])
-                <x-ui.button type="submit">{{ __('people.save') }}</x-ui.button>
-            </form>
-        </details>@endif
-    </section>
-    @endforeach
-</x-layouts.app>
+@php
+    $en = app()->getLocale() === 'en';
+    $locale = app()->getLocale();
+    $value = function (string $field, array $spec) use ($person, $labels) {
+        $v = $person->{$field};
+        return match ($spec['kind']) {
+            'lookup' => $labels[$field] ?? null,
+            'bool' => $v === null ? null : ($v ? __('people.yes') : __('people.no')),
+            'sex' => $v ? __('people.'.$v) : null,
+            'date' => $v ? substr((string) $v, 0, 10) : null,
+            default => filled($v) ? $v : null,
+        };
+    };
+@endphp
+<x-layouts.hc :title="\App\Services\People\PeopleService::fullName($person)">
+    <p style="margin-block-end:12px"><a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('people.index', ['locale' => $locale]) }}"><x-hc.icon name="arrow" :size="16" class="hc-back-icon"/>{{ __('people.back') }}</a></p>
+    <div class="hc-page-head">
+        <div>
+            <p class="hc-eyebrow">{{ $en ? $city->name_en : $city->name_ar }} · {{ __('people.person') }}</p>
+            <h1>{{ \App\Services\People\PeopleService::fullName($person) }}</h1>
+            <p>@if($person->national_number)<span class="ltr num">{{ $person->national_number }}</span> · @endif{{ $person->birth_date ? substr($person->birth_date, 0, 10) : '' }}</p>
+        </div>
+        @if($editable)<x-hc.button icon="settings" variant="secondary" :href="route('people.edit', ['locale' => $locale, 'person' => $person->id])">{{ __('people.edit_title') }}</x-hc.button>@endif
+    </div>
+    @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
+
+    <div class="hc-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); align-items:start">
+        <div class="hc-grid">
+            @foreach(\App\Services\People\PersonFields::PERSON as $group => $fields)
+                @continue($group === 'military' && $person->sex !== 'male')
+                <x-hc.section :title="__('people.groups.'.$group)" :step="$loop->iteration" :open="$group !== 'military'">
+                    <dl class="hc-dl">
+                        @foreach($fields as $field => $spec)
+                            @php($shown = $value($field, $spec))
+                            @continue($shown === null && ! in_array($field, ['national_number', 'mobile', 'birth_date'], true))
+                            <div><dt>{{ __('people.fields.'.$field) }}</dt><dd @class(['ltr num' => in_array($field, ['national_number', 'mobile', 'mobile_2', 'home_phone'], true)])>{{ $shown ?? __('hc.not_set') }}</dd></div>
+                        @endforeach
+                    </dl>
+                </x-hc.section>
+            @endforeach
+            <x-hc.card :title="__('people.projects')" :flush="true">
+                @if($projects->isEmpty())
+                    <p class="muted" style="padding:16px 20px">{{ __('people.no_projects') }}</p>
+                @else
+                <div class="hc-table-wrap"><table class="hc-table stack">
+                    <thead><tr><th>{{ __('hc.number') }}</th><th>{{ __('hc.project') }}</th><th>{{ __('hc.stage') }}</th><th>{{ __('people.role') }}</th><th>{{ __('hc.request_date') }}</th></tr></thead>
+                    <tbody>@foreach($projects as $pr)
+                        <tr><td data-label="{{ __('hc.number') }}"><a class="row-link" href="{{ route('projects.show', ['locale' => $locale, 'project' => $pr->id]) }}"><x-hc.project-number :code="$pr->code" :number="$pr->project_number"/></a></td>
+                            <td data-label="{{ __('hc.project') }}">{{ $pr->name ?: __('hc.not_set') }}</td>
+                            <td data-label="{{ __('hc.stage') }}"><x-hc.badge>{{ __('hc.stage_'.$pr->application_stage) }}</x-hc.badge></td>
+                            <td data-label="{{ __('people.role') }}">{{ $pr->role ?: '—' }}</td>
+                            <td data-label="{{ __('hc.request_date') }}" class="num">{{ $pr->request_date ? substr($pr->request_date, 0, 10) : '—' }}</td></tr>
+                    @endforeach</tbody>
+                </table></div>
+                @endif
+            </x-hc.card>
+        </div>
+        <div class="hc-grid">
+            <livewire:family-panel :person-id="$person->id" />
+            @foreach(array_keys(\App\Services\People\PersonFields::DETAILS) as $kind)
+                <livewire:person-details :person-id="$person->id" :kind="$kind" :key="'d-'.$kind" />
+            @endforeach
+        </div>
+    </div>
+</x-layouts.hc>

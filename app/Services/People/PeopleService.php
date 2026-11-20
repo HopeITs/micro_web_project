@@ -7,501 +7,538 @@ namespace App\Services\People;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
-use App\Services\Applications\PaperOrder;
-use App\Services\Finance\PaymentScheduleService;
-use App\Services\Operational\LookupOptions;
-use App\Services\Sharing\SharedPayloadProjection;
-use Database\Schema\OperationalManifest;
+use App\Services\ProjectNumberAllocator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
-require_once __DIR__.'/../../../database/schema/OperationalManifest.php';
-
-/** Operational writes only. Original source payloads and identity evidence are immutable. */
+/**
+ * People, families and the person sub-tables on the unified schema (M4.3), following the desktop Application_New_Form person block:
+ * reading needs `people.view` in the person's city, writing `people.manage`. Duplicates are found as the desktop does
+ * (Check_National_Number: the national number with and without its leading zero; Check_Family_Num: other beneficiaries with the same
+ * family book number) plus the same full name in the city; saving over a found duplicate needs an explicit confirmation.
+ * A beneficiary joins its family as "مستفيد" and is its own provider; the members it adds have it as provider.
+ */
 final class PeopleService
 {
-    private const TABLES = ['person' => 'person', 'family' => 'family', 'families' => 'person_family', 'education' => 'person_education', 'workexp' => 'person_workexp', 'course' => 'person_course'];
+    public const PER_PAGE = 20;
+
+    public const BENEFICIARY = 'مستفيد';
 
     public function __construct(private AccountAccess $access, private AccountAuditTrail $audit) {}
 
-    private function table(string $kind): array
+    /** @return list<int> */
+    public function cityIds(WebAccount $account, string $capability = 'people.view'): array
     {
-        abort_unless(isset(self::TABLES[$kind]), 422);
-
-        return OperationalManifest::table(self::TABLES[$kind]);
+        return $this->access->cities($account, $capability)->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
-    private function relationships(string $kind): array
+    public function cities(WebAccount $account, string $capability = 'people.view'): Collection
     {
-        return array_values(array_filter(OperationalManifest::load()['relationships'], fn ($r) => $r['target_table'] === $this->table($kind)['name']));
+        return $this->access->cities($account, $capability);
     }
 
-    public function fields(string $kind): array
+    public function canManage(WebAccount $account, int $city): bool
     {
-        $fields = [];
-        foreach ($this->table($kind)['columns'] as $column) {
-            $name = $column['name'];
-            if (! str_starts_with($name, 'c_') || preg_match('/(?:^c_ID$|_ID$)/i', $name)) {
-                continue;
+        return $this->access->check($account, $city, 'people.manage');
+    }
+
+    private function deny(WebAccount $account): never
+    {
+        $this->audit->record($account->id, 'access.denied', 'denied');
+        abort(403);
+    }
+
+    /** A person the account may read (404 for other cities, as if it did not exist). */
+    public function person(WebAccount $account, int $id): object
+    {
+        $person = DB::table('people')->where('id', $id)->whereNull('deleted_at')->whereIn('city_id', $this->cityIds($account) ?: [0])->first();
+        abort_if($person === null, 404);
+
+        return $person;
+    }
+
+    private function writable(WebAccount $account, int $id): object
+    {
+        $person = $this->person($account, $id);
+        $this->canManage($account, (int) $person->city_id) || $this->deny($account);
+
+        return $person;
+    }
+
+    /** "first father last" as the desktop prints it ("first last ابن/ة father" in its messages). */
+    public static function fullName(object $p): string
+    {
+        return trim(preg_replace('/\s+/u', ' ', ($p->first_name ?? '').' '.($p->father_name ?? '').' '.($p->last_name ?? '')) ?? '');
+    }
+
+    // ---------------------------------------------------------------- search
+
+    /** @param  array{q?: string, cities?: list<int>, projects?: string}  $filters */
+    public function search(WebAccount $account, array $filters): LengthAwarePaginator
+    {
+        $permitted = $this->cityIds($account);
+        $permitted !== [] || $this->deny($account);
+        $chosen = array_values(array_intersect(array_map('intval', $filters['cities'] ?? []), $permitted));
+        $family = DB::table('family_members')->whereNull('deleted_at')->selectRaw('person_id, MIN(family_id) as family_id')->groupBy('person_id');
+        $projects = DB::table('project_applicants')->whereNull('deleted_at')->selectRaw('person_id, COUNT(*) as n')->groupBy('person_id');
+        $query = DB::table('people as p')->join('cities as c', 'c.id', '=', 'p.city_id')
+            ->leftJoinSub($family, 'fm', 'fm.person_id', '=', 'p.id')->leftJoin('families as f', 'f.id', '=', 'fm.family_id')
+            ->leftJoinSub($projects, 'pa', 'pa.person_id', '=', 'p.id')
+            ->whereNull('p.deleted_at')->whereIn('p.city_id', $chosen ?: $permitted);
+        $term = trim(mb_substr((string) ($filters['q'] ?? ''), 0, 100));
+        if ($term !== '') {
+            $digits = preg_replace('/\D/', '', $term);
+            if ($digits !== '' && strlen($digits) >= 3 && preg_match('/^[\d\s+\-]+$/', $term)) {
+                $like = '%'.ltrim($digits, '0').'%';
+                $query->where(fn (Builder $q) => $q->where('p.national_number', 'like', $like)->orWhere('p.mobile', 'like', '%'.$digits.'%')
+                    ->orWhere('p.mobile_2', 'like', '%'.$digits.'%')->orWhere('f.family_number', 'like', '%'.$digits.'%'));
+            } else {
+                foreach (preg_split('/\s+/u', $term) as $word) {
+                    $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%';
+                    $query->where(fn (Builder $q) => $q->where('p.first_name', 'like', $like)->orWhere('p.father_name', 'like', $like)
+                        ->orWhere('p.last_name', 'like', $like)->orWhere('p.full_name_en', 'like', $like)->orWhere('f.family_number', 'like', $like));
+                }
             }
-            $definition = strtolower($column['definition']);
-            $type = str_starts_with($definition, 'date ') ? 'date' : (preg_match('/^(int|double)/', $definition) ? 'number' : (str_contains($definition, 'text') ? 'textarea' : 'text'));
-            preg_match('/(?:var)?char\((\d+)\)/', $definition, $length);
-            $fields[$name] = ['type' => $type, 'max' => isset($length[1]) ? (int) $length[1] : 10000, 'label' => substr($name, 2)];
         }
+        match ($filters['projects'] ?? '') {
+            'with' => $query->whereNotNull('pa.n'),
+            'without' => $query->whereNull('pa.n'),
+            default => null,
+        };
 
-        return PaperOrder::sort($kind, array_diff_key($fields, array_flip(PaperOrder::internal($kind))));
+        return $query->orderBy('p.first_name')->orderBy('p.last_name')->orderBy('p.id')
+            ->paginate(self::PER_PAGE, ['p.id', 'p.first_name', 'p.father_name', 'p.last_name', 'p.national_number', 'p.birth_date', 'p.mobile', 'p.sex',
+                'c.code as city_code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'f.family_number', DB::raw('COALESCE(pa.n, 0) as projects')]);
     }
 
-    public function relations(string $kind): array
+    // ---------------------------------------------------------------- duplicates
+
+    /**
+     * The national number as compared: digits only, without leading zeros. The desktop matched the number with and without one
+     * leading zero; dropping all of them also matches numbers typed with two or none, and spaces or dashes typed in between.
+     */
+    public static function nationalKey(string $number): string
     {
-        $result = [];
-        foreach ($this->relationships($kind) as $r) {
-            $key = $r['child_columns'][0];
-            if (! in_array($key, ['Person_ID', 'Family_ID', 'P_Provider_ID', 'MicroProject_ID'], true)) {
-                $result[$key] = ['label' => $key, 'table' => $r['parent_source_table']];
-            }
-        }
-
-        return PaperOrder::sort($kind, $result);
-    }
-
-    private function queryTable(string $sourceTable): Builder
-    {
-        $table = OperationalManifest::table($sourceTable);
-        $tableId = (int) preg_replace('/\D/', '', $table['checks'][0]);
-
-        return DB::table($table['name'].' as p')
-            ->join('operational_entities as e', fn ($j) => $j->on('e.id', '=', 'p.id')->on('e.city_id', '=', 'p.city_id')->on('e.source_id', '=', 'p.source_id')->on('e.source_table_id', '=', 'p.source_table_id'))
-            ->join('sources as s', fn ($j) => $j->on('s.id', '=', 'p.source_id')->on('s.city_id', '=', 'p.city_id'))
-            ->join('cities as c', 'c.id', '=', 'p.city_id')->where('p.source_table_id', $tableId)
-            ->where(function (Builder $q) {
-                $q->where('e.identity_kind', 'web')->orWhere(function (Builder $legacy) {
-                    $legacy->whereIn('e.identity_kind', ['legacy_primary', 'legacy_ordinal'])->whereExists(function (Builder $origin) {
-                        $origin->selectRaw('1')->from('operational_origins as o')
-                            ->join('source_records as r', fn ($j) => $j->on('r.id', '=', 'o.source_record_id')->on('r.source_id', '=', 'o.source_id')->on('r.table_id', '=', 'o.source_table_id')->on('r.snapshot_id', '=', 'o.snapshot_id'))
-                            ->join('source_publications as pub', fn ($j) => $j->on('pub.source_id', '=', 'o.source_id')->on('pub.snapshot_id', '=', 'o.snapshot_id'))
-                            ->whereColumn('o.entity_id', 'p.id')->whereColumn('o.source_id', 'p.source_id')->whereColumn('o.source_table_id', 'p.source_table_id')
-                            ->whereIn('pub.publication_kind', app()->environment(['local', 'testing']) ? ['synthetic', 'validated'] : ['validated']);
-                    });
-                });
-            })->select(['p.*', 'e.identity_kind', 'c.name_en as city_name_en', 'c.name_ar as city_name_ar']);
-    }
-
-    private function authorize(WebAccount $account, int $city, bool $write = false): void
-    {
-        if (! $this->access->check($account, $city, 'people.view') || ($write && ! $this->access->check($account, $city, 'people.manage'))) {
-            $this->audit->record($account->id, 'access.denied', 'denied');
-            abort(403);
-        }
-    }
-
-    private function row(WebAccount $account, string $kind, int $id, bool $write = false): object
-    {
-        $row = $this->queryTable(self::TABLES[$kind])->where('p.id', $id)->first();
-        abort_if($row === null, 404);
-        $this->authorize($account, (int) $row->city_id, $write);
-
-        return $row;
-    }
-
-    public function search(WebAccount $account, array $cities, string $search): LengthAwarePaginator
-    {
-        abort_unless($this->access->active($account), 403);
-        $allowed = $this->access->cities($account, 'people.view')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $cities = array_values(array_unique(array_map('intval', $cities)));
-        abort_if(array_diff($cities, $allowed) !== [], 403);
-        $query = $this->queryTable('person')->whereIn('p.city_id', $cities ?: $allowed);
-        $this->applySearch($query, $search);
-        $this->audit->record($account->id, 'people.list', 'succeeded');
-
-        return $query->orderBy('p.id')->paginate(20)->appends(['search' => $search, 'cities' => $cities]);
-    }
-
-    /** The directory's literal search: name, father, national number (with or without the leading zero), mobile or family book number. */
-    private function applySearch(Builder $query, string $search): void
-    {
-        if ($search === '') {
-            return;
-        }
-        $literal = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_substr($search, 0, 200)).'%';
-        $query->where(function (Builder $q) use ($literal, $search) {
-            foreach (['c_P_FirstName', 'c_P_LastName', 'c_P_FatherName', 'c_P_NationalNumber', 'c_P_Mobile'] as $field) {
-                $q->orWhereRaw("p.$field LIKE ? ESCAPE '!'", [$literal]);
-            }
-            $q->orWhereRaw(PaymentScheduleService::fullName('p')." LIKE ? ESCAPE '!'", [$literal]);
-            if (ctype_digit($search) && strlen($search) <= 18) {
-                $q->orWhere('p.id', (int) $search);
-            }
-            $variant = str_starts_with($search, '0') ? substr($search, 1) : '0'.$search;
-            $q->orWhere('p.c_P_NationalNumber', $variant);
-            $personRef = $this->relation('families', 'Person_ID');
-            $familyRef = $this->relation('families', 'Family_ID');
-            $q->orWhereExists(function (Builder $membership) use ($search, $personRef, $familyRef) {
-                $membership->selectRaw('1')->from('op_person_family as pf')->join('op_family as f', 'f.id', '=', 'pf.'.$familyRef['resolved_column'])
-                    ->whereColumn('pf.'.$personRef['resolved_column'], 'p.id')->whereColumn('pf.city_id', 'p.city_id')
-                    ->whereColumn('pf.source_id', 'p.source_id')->whereColumn('f.city_id', 'p.city_id')->whereColumn('f.source_id', 'p.source_id')
-                    ->where('pf.'.$personRef['state_column'], 'resolved')->where('pf.'.$familyRef['state_column'], 'resolved')
-                    ->where('f.c_F_Number', $search)
-                    ->whereIn('pf.id', $this->queryTable('person_family')->select('p.id'))
-                    ->whereIn('f.id', $this->queryTable('family')->select('p.id'));
-            });
-        });
+        return ltrim(preg_replace('/\D/', '', $number) ?? '', '0');
     }
 
     /**
-     * Type-ahead matches for a person picker in one city: every person is searchable (no fixed list), the first
-     * `$limit` matches in id order are returned. An empty search lists the first people so the picker still opens.
+     * People that may be the same person, in the cities the account may read: same national number (either spelling) anywhere, or
+     * the same first, father and last name in the city. Each carries the projects it applied to.
      *
-     * @return Collection<int, object{id: int, label: string}>
+     * @return list<object{id: int, name: string, city: string, national_number: ?string, reason: string, projects: list<string>}>
      */
-    public function lookup(WebAccount $account, int $city, string $search, int $limit = 30): Collection
+    public function duplicates(WebAccount $account, int $city, array $input, ?int $except = null): array
     {
-        $this->authorize($account, $city);
-        $query = $this->queryTable('person')->where('p.city_id', $city);
-        $this->applySearch($query, trim($search));
-
-        return $query->orderBy('p.id')->limit(max(1, min($limit, 100)))->get()->map(fn ($row) => $this->option($row));
-    }
-
-    /** The picker label of one person the account may read, or null when the id is not a readable person of that city. */
-    public function personLabel(WebAccount $account, int $city, int $id): ?string
-    {
-        $this->authorize($account, $city);
-        $row = $this->queryTable('person')->where('p.city_id', $city)->where('p.id', $id)->first();
-
-        return $row === null ? null : $this->option($row)->label;
-    }
-
-    private function option(object $row): object
-    {
-        $parts = [trim(($row->c_P_FirstName ?? '').' '.($row->c_P_LastName ?? '')) ?: '—'];
-        if (($row->c_P_FatherName ?? '') !== '') {
-            $parts[0] .= ' ابن/ة '.$row->c_P_FatherName;
-        }
-        $parts[] = '#'.$row->id;
-        if (($row->c_P_NationalNumber ?? '') !== '') {
-            $parts[] = (string) $row->c_P_NationalNumber;
-        }
-
-        return (object) ['id' => (int) $row->id, 'label' => implode(' · ', $parts)];
-    }
-
-    private function aggregate(WebAccount $account, object $person): array
-    {
-        $person = $this->withReferences('person', $person);
-        $result = ['person' => $person];
-        foreach (['families', 'education', 'workexp', 'course'] as $kind) {
-            $r = $this->relation($kind, 'Person_ID');
-            $result[$kind] = $this->queryTable(self::TABLES[$kind])->where('p.city_id', $person->city_id)->where('p.source_id', $person->source_id)
-                ->where('p.'.$r['resolved_column'], $person->id)->where('p.'.$r['state_column'], 'resolved')->orderBy('p.id')->get()
-                ->map(fn ($row) => $this->withReferences($kind, $row));
-            if ($kind === 'families') {
-                foreach ($result[$kind] as $membership) {
-                    $familyRef = $this->relation('families', 'Family_ID');
-                    $family = $this->queryTable('family')->where('p.city_id', $person->city_id)->where('p.source_id', $person->source_id)->where('p.id', $membership->{$familyRef['resolved_column']})->first();
-                    $membership->c_F_Number = $family?->c_F_Number;
-                    $membership->familyId = $family?->id;
-                    $membership->providerId = $membership->{$this->relation('families', 'P_Provider_ID')['resolved_column']} ?? null;
-                }
+        $permitted = $this->cityIds($account);
+        $found = [];
+        $key = self::nationalKey((string) ($input['national_number'] ?? ''));
+        if (strlen($key) >= 5) {
+            // Narrowed by LIKE on the significant digits, then compared exactly in PHP (stored numbers may hold spaces or dashes).
+            foreach (DB::table('people')->whereNull('deleted_at')->whereIn('city_id', $permitted)->where('national_number', 'like', '%'.substr($key, -5).'%')
+                ->when($except, fn ($q) => $q->where('id', '<>', $except))->get()->filter(fn ($p) => self::nationalKey((string) $p->national_number) === $key)->take(10) as $p) {
+                $found[(int) $p->id] = [$p, 'national'];
             }
         }
-        $result['version'] = hash_hmac('sha256', serialize($result), (string) config('app.key'));
-
-        return $result;
-    }
-
-    private function withReferences(string $kind, object $row): object
-    {
-        $row = clone $row;
-        $row->references = [];
-        $row->referenceDescriptions = [];
-        foreach ($this->relationships($kind) as $r) {
-            $id = $row->{$r['resolved_column']} ?? null;
-            $parent = $id === null ? null : $this->queryTable($r['parent_source_table'])
-                ->where('p.city_id', $row->city_id)->where('p.source_id', $row->source_id)->where('p.id', $id)->first();
-            if ($parent && isset($parent->shared_snapshot_id)) {
-                $parent = (new SharedPayloadProjection(DB::connection()))->project($r['parent_source_table'], $parent, (int) $row->source_id, (int) $parent->shared_snapshot_id);
-            }
-            $label = null;
-            if ($parent) {
-                $parts = [];
-                foreach ((array) $parent as $name => $value) {
-                    if (preg_match('/^c_(?:P_FirstName|P_LastName|F_Number|Name|Name_ar|Name_en|E_Name|W_Name)$/', $name) && $value !== null && $value !== '') {
-                        $parts[] = (string) $value;
-                    }
-                }
-                $label = implode(' · ', $parts) ?: '#'.$id;
-            }
-            $raw = $row->{'c_'.$r['child_columns'][0]} ?? null;
-            $row->referenceDescriptions[$r['child_columns'][0]] = $label ?? ($id !== null ? __('people.unavailable').' #'.$id : ($raw !== null ? (string) $raw.' · '.__('people.unresolved') : '—'));
-        }
-        foreach ($this->relations($kind) as $key => $unused) {
-            $r = $this->relation($kind, $key);
-            $row->references[$key] = $row->{$r['resolved_column']} ?? null;
-        }
-
-        return $row;
-    }
-
-    public function find(WebAccount $account, int $personId): array
-    {
-        $person = $this->row($account, 'person', $personId);
-        $result = $this->aggregate($account, $person);
-        $this->audit->record($account->id, 'people.view', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
-
-        return $result;
-    }
-
-    public function validateFields(string $kind, array $fields, bool $creating = false): array
-    {
-        $metadata = $this->fields($kind);
-        if (array_diff(array_keys($fields), array_keys($metadata))) {
-            throw ValidationException::withMessages(['fields' => 'Unsupported identity, relationship or payload field.']);
-        }
-        $rules = [];
-        foreach ($metadata as $key => $meta) {
-            if (array_key_exists($key, $fields) && $fields[$key] === '' && in_array($meta['type'], ['number', 'date'], true)) {
-                $fields[$key] = null; // a cleared date, number or yes/no control means "not recorded", as the desktop's empty box
-            }
-            $rules[$key] = ['nullable', ...match ($meta['type']) {
-                'date' => ['date_format:Y-m-d'],
-                'number' => $key === 'c_W_Salary' ? ['numeric', 'between:-1.0e100,1.0e100'] : ['integer', 'between:-2147483648,2147483647'],
-                default => ['string', 'max:'.$meta['max']],
-            }];
-        }
-        if ($creating && $kind === 'person') {
-            foreach (['c_P_FirstName', 'c_P_LastName', 'c_P_Sex'] as $key) {
-                $rules[$key][0] = 'required';
+        $first = trim((string) ($input['first_name'] ?? ''));
+        $last = trim((string) ($input['last_name'] ?? ''));
+        $father = trim((string) ($input['father_name'] ?? ''));
+        if ($first !== '' && $last !== '' && $father !== '') {
+            foreach (DB::table('people')->whereNull('deleted_at')->where('city_id', $city)->where('first_name', $first)->where('last_name', $last)->where('father_name', $father)
+                ->when($except, fn ($q) => $q->where('id', '<>', $except))->limit(10)->get() as $p) {
+                $found[(int) $p->id] ??= [$p, 'name'];
             }
         }
-
-        return Validator::make($fields, $rules)->validate();
-    }
-
-    private function source(int $city): int
-    {
-        $sources = DB::table('sources')->where('city_id', $city)->pluck('id');
-        abort_unless($sources->count() === 1, 409, 'An unambiguous city source is required.');
-
-        return (int) $sources->first();
-    }
-
-    private function insert(string $kind, int $city, int $source, array $payload): int
-    {
-        $table = $this->table($kind);
-        $scope = ['city_id' => $city, 'source_id' => $source, 'source_table_id' => (int) preg_replace('/\D/', '', $table['checks'][0])];
-        $id = DB::table('operational_entities')->insertGetId($scope + ['identity_kind' => 'web', 'first_key_sha256' => null, 'first_key_bytes' => null, 'created_at' => now('UTC')]);
-        foreach ($this->relationships($kind) as $r) {
-            $payload += [$r['resolved_column'] => null, $r['state_column'] => 'null'];
+        if ($found === []) {
+            return [];
         }
-        DB::table($table['name'])->insert($scope + ['id' => $id] + $payload);
+        $codes = DB::table('cities')->pluck('code', 'id');
+        $names = DB::table('cities')->pluck(app()->getLocale() === 'en' ? 'name_en' : 'name_ar', 'id');
+        $projects = DB::table('project_applicants as a')->join('projects as pr', 'pr.id', '=', 'a.project_id')->whereNull('a.deleted_at')
+            ->whereIn('a.person_id', array_keys($found))->get(['a.person_id', 'pr.city_id', 'pr.project_number'])->groupBy('person_id');
 
-        return (int) $id;
+        return array_values(array_map(fn ($pair) => (object) [
+            'id' => (int) $pair[0]->id, 'name' => self::fullName($pair[0]), 'city' => (string) $names[(int) $pair[0]->city_id], 'national_number' => $pair[0]->national_number,
+            'reason' => $pair[1],
+            'projects' => ($projects->get($pair[0]->id) ?? collect())->map(fn ($r) => ProjectNumberAllocator::display((string) $codes[(int) $r->city_id], (int) $r->project_number))->all(),
+        ], $found));
     }
 
-    public function duplicateCandidates(WebAccount $account, int $city, string $number): Collection
+    /** Beneficiaries of an existing family with this book number in the city (desktop Check_Family_Num). @return Collection<int, object> */
+    public function familyHolders(int $city, string $number, ?int $except = null): Collection
     {
-        $this->authorize($account, $city);
+        $number = trim($number);
         if ($number === '') {
             return collect();
         }
-        $variants = [$number, str_starts_with($number, '0') ? substr($number, 1) : '0'.$number];
 
-        return $this->queryTable('person')->where('p.city_id', $city)->whereIn('p.c_P_NationalNumber', $variants)->orderBy('p.id')->get();
+        return DB::table('families as f')->join('family_members as m', 'm.family_id', '=', 'f.id')->join('people as p', 'p.id', '=', 'm.person_id')
+            ->leftJoin('relations as r', 'r.id', '=', 'm.relation_id')
+            ->where('f.city_id', $city)->where('f.family_number', $number)->whereNull('f.deleted_at')->whereNull('m.deleted_at')->whereNull('p.deleted_at')
+            ->where(fn ($q) => $q->where('r.name_ar', self::BENEFICIARY)->orWhereColumn('m.provider_person_id', 'm.person_id'))
+            ->when($except, fn ($q) => $q->where('p.id', '<>', $except))
+            ->get(['p.id', 'p.first_name', 'p.father_name', 'p.last_name', 'f.id as family_id'])
+            ->map(fn ($p) => (object) ['id' => (int) $p->id, 'name' => self::fullName($p), 'family_id' => (int) $p->family_id]);
     }
 
-    public function create(WebAccount $account, int $city, array $fields, bool $confirmDuplicate = false, array $references = []): int
+    // ---------------------------------------------------------------- lists
+
+    /** Active values of a list for a select, plus the current value when it was hidden since. */
+    public function options(string $table, ?int $city = null, mixed $keep = null): Collection
     {
-        return DB::transaction(function () use ($account, $city, $fields, $confirmDuplicate, $references) {
-            $this->authorize($account, $city, true);
-            $payload = $this->validateFields('person', $fields, true);
-            if (! $confirmDuplicate && $this->duplicateCandidates($account, $city, $payload['c_P_NationalNumber'] ?? '')->isNotEmpty()) {
-                throw ValidationException::withMessages(['duplicate' => 'Review the existing people and explicitly confirm creating a separate person.']);
+        $en = app()->getLocale() === 'en';
+
+        return DB::table($table)->where(fn ($q) => $q->where('is_active', true)->when($keep, fn ($q) => $q->orWhere('id', (int) $keep)))
+            ->when($city !== null, fn ($q) => $q->where('city_id', $city))
+            ->orderBy('sort_order')->orderBy('name_ar')->get(['id', 'name_ar', 'name_en'])
+            ->map(fn ($o) => (object) ['id' => (int) $o->id, 'label' => $en && $o->name_en ? $o->name_en : $o->name_ar]);
+    }
+
+    /** Options for every lookup field of a field set. @param  array<string, array>  $fields  @return array<string, Collection> */
+    public function optionsFor(array $fields, int $city, array $current = []): array
+    {
+        $out = [];
+        foreach ($fields as $field => $spec) {
+            if ($spec['kind'] === 'lookup') {
+                $out[$field] = $this->options($spec['table'], ($spec['city'] ?? false) ? $city : null, $current[$field] ?? null);
             }
-            $source = $this->source($city);
-            $payload += $this->referencePayload($account, 'person', $city, $source, $references);
-            $id = $this->insert('person', $city, $source, $payload);
+        }
+
+        return $out;
+    }
+
+    // ---------------------------------------------------------------- validation
+
+    /**
+     * Cleans and checks values for a field set; lookup values must be active (or unchanged) and of the city for city lists.
+     *
+     * @param  array<string, array>  $fields
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>  $current
+     * @return array<string, mixed>
+     */
+    public function validate(array $fields, array $input, int $city, array $current = [], string $prefix = ''): array
+    {
+        $values = [];
+        $errors = [];
+        foreach ($fields as $field => $spec) {
+            $raw = $input[$field] ?? null;
+            $raw = is_string($raw) ? trim(preg_replace('/[ \t]+/u', ' ', $raw) ?? '') : $raw;
+            $empty = $raw === null || $raw === '';
+            $value = null;
+            $error = null;
+            switch ($spec['kind']) {
+                case 'text':
+                case 'textarea':
+                    $value = $empty ? null : (string) $raw;
+                    if ($value !== null && mb_strlen($value) > ($spec['max'] ?? 5000)) {
+                        $error = __('people.errors.too_long', ['max' => $spec['max'] ?? 5000]);
+                    }
+                    break;
+                case 'date':
+                    if (! $empty) {
+                        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', (string) $raw);
+                        $date && $date->format('Y-m-d') === $raw && $raw >= '1900-01-01' && $raw <= now()->addYear()->format('Y-m-d') ? $value = $raw : $error = __('people.errors.date');
+                    }
+                    break;
+                case 'int':
+                    if (! $empty) {
+                        filter_var($raw, FILTER_VALIDATE_INT, ['options' => ['min_range' => $spec['min'] ?? 0, 'max_range' => $spec['max'] ?? 32767]]) !== false ? $value = (int) $raw : $error = __('people.errors.number');
+                    }
+                    break;
+                case 'decimal':
+                    if (! $empty) {
+                        is_numeric(str_replace(',', '', (string) $raw)) && (float) str_replace(',', '', (string) $raw) >= 0 && (float) str_replace(',', '', (string) $raw) < 1e12
+                            ? $value = round((float) str_replace(',', '', (string) $raw), 2) : $error = __('people.errors.number');
+                    }
+                    break;
+                case 'bool':
+                    $value = $empty ? null : in_array($raw, [true, 1, '1', 'yes', 'true'], true);
+                    break;
+                case 'sex':
+                    $value = $empty ? null : (in_array($raw, ['male', 'female'], true) ? $raw : null);
+                    $empty || $value !== null || $error = __('people.errors.choice');
+                    break;
+                case 'lookup':
+                    if (! $empty) {
+                        $id = (int) $raw;
+                        $ok = DB::table($spec['table'])->where('id', $id)->when($spec['city'] ?? false, fn ($q) => $q->where('city_id', $city))
+                            ->where(fn ($q) => $q->where('is_active', true)->orWhere('id', (int) ($current[$field] ?? 0)))->exists();
+                        $ok ? $value = $id : $error = __('people.errors.choice');
+                    }
+                    break;
+            }
+            if ($error === null && $value === null && ($spec['required'] ?? false)) {
+                $error = __('people.errors.required');
+            }
+            if ($error !== null) {
+                $errors[$prefix.$field] = $error;
+            }
+            $values[$field] = $value;
+        }
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $values;
+    }
+
+    /** @return array<string, mixed> person values; military fields are cleared for women */
+    private function personValues(array $input, int $city, array $current = []): array
+    {
+        $values = $this->validate(PersonFields::personFlat(), $input, $city, $current, 'person.');
+        if ($values['sex'] === 'female') {
+            foreach (array_keys(PersonFields::PERSON['military']) as $field) {
+                $values[$field] = null;
+            }
+        }
+
+        return $values;
+    }
+
+    // ---------------------------------------------------------------- person writes
+
+    /**
+     * Creates a person in a city the account manages, with its family by book number (an existing family of that number in the city
+     * is joined, as the desktop does). Found duplicates must be confirmed.
+     */
+    public function create(WebAccount $account, int $city, array $input, ?string $familyNumber, bool $confirmed): int
+    {
+        $this->canManage($account, $city) || $this->deny($account);
+        $values = $this->personValues($input, $city);
+        $this->guardDuplicates($account, $city, $values, null, $familyNumber, $confirmed);
+        $familyNumber = trim((string) $familyNumber);
+        if (mb_strlen($familyNumber) > 50) {
+            throw ValidationException::withMessages(['family_number' => __('people.errors.too_long', ['max' => 50])]);
+        }
+
+        return DB::transaction(function () use ($account, $city, $values, $familyNumber) {
+            $now = now();
+            $id = (int) DB::table('people')->insertGetId($values + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
+            $family = $familyNumber === '' ? null : DB::table('families')->where('city_id', $city)->where('family_number', $familyNumber)->whereNull('deleted_at')->value('id');
+            $family ??= DB::table('families')->insertGetId(['city_id' => $city, 'family_number' => $familyNumber !== '' ? $familyNumber : $this->nextFamilyNumber($city), 'created_at' => $now, 'updated_at' => $now]);
+            DB::table('family_members')->insert([
+                'city_id' => $city, 'family_id' => $family, 'person_id' => $id, 'relation_id' => $this->beneficiaryRelation(), 'provider_person_id' => $id, 'created_at' => $now, 'updated_at' => $now,
+            ]);
             $this->audit->record($account->id, 'people.created', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id);
 
             return $id;
         });
     }
 
-    private function mutate(WebAccount $account, int $personId, string $version, callable $change): void
+    public function update(WebAccount $account, int $id, array $input, bool $confirmed): void
     {
-        DB::transaction(function () use ($account, $personId, $version, $change) {
-            DB::table('op_person')->where('id', $personId)->lockForUpdate()->first();
-            $person = $this->row($account, 'person', $personId, true);
-            abort_unless(hash_equals($this->aggregate($account, $person)['version'], $version), 409, 'This record changed. Reload before saving.');
-            $change($person);
-            $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
-        });
+        $person = $this->writable($account, $id);
+        $city = (int) $person->city_id;
+        $values = $this->personValues($input, $city, (array) $person);
+        if ($values['national_number'] !== $person->national_number || $values['first_name'] !== $person->first_name || $values['last_name'] !== $person->last_name || $values['father_name'] !== $person->father_name) {
+            $this->guardDuplicates($account, $city, $values, $id, null, $confirmed);
+        }
+        DB::table('people')->where('id', $id)->update($values + ['updated_at' => now()]);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id);
     }
 
-    /** The person's current edit version, for a caller that already holds the application's version (one-form save). */
-    public function currentVersion(WebAccount $account, int $personId): string
+    private function guardDuplicates(WebAccount $account, int $city, array $values, ?int $except, ?string $familyNumber, bool $confirmed): void
     {
-        return $this->aggregate($account, $this->row($account, 'person', $personId))['version'];
+        if ($confirmed) {
+            return;
+        }
+        if ($this->duplicates($account, $city, $values, $except) !== [] || ($familyNumber !== null && $this->familyHolders($city, $familyNumber, $except)->isNotEmpty())) {
+            throw ValidationException::withMessages(['confirm' => __('people.errors.duplicates')]);
+        }
     }
 
-    public function update(WebAccount $account, int $personId, array $fields, string $version, array $references = [], bool $confirmDuplicate = false): void
+    private function beneficiaryRelation(): ?int
     {
-        $this->mutate($account, $personId, $version, function ($person) use ($account, $fields, $references, $confirmDuplicate) {
-            [$fields, $references] = $this->changes('person', $person, $fields, $references);
-            if (! $confirmDuplicate && isset($fields['c_P_NationalNumber']) && is_string($fields['c_P_NationalNumber'])
-                && $this->duplicateCandidates($account, (int) $person->city_id, $fields['c_P_NationalNumber'])->contains(fn ($candidate) => (int) $candidate->id !== (int) $person->id)) {
-                throw ValidationException::withMessages(['duplicate' => __('people.duplicate_review')]);
-            }
-            $payload = $this->validateFields('person', $fields) + $this->referencePayload($account, 'person', (int) $person->city_id, (int) $person->source_id, $references);
-            if ($payload !== []) {
-                DB::table('op_person')->where('id', $person->id)->update($payload);
-            }
-        });
+        $id = DB::table('relations')->where('name_ar', self::BENEFICIARY)->value('id');
+
+        return $id === null ? null : (int) $id;
     }
 
-    private function changes(string $kind, object $row, array $fields, array $references): array
+    /** A family book number for a person whose book number is unknown: "<CODE>-W<n>", unique in the city. */
+    private function nextFamilyNumber(int $city): string
     {
-        $fields = array_filter($fields, fn ($value, $key) => ! property_exists($row, $key)
-            || (($value === null) !== ($row->{$key} === null)) || (string) $value !== (string) $row->{$key}, ARRAY_FILTER_USE_BOTH);
-        foreach ($references as $key => $value) {
-            if (isset($this->relations($kind)[$key])) {
-                $relation = $this->relation($kind, $key);
-                if ((string) $value === (string) ($row->{$relation['resolved_column']} ?? null)) {
-                    unset($references[$key]);
-                }
-            }
+        $code = (string) DB::table('cities')->where('id', $city)->value('code');
+        $n = DB::table('families')->where('city_id', $city)->where('family_number', 'like', $code.'-W%')->count() + 1;
+        while (DB::table('families')->where('city_id', $city)->where('family_number', $code.'-W'.$n)->exists()) {
+            $n++;
         }
 
-        return [$fields, $references];
+        return $code.'-W'.$n;
     }
 
-    private function relation(string $kind, string $key): array
+    // ---------------------------------------------------------------- family
+
+    /** The person's family (the first one it belongs to) with its members. */
+    public function family(WebAccount $account, int $personId): ?array
     {
-        foreach ($this->relationships($kind) as $r) {
-            if ($r['child_columns'] === [$key]) {
-                return $r;
-            }
+        $this->person($account, $personId);
+        $familyId = DB::table('family_members')->where('person_id', $personId)->whereNull('deleted_at')->orderBy('id')->value('family_id');
+        if ($familyId === null) {
+            return null;
         }
-        abort(422);
+        $en = app()->getLocale() === 'en';
+        $label = fn (string $alias, string $as) => DB::raw(($en ? "COALESCE($alias.name_en, $alias.name_ar)" : "$alias.name_ar")." as $as");
+        $members = DB::table('family_members as m')->join('people as p', 'p.id', '=', 'm.person_id')
+            ->leftJoin('relations as r', 'r.id', '=', 'm.relation_id')->leftJoin('education_levels as el', 'el.id', '=', 'm.education_level_id')
+            ->leftJoin('education_specialties as es', 'es.id', '=', 'm.education_specialty_id')
+            ->where('m.family_id', $familyId)->whereNull('m.deleted_at')->whereNull('p.deleted_at')->orderByRaw('CASE WHEN m.person_id = m.provider_person_id THEN 0 ELSE 1 END')->orderBy('p.birth_date')->orderBy('m.id')
+            ->get(['m.id', 'm.person_id', 'm.relation_id', 'm.education_level_id', 'm.education_specialty_id', 'm.has_work', 'm.work_name', 'm.provider_person_id',
+                'p.first_name', 'p.father_name', 'p.last_name', 'p.sex', 'p.birth_date', 'p.national_number',
+                $label('r', 'relation'), $label('el', 'education_level'), $label('es', 'education_specialty')]);
+
+        return ['family' => DB::table('families')->where('id', $familyId)->first(), 'members' => $members];
     }
 
-    private function referencePayload(WebAccount $account, string $kind, int $city, int $source, array $references): array
+    /**
+     * Adds a member to the person's family: an existing person of the city (`person_id`) or a new one (first/last/father name, sex,
+     * birth date, national number, as the desktop family grid).
+     */
+    public function addMember(WebAccount $account, int $personId, array $input): int
     {
-        if (array_diff(array_keys($references), array_keys($this->relations($kind)))) {
-            throw ValidationException::withMessages(['references' => 'Unsupported relationship.']);
-        }
-        $payload = [];
-        foreach ($references as $key => $id) {
-            $r = $this->relation($kind, $key);
-            if ($id !== null && $id !== '') {
-                Validator::make(['reference' => $id], ['reference' => ['required', 'integer', 'min:1']])->validate();
-                abort_unless($this->queryTable($r['parent_source_table'])->where('p.city_id', $city)->where('p.source_id', $source)->where('p.id', $id)->exists(), 422, 'Relationship is not available in this source.');
-            }
-            $payload[$r['resolved_column']] = $id === null || $id === '' ? null : (int) $id;
-            $payload[$r['state_column']] = $payload[$r['resolved_column']] === null ? 'null' : 'resolved';
-        }
-
-        return $payload;
-    }
-
-    public function searchFamilies(WebAccount $account, int $city, string $number): Collection
-    {
-        $this->authorize($account, $city);
-        $q = $this->queryTable('family')->where('p.city_id', $city);
-        if ($number !== '') {
-            $q->where('p.c_F_Number', $number);
+        $person = $this->writable($account, $personId);
+        $city = (int) $person->city_id;
+        $family = $this->family($account, $personId) ?? abort(404);
+        $member = $this->validate(PersonFields::MEMBER, $input, $city, [], 'member.');
+        $existing = (int) ($input['person_id'] ?? 0);
+        $new = [];
+        $now = now();
+        if ($existing > 0) {
+            DB::table('people')->where('id', $existing)->where('city_id', $city)->whereNull('deleted_at')->exists()
+                || throw ValidationException::withMessages(['member.person_id' => __('people.errors.choice')]);
+            $family['members']->contains('person_id', $existing) && throw ValidationException::withMessages(['member.person_id' => __('people.errors.already_member')]);
+        } else {
+            $fields = array_intersect_key(PersonFields::personFlat(), array_flip(['first_name', 'last_name', 'father_name', 'sex', 'birth_date', 'national_number']));
+            $new = $this->validate($fields, $input, $city, [], 'member.');
         }
 
-        return $q->orderBy('p.id')->limit(100)->get();
-    }
-
-    public function createFamily(WebAccount $account, int $city, array $fields, bool $confirmDuplicate = false): int
-    {
-        return DB::transaction(function () use ($account, $city, $fields, $confirmDuplicate) {
-            $this->authorize($account, $city, true);
-            $payload = $this->validateFields('family', $fields);
-            if (! $confirmDuplicate && ($payload['c_F_Number'] ?? '') !== '' && $this->searchFamilies($account, $city, $payload['c_F_Number'])->isNotEmpty()) {
-                throw ValidationException::withMessages(['duplicate' => 'Review existing families and explicitly confirm creating a separate family.']);
-            }
-            $id = $this->insert('family', $city, $this->source($city), $payload);
-            $this->audit->record($account->id, 'people.created', 'succeeded', $city, subjectType: 'family_entity', subjectId: $id);
+        return DB::transaction(function () use ($account, $city, $family, $member, $existing, $personId, $now, $new) {
+            $memberPerson = $existing > 0 ? $existing : (int) DB::table('people')->insertGetId($new + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
+            $id = (int) DB::table('family_members')->insertGetId($member + ['city_id' => $city, 'family_id' => $family['family']->id, 'person_id' => $memberPerson, 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now]);
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $personId);
 
             return $id;
         });
     }
 
-    public function attachFamily(WebAccount $account, int $personId, int $familyId, array $fields, string $version, ?int $relatedPersonId = null, array $references = [], ?int $membershipId = null): void
+    public function updateMember(WebAccount $account, int $personId, int $memberId, array $input): void
     {
-        $this->mutate($account, $personId, $version, function ($person) use ($account, $familyId, $fields, $relatedPersonId, $references, $membershipId) {
-            $family = $this->row($account, 'family', $familyId, true);
-            abort_unless($family->city_id === $person->city_id && $family->source_id === $person->source_id, 422);
-            if ($membershipId !== null) {
-                $membership = $this->row($account, 'families', $membershipId, true);
-                $memberRef = $this->relation('families', 'Person_ID');
-                abort_unless((int) $membership->{$memberRef['resolved_column']} === (int) $person->id
-                    && (int) $membership->city_id === (int) $person->city_id && (int) $membership->source_id === (int) $person->source_id, 404);
-                [$fields, $references] = $this->changes('families', $membership, $fields, $references);
-            }
-            $payload = $this->validateFields('families', $fields) + $this->referencePayload($account, 'families', (int) $person->city_id, (int) $person->source_id, $references);
-            $links = ['Person_ID' => (int) $person->id, 'Family_ID' => $familyId];
-            $providerRef = $this->relation('families', 'P_Provider_ID');
-            $currentProvider = isset($membership) ? ($membership->{$providerRef['resolved_column']} ?? null) : null;
-            if ($relatedPersonId !== null && $relatedPersonId !== (int) $currentProvider) {
-                $provider = $this->row($account, 'person', $relatedPersonId);
-                abort_unless($provider->city_id === $person->city_id && $provider->source_id === $person->source_id, 422);
-                $links['P_Provider_ID'] = $relatedPersonId;
-            } elseif ($relatedPersonId === null && $currentProvider !== null) {
-                $payload += [$providerRef['resolved_column'] => null, $providerRef['state_column'] => 'null'];
-            }
-            foreach ($links as $key => $id) {
-                $r = $this->relation('families', $key);
-                $payload += [$r['resolved_column'] => $id, $r['state_column'] => 'resolved'];
-            }
-            if ($membershipId === null) {
-                $this->insert('families', (int) $person->city_id, (int) $person->source_id, $payload);
-            } else {
-                DB::table('op_person_family')->where('id', $membershipId)->update($payload);
-            }
-        });
+        $person = $this->writable($account, $personId);
+        $row = $this->memberRow($personId, $memberId);
+        $values = $this->validate(PersonFields::MEMBER, $input, (int) $person->city_id, (array) $row, 'edit.');
+        DB::table('family_members')->where('id', $memberId)->update($values + ['updated_at' => now()]);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
     }
 
-    public function saveDetail(WebAccount $account, int $personId, string $kind, array $fields, string $version, ?int $detailId = null, array $references = []): void
+    /** Takes a member out of the family (the person record stays); the person itself cannot be removed from its own family here. */
+    public function removeMember(WebAccount $account, int $personId, int $memberId): void
     {
-        abort_unless(in_array($kind, ['education', 'workexp', 'course'], true), 422);
-        $this->mutate($account, $personId, $version, function ($person) use ($account, $kind, $fields, $detailId, $references) {
-            $r = $this->relation($kind, 'Person_ID');
-            if ($detailId !== null) {
-                $child = $this->row($account, $kind, $detailId, true);
-                abort_unless((int) $child->{$r['resolved_column']} === (int) $person->id && $child->city_id === $person->city_id && $child->source_id === $person->source_id, 404);
-                [$fields, $references] = $this->changes($kind, $child, $fields, $references);
-                $payload = $this->validateFields($kind, $fields) + $this->referencePayload($account, $kind, (int) $person->city_id, (int) $person->source_id, $references);
-                if ($payload !== []) {
-                    DB::table($this->table($kind)['name'])->where('id', $detailId)->update($payload);
-                }
-            } else {
-                $payload = $this->validateFields($kind, $fields) + $this->referencePayload($account, $kind, (int) $person->city_id, (int) $person->source_id, $references);
-                $this->insert($kind, (int) $person->city_id, (int) $person->source_id, $payload + [$r['resolved_column'] => $person->id, $r['state_column'] => 'resolved']);
-            }
-        });
+        $person = $this->writable($account, $personId);
+        $row = $this->memberRow($personId, $memberId);
+        (int) $row->person_id !== $personId || throw ValidationException::withMessages(['member' => __('people.errors.self_member')]);
+        DB::table('family_members')->where('id', $memberId)->update(['deleted_at' => now(), 'updated_at' => now()]);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
     }
 
-    public function options(WebAccount $account, int $city, string $kind): array
+    private function memberRow(int $personId, int $memberId): object
     {
-        $this->authorize($account, $city);
-        $result = [];
-        foreach ($this->relations($kind) as $key => $r) {
-            // Desktop order and labels (Application_New_Form.cs:832–845): by name for some tables, by original id for the rest.
-            $rows = $this->queryTable($r['table'])->where('p.city_id', $city)->orderBy('p.id')->limit(500)->get()->map(function ($row) use ($r) {
-                return isset($row->shared_snapshot_id) ? (new SharedPayloadProjection(DB::connection()))->project($r['table'], $row, (int) $row->source_id, (int) $row->shared_snapshot_id) : $row;
-            });
-            $result[$key] = LookupOptions::sortRows($rows, $r['table'])->map(fn ($row) => (object) ['id' => $row->id, 'label' => LookupOptions::label($row)]);
+        $familyId = DB::table('family_members')->where('person_id', $personId)->whereNull('deleted_at')->orderBy('id')->value('family_id');
+        $row = DB::table('family_members')->where('id', $memberId)->where('family_id', $familyId)->whereNull('deleted_at')->first();
+        abort_if($row === null, 404);
+
+        return $row;
+    }
+
+    /** People of the city for the "existing person" picker, by name or national number. */
+    public function pick(WebAccount $account, int $city, string $term, array $exclude = []): Collection
+    {
+        in_array($city, $this->cityIds($account), true) || $this->deny($account);
+        $term = trim(mb_substr($term, 0, 60));
+        if (mb_strlen($term) < 2) {
+            return collect();
+        }
+        $query = DB::table('people')->where('city_id', $city)->whereNull('deleted_at')->whereNotIn('id', $exclude ?: [0]);
+        foreach (preg_split('/\s+/u', $term) as $word) {
+            $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%';
+            $query->where(fn ($q) => $q->where('first_name', 'like', $like)->orWhere('father_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('national_number', 'like', $like));
         }
 
-        return $result;
+        return $query->orderBy('first_name')->limit(8)->get(['id', 'first_name', 'father_name', 'last_name', 'national_number', 'birth_date'])
+            ->map(fn ($p) => (object) ['id' => (int) $p->id, 'name' => self::fullName($p), 'national_number' => $p->national_number, 'birth_year' => $p->birth_date ? substr((string) $p->birth_date, 0, 4) : null]);
+    }
+
+    // ---------------------------------------------------------------- sub-tables
+
+    /** Rows of one sub-table with the labels of their lookup values. */
+    public function details(WebAccount $account, string $kind, int $personId): Collection
+    {
+        $this->person($account, $personId);
+        $definition = PersonFields::DETAILS[$kind] ?? abort(404);
+        $query = DB::table($definition['table'].' as t')->where('t.person_id', $personId)->whereNull('t.deleted_at');
+        $columns = ['t.id'];
+        $en = app()->getLocale() === 'en';
+        foreach ($definition['fields'] as $field => $spec) {
+            $columns[] = 't.'.$field;
+            if ($spec['kind'] === 'lookup') {
+                $query->leftJoin($spec['table'].' as l_'.$field, 'l_'.$field.'.id', '=', 't.'.$field);
+                $columns[] = DB::raw(($en ? "COALESCE(l_$field.name_en, l_$field.name_ar)" : "l_$field.name_ar").' as '.$field.'_label');
+            }
+        }
+
+        return $query->orderBy('t.id')->get($columns);
+    }
+
+    /** Adds (`$rowId` null) or changes one sub-table row. */
+    public function saveDetail(WebAccount $account, string $kind, int $personId, ?int $rowId, array $input): int
+    {
+        $person = $this->writable($account, $personId);
+        $definition = PersonFields::DETAILS[$kind] ?? abort(404);
+        $current = $rowId === null ? [] : (array) $this->detailRow($definition['table'], $personId, $rowId);
+        $values = $this->validate($definition['fields'], $input, (int) $person->city_id, $current, $rowId === null ? 'draft.' : 'edit.');
+        if (array_filter($values, fn ($v) => $v !== null) === []) {
+            throw ValidationException::withMessages([($rowId === null ? 'draft.' : 'edit.').array_key_first($definition['fields']) => __('people.errors.empty_row')]);
+        }
+        $now = now();
+        if ($rowId === null) {
+            $rowId = (int) DB::table($definition['table'])->insertGetId($values + ['city_id' => $person->city_id, 'person_id' => $personId, 'created_at' => $now, 'updated_at' => $now]);
+        } else {
+            DB::table($definition['table'])->where('id', $rowId)->update($values + ['updated_at' => $now]);
+        }
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
+
+        return $rowId;
+    }
+
+    public function deleteDetail(WebAccount $account, string $kind, int $personId, int $rowId): void
+    {
+        $person = $this->writable($account, $personId);
+        $definition = PersonFields::DETAILS[$kind] ?? abort(404);
+        $this->detailRow($definition['table'], $personId, $rowId);
+        DB::table($definition['table'])->where('id', $rowId)->update(['deleted_at' => now(), 'updated_at' => now()]);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
+    }
+
+    private function detailRow(string $table, int $personId, int $rowId): object
+    {
+        $row = DB::table($table)->where('id', $rowId)->where('person_id', $personId)->whereNull('deleted_at')->first();
+        abort_if($row === null, 404);
+
+        return $row;
+    }
+
+    /** Projects the person applied to (any role), newest first. */
+    public function projects(int $personId): Collection
+    {
+        return DB::table('project_applicants as a')->join('projects as p', 'p.id', '=', 'a.project_id')->join('cities as c', 'c.id', '=', 'p.city_id')
+            ->whereNull('a.deleted_at')->whereNull('p.deleted_at')->where('a.person_id', $personId)->orderByDesc('p.request_date')
+            ->get(['p.id', 'p.project_number', 'p.name', 'p.application_stage', 'p.request_date', 'c.code', 'a.role']);
+    }
+
+    public function audit(WebAccount $account, string $event, ?int $city = null, ?int $personId = null): void
+    {
+        $this->audit->record($account->id, $event, 'succeeded', $city, subjectType: $personId ? 'person_entity' : null, subjectId: $personId);
     }
 }

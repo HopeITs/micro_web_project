@@ -101,6 +101,7 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-eyebrow { color: var(--brand); font-size: .78rem; font-weight: 700; margin-block-end: 4px; }
 .hc-page-head p { color: var(--muted); margin-block-start: 4px; max-width: 70ch; }
 .hc-grid { display: grid; gap: 16px; }
+.hc-grid > * { min-width: 0; } /* a wide table scrolls inside its own wrapper, never the page */
 .hc-grid-stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
 .hc-grid-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 
@@ -275,3 +276,57 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-install-dialog form { display: flex; justify-content: flex-end; }
 .hc-install-share { display: inline-flex; vertical-align: middle; color: var(--info); }
 .hc-auth-install { display: flex; justify-content: center; margin-block-start: 12px; }
+
+/* ------------------------------------------------------------------ U1 status chips with an icon */
+.hc-badge.has-icon::before { content: none; }
+.hc-badge.has-icon svg { flex: 0 0 13px; }
+
+/* ------------------------------------------------------------------ F2 stage bar + next step */
+.hc-stages { list-style: none; margin: 0; padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); counter-reset: none; }
+.hc-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 0; padding-inline: 4px; }
+.hc-stage::before { content: ""; position: absolute; inset-block-start: 10px; inset-inline-start: calc(-50% + 14px); inset-inline-end: calc(50% + 14px); height: 2px; background: var(--line-strong); }
+.hc-stage:first-child::before { content: none; }
+.hc-stage.is-done::before, .hc-stage.is-now::before, .hc-stage.is-stopped::before { background: var(--ink-2); }
+.hc-stage-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line-strong); background: var(--surface); color: var(--surface); }
+.hc-stage.is-done .hc-stage-dot { background: var(--ink-2); border-color: var(--ink-2); }
+.hc-stage.is-now .hc-stage-dot { border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+.hc-stage.is-now .hc-stage-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+.hc-stage.is-stopped .hc-stage-dot { background: var(--danger); border-color: var(--danger); color: #fff; }
+.hc-stage-label { font-size: .85rem; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+.hc-stage.is-done .hc-stage-label { color: var(--ink-2); }
+.hc-stage.is-now .hc-stage-label, .hc-stage.is-stopped .hc-stage-label { color: var(--ink); font-weight: 700; }
+.hc-stage-tag { font-size: .72rem; font-weight: 700; padding: 0 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); }
+.hc-stage.is-stopped .hc-stage-tag { background: var(--danger-soft); color: var(--danger); }
+@media (max-width: 560px) {
+    .hc-stages { grid-template-columns: 1fr; gap: 10px; }
+    .hc-stage { flex-direction: row; text-align: start; gap: 10px; padding: 0; }
+    .hc-stage::before { inset-block-start: calc(-50% - 2px); inset-block-end: calc(50% + 11px); inset-inline-start: 10px; inset-inline-end: auto; width: 2px; height: auto; }
+}
+.hc-next { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--line); border-inline-start: 4px solid var(--ink-2); border-radius: var(--radius); }
+.hc-next.is-late { border-inline-start-color: var(--brand); }
+.hc-next p { margin: 0; }
+.hc-next-eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.hc-next-title { font-weight: 700; font-size: 1.02rem; }
+.hc-next-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; color: var(--muted); font-size: .85rem; }
+.hc-next-meta > span, .hc-next-meta { align-items: center; }
+.hc-next-since { display: inline-flex; align-items: center; gap: 4px; }
+.hc-next-meta svg { flex: 0 0 auto; margin-inline-end: 4px; }
+.hc-next-since.is-late { color: var(--brand); font-weight: 700; }
+
+/* ------------------------------------------------------------------ F3 count tiles + quick filter chips */
+.hc-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.hc-count { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-align: start; font: inherit; cursor: pointer; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.hc-count:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
+.hc-count strong { font-size: 1.5rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.hc-count span { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; font-weight: 700; color: var(--ink-2); }
+.hc-count-ok strong { color: var(--ok); } .hc-count-warn strong { color: var(--warn); } .hc-count-info strong { color: var(--info); } .hc-count-danger strong { color: var(--danger); }
+.hc-count.is-active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.hc-count:focus-visible, .hc-chip:focus-visible { outline: none; box-shadow: var(--focus); }
+.hc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.hc-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 14px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; text-decoration: none; }
+.hc-chip span { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .75rem; text-align: center; }
+.hc-chip:hover { border-color: var(--ink-2); color: var(--ink); }
+.hc-chip.is-active { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.hc-chip.is-active span { background: color-mix(in srgb, var(--surface) 20%, transparent); color: var(--surface); }
+.hc-empty-action { margin-block-start: 16px; display: flex; justify-content: center; }
+@media (pointer: coarse) { .hc-chip { min-height: 44px; } }

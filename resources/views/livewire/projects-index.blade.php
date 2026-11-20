@@ -47,7 +47,7 @@
                 <tbody>
                 @foreach($projects as $p)
                     @php($stateName = $en && $p->state_en ? $p->state_en : $p->state_ar)
-                    @php($tone = match($p->state_en) { 'Financed' => 'ok', 'Finished' => 'info', 'Rejected', 'Canceled', 'Withdrew' => 'danger', 'Under Review', 'Waiting', 'Delayed' => 'warn', default => null })
+                    @php($tone = \App\Support\ProjectStatus::tone($p->state_en))
                     <tr wire:key="p-{{ $p->id }}">
                         <td data-label="{{ __('hc.number') }}"><a class="row-link" href="{{ route('projects.show', ['locale' => app()->getLocale(), 'project' => $p->id]) }}"><x-hc.project-number :code="$p->city_code" :number="$p->project_number"/></a></td>
                         <td data-label="{{ __('hc.beneficiary') }}">{{ trim($p->first_name.' '.$p->father_name.' '.$p->last_name) ?: __('hc.not_set') }}</td>

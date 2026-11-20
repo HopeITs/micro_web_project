@@ -11,7 +11,7 @@
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <x-hc.badge tone="ok">ممول</x-hc.badge><x-hc.badge tone="warn">قيد الدراسة</x-hc.badge><x-hc.badge tone="danger">مرفوض</x-hc.badge>
-                <x-hc.badge tone="info">منتهي</x-hc.badge><x-hc.badge tone="brand">كامل</x-hc.badge><x-hc.badge>أولي</x-hc.badge>
+                <x-hc.badge tone="info">منتهي</x-hc.badge><x-hc.badge tone="brand">كامل</x-hc.badge><x-hc.badge>أولي</x-hc.badge><x-hc.badge tone="warn">بالانتظار</x-hc.badge><x-hc.badge tone="danger">منسحب</x-hc.badge>
                 <x-hc.project-number code="DAM" :number="2354"/>
             </div>
         </x-hc.card>
@@ -34,7 +34,27 @@
             </div>
             <div style="margin-block-start:16px"><x-hc.field label="ملاحظات" for="d-notes"><textarea id="d-notes" class="hc-textarea"></textarea></x-hc.field></div>
         </x-hc.section>
-        <x-hc.empty title="لا توجد نتائج" icon="search">مثال على حالة فارغة في الجداول.</x-hc.empty>
+        <x-hc.card :title="__('hc.path_title')">
+            <div class="hc-grid">
+                <x-hc.stage-bar current="assessment" note="قيد الدراسة"/>
+                <x-hc.next-step title="أكمل الـ Checklist وأرسله للقرار" waiting="موظف التقييم · حلب" since="منذ 9 أيام" :late="true" href="#" action="فتح الـ Checklist"/>
+                <x-hc.stage-bar current="implementation" note="ممول"/>
+                <x-hc.next-step title="زيارة الافتتاح خلال أسبوعين من التمويل" waiting="الفريق الميداني · دمشق" since="موعدها 27 نوفمبر" href="#" action="جدولة الزيارة"/>
+                <x-hc.stage-bar current="decision" :stopped="true" note="مرفوض"/>
+            </div>
+        </x-hc.card>
+        <x-hc.card title="أرقام موجزة وفلاتر سريعة">
+            <div class="hc-counts" style="margin-block-end:14px">
+                <x-hc.count-tile :count="12" label="مسودات" icon="file"/>
+                <x-hc.count-tile :count="20" label="بانتظار التقييم" tone="warn" icon="clock" :active="true"/>
+                <x-hc.count-tile :count="7" label="أقساط متأخرة" tone="danger" icon="warning"/>
+                <x-hc.count-tile :count="110" label="ممول" tone="ok" icon="check"/>
+            </div>
+            <div class="hc-chips" role="group" aria-label="{{ __('hc.quick_filters') }}">
+                <x-hc.chip :count="200">الكل</x-hc.chip><x-hc.chip :count="50" :active="true">أولي</x-hc.chip><x-hc.chip :count="150">كامل</x-hc.chip><x-hc.chip :count="4">لي فقط</x-hc.chip>
+            </div>
+        </x-hc.card>
+        <x-hc.empty title="لا توجد نتائج" icon="search">جرّب كلمة أقصر أو امسح الفلاتر.<x-slot:action><x-hc.button variant="secondary" size="sm" icon="x">مسح الفلاتر</x-hc.button></x-slot:action></x-hc.empty>
         <x-hc.action-bar><x-hc.button icon="check">حفظ الطلب</x-hc.button><x-hc.button variant="secondary">حفظ كمسودة</x-hc.button><span class="spacer"></span><span class="muted">شريط الأزرار يبقى ظاهراً أسفل النماذج الطويلة</span></x-hc.action-bar>
     </div>
 </x-layouts.hc>

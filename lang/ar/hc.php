@@ -66,5 +66,12 @@ return [
     'filter_find_value' => 'ابحث في القيم', 'filter_no_values' => 'لا توجد قيم ضمن النتائج الحالية.', 'filter_presets' => 'فترات جاهزة', 'filter_from' => 'من', 'filter_to' => 'إلى',
     'filter_preset_this_month' => 'هذا الشهر', 'filter_preset_last_90_days' => 'آخر 90 يوماً', 'filter_preset_this_year' => 'هذه السنة',
     'filter_contains_hint' => 'يحتوي على (افصل البدائل بفاصلة أو سطر جديد)', 'search_multi_hint' => 'عدة أرقام أو أسماء؟ افصلها بفاصلة أو الصق عموداً من Excel.',
+    'views_mine' => 'عروضي', 'view_save' => 'حفظ العرض', 'view_save_as' => 'حفظ الفلاتر الحالية كعرض', 'view_name' => 'اسم العرض', 'view_save_hint' => 'تُحفظ الفلاتر فقط، ولا يُحفظ نص البحث أو الأسماء.',
+    'view_saved' => 'حُفظ العرض ":name".', 'view_updated' => 'حُدّث العرض ":name" بالفلاتر الحالية.', 'view_deleted' => 'حُذف العرض ":name".',
+    'view_name_taken' => 'لديك عرض بهذا الاسم مسبقاً.', 'view_name_invalid' => 'اكتب اسماً للعرض (حتى 120 حرفاً).', 'view_nothing_to_save' => 'اختر فلتراً واحداً على الأقل أولاً.',
+    'view_filters_dropped' => 'بعض فلاتر هذا العرض لا تنطبق على ما يحق لك رؤيته فلم تُطبَّق.',
+    'view_actions' => 'خيارات العرض', 'view_overwrite' => 'تحديثه بالفلاتر الحالية', 'view_rename' => 'إعادة التسمية', 'view_delete' => 'حذف', 'view_confirm_delete' => 'حذف هذا العرض؟ لن تتأثر المشاريع.',
+    'view_make_default' => 'فتح القائمة بهذا العرض', 'view_unset_default' => 'إيقاف الفتح بهذا العرض', 'view_default' => 'افتراضي',
+    'view_share' => 'مشاركته مع الزملاء', 'view_unshare' => 'إيقاف المشاركة', 'view_shared' => 'مُشارك', 'view_shared_by' => 'شاركه :name', 'view_changed' => 'معدّل', 'view_cancel' => 'إلغاء',
     'project_type' => 'نوع المشروع', 'fund_type' => 'نوع التمويل', 'beneficiary_sex' => 'جنس المستفيد', 'sex_male' => 'ذكر', 'sex_female' => 'أنثى',
 ];

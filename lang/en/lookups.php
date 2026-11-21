@@ -7,7 +7,7 @@ return [
     'names' => [
         'streets' => 'Areas (streets)', 'priests' => 'Priests', 'education_specialties' => 'Education specialties', 'education_types' => 'Education degrees',
         'occupations' => 'Occupations and experience', 'aid_sources' => 'Aid sources', 'aid_types' => 'Aid types', 'donors' => 'Donors',
-        'donor_groups' => 'Donor groups', 'state_reasons' => 'State reasons', 'checklist_members' => 'Checklist members', 'checklist_positions' => 'Checklist positions',
+        'donor_groups' => 'Donor groups', 'purchasing_categories' => 'Purchasing categories', 'state_reasons' => 'State reasons', 'checklist_members' => 'Checklist members', 'checklist_positions' => 'Checklist positions',
     ],
     'city_list' => 'Per city', 'shared_list' => 'Shared by all cities', 'read_only' => 'Read only',
     'read_only_hint' => 'This list is shared by all five cities, so only an account that may edit the lists in every city can change it.',

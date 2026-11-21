@@ -215,6 +215,12 @@ final class ProjectNotices
         return $this->notices->broadcast((int) $project->city_id, 0, $project, 'executive_file', NoticeService::EXECUTIVE_FILE, $expiry, $this->beneficiary($project), 'الملف التنفيذي', $sender);
     }
 
+    /** The project's executive-file notices go with a deleted file (M4.10; notices have no soft delete). Returns how many were removed. */
+    public function removeExecutiveFile(object $project): int
+    {
+        return $this->notices->ofProject($project)->where('kind', NoticeService::EXECUTIVE_FILE)->delete();
+    }
+
     /** `Update_UserNotification(project, -1)`: every notice of the project is marked seen, whoever it is addressed to. */
     public function clearProject(object $project): int
     {

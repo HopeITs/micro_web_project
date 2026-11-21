@@ -4,7 +4,7 @@ return [
     'title' => 'Finance', 'open' => 'Finance', 'back' => 'Back to the project', 'saved' => 'Saved.', 'save' => 'Save', 'none' => 'None', 'state' => 'Project state',
     'intro' => 'Donor, loan and instalments of this project. Amounts stay in the loan\'s own currency; nothing is converted or added across currencies.',
     'read_only' => 'You can read this page; only the financial role records loans and instalments.',
-    'links' => ['finance' => 'Loan and instalments', 'executive' => 'Executive file', 'purchasing' => 'Purchases (legacy screen)'],
+    'links' => ['finance' => 'Loan and instalments'],
     'nav_payments' => 'Payment schedule',
     'currencies' => ['USD' => 'US dollar (USD)', 'SYP' => 'Syrian pound (SYP)'],
     'donor' => [
@@ -41,16 +41,6 @@ return [
         'none' => 'No instalments match', 'none_hint' => 'Change the view or the filters.', 'clear' => 'Clear', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'open' => 'Finance',
         'columns' => ['city' => 'City', 'number' => 'Project', 'beneficiary' => 'Beneficiary', 'group' => 'Group', 'currency' => 'Currency', 'amount' => 'Amount', 'due' => 'Due date', 'status' => 'Status', 'received' => 'Received on'],
     ],
-    'executive' => [
-        'title' => 'Executive file', 'scope' => 'Executive (legal) file of the project. A project has one file; files cannot be deleted here.', 'file' => 'File', 'expires' => 'Expires on',
-        'none' => 'This project has no executive file.', 'new' => 'New executive file', 'number' => 'File number', 'begin' => 'Begin date', 'current' => 'Current date',
-        'current_hint' => 'A new file starts with its current date equal to the begin date.', 'impound_date' => 'Impound date', 'impound_type' => 'Impound type', 'months_hint' => 'Months before the due notice; the desktop default is 5.', 'months' => 'Number of months',
-    ],
-    'purchasing' => [
-        'title' => 'Purchases', 'scope' => 'This screen is hidden in the desktop program. It is available only to accounts granted purchasing access, so preserved purchase rows can be read and corrected. Rows cannot be deleted.',
-        'name' => 'Item', 'brand' => 'Brand', 'category' => 'Category', 'quantity' => 'Quantity', 'price' => 'Price', 'invoice_date' => 'Invoice date', 'invoice_number' => 'Invoice number',
-        'trader' => 'Trader', 'none' => 'No purchases recorded.',
-    ],
     'visit_notices_missing' => 'This project has no visit notices. They are created with its first loan, and only when the city has monitoring-and-evaluation staff.',
     'errors' => [
         'stale' => 'The finance data changed since this page was opened. Reload the page before saving.',
@@ -67,8 +57,5 @@ return [
         'no_loan' => 'Save the loan first.', 'loan_has_paid' => 'A loan with a paid instalment cannot be deleted.',
         'generate_amounts' => 'Save the loan with the amount to be returned and the instalment amount first.', 'generate_count' => 'Enter a number of instalments from 1 to :max.',
         'generate_too_many' => 'With this many instalments the rows exceed the amount to be returned; enter fewer.', 'generate_exists' => 'The loan already has instalments: edit them or add rows.',
-        'exe_number' => 'Enter the file number (at most 50 characters).', 'exe_type' => 'The impound type is at most 100 characters.', 'exe_months' => 'Enter a number of months from 0 to 100.',
-        'item_name' => 'Enter the item name (at most 300 characters).', 'item_text' => 'The text is too long.', 'item_quantity' => 'Enter a whole quantity.',
-        'item_price' => 'Enter a price with at most two decimals.', 'item_currency' => 'Choose USD or SYP.', 'item_category' => 'Select a category from this city.',
     ],
 ];

@@ -32,6 +32,13 @@
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view') && (app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'visits.view') || app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'me_visits.view')))
                 <x-hc.button icon="map" variant="secondary" :href="route('visits.hub', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('visits.open') }}</x-hc.button>
             @endif
+            @php($viewsApplication = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
+            @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'executive_files.view'))
+                <x-hc.button icon="clipboard" variant="secondary" :href="route('executive.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('executive.open') }}</x-hc.button>
+            @endif
+            @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'purchasing.view'))
+                <x-hc.button icon="clipboard" variant="secondary" :href="route('purchasing.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('purchasing.open') }}</x-hc.button>
+            @endif
             @php($annex = app(\App\Services\Applications\ProjectAnnexService::class)->kind($project))
             @if($annex)
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('applications.annex', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('annexes.'.$annex) }}</x-hc.button>

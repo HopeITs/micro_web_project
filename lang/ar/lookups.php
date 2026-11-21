@@ -7,7 +7,7 @@ return [
     'names' => [
         'streets' => 'المناطق (الشوارع)', 'priests' => 'الكهنة', 'education_specialties' => 'الاختصاصات العلمية', 'education_types' => 'الدرجات العلمية',
         'occupations' => 'المهن والخبرات', 'aid_sources' => 'الجهات المساعِدة', 'aid_types' => 'أنواع المساعدات', 'donors' => 'الجهات المانحة',
-        'donor_groups' => 'مجموعات المانحين', 'state_reasons' => 'أسباب الحالات', 'checklist_members' => 'أعضاء الـ Checklist', 'checklist_positions' => 'مناصب الـ Checklist',
+        'donor_groups' => 'مجموعات المانحين', 'purchasing_categories' => 'فئات المشتريات', 'state_reasons' => 'أسباب الحالات', 'checklist_members' => 'أعضاء الـ Checklist', 'checklist_positions' => 'مناصب الـ Checklist',
     ],
     'city_list' => 'خاصة بكل مدينة', 'shared_list' => 'مشتركة بين المدن', 'read_only' => 'للعرض فقط',
     'read_only_hint' => 'هذه القائمة مشتركة بين المدن الخمس، فلا يعدّلها إلا من يملك صلاحية تعديل القوائم في كل المدن.',

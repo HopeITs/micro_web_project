@@ -29,13 +29,15 @@ final class AccessRoles
             'me_visits.view', 'me_visits.manage', 'me_visits.delete', 'profession_meetings.view', 'profession_meetings.manage', 'profession_meetings.delete',
             // tasks.manage (owner decision, 21 Nov 2026): data entry may be made responsible for study tasks and tick them.
             'tasks.view', 'tasks.manage', 'notifications.view', 'reports.export', 'attachments.personal', 'attachments.legal', 'lookups.manage',
+            // M4.10 (owner decision, 21 Nov 2026): purchasing is the administrator's, data entry's and legal's, as in the desktop.
+            'purchasing.view', 'purchasing.manage',
         ],
         // The desktop's Financial role and its cashier duty are one role in the web (owner decision, 27 Oct 2026).
         'financial' => [
-            ...self::READ, 'attachments.download', 'attachments.financial', 'finance.view', 'finance.manage', 'finance.export', 'executive_files.view', 'executive_files.manage', 'purchasing.view', 'purchasing.manage',
+            ...self::READ, 'attachments.download', 'attachments.financial', 'finance.view', 'finance.manage', 'finance.export', 'executive_files.view',
             'reports.export', ...self::TASKS,
         ],
-        'legal' => [...self::READ, 'attachments.download', 'attachments.legal', 'finance.view', 'executive_files.view', 'executive_files.manage', ...self::TASKS],
+        'legal' => [...self::READ, 'attachments.download', 'attachments.legal', 'finance.view', 'executive_files.view', 'executive_files.manage', 'purchasing.view', 'purchasing.manage', ...self::TASKS],
         'media' => [...self::READ, ...self::TASKS],
         'guest' => self::READ,
         // Duties the desktop kept as flags on a user (IsME, IsCommunication); IsCashier maps to the financial role.

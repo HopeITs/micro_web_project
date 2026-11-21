@@ -2,27 +2,28 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasSmartFilters;
 use App\Models\City;
-use App\Models\Project;
-use App\Models\ProjectState;
-use App\Services\ProjectNumberAllocator;
-use App\Support\ArabicSearch;
 use App\Support\CityContext;
+use App\Support\Datasets\Dataset;
+use App\Support\Datasets\ProjectsDataset;
 use App\Support\ProjectStatus;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 /**
- * Projects of the permitted cities: instant search (CITY-#### / number / names), filters kept in the URL, and
- * count tiles per stage of the application path (F3). The search term can hold a beneficiary's name or national
- * number, so it stays out of the URL (UX plan F3, same rule as the people list).
+ * Projects of the permitted cities: instant search (CITY-#### / number / names; several terms separated by a
+ * comma or a new line), the smart filter bar (ProjectsDataset fields, multi-select with counts, ranges and
+ * relative dates), city chips and count tiles per stage of the application path (F3). The search term can hold
+ * a beneficiary's name or national number, so it stays out of the URL (UX plan F3, same rule as the people list);
+ * the URL keeps only filter ids, codes, numbers and dates.
  */
 class ProjectsIndex extends Component
 {
+    use HasSmartFilters;
     use WithPagination;
 
     public string $search = '';
@@ -34,15 +35,21 @@ class ProjectsIndex extends Component
     #[Url(as: 'city', except: [])]
     public array $cities = [];
 
-    #[Url(except: '')]
-    public string $stage = '';
+    private ?ProjectsDataset $datasetInstance = null;
 
-    #[Url(except: '')]
-    public string $state = '';
+    protected function dataset(): Dataset
+    {
+        return $this->datasetInstance ??= new ProjectsDataset;
+    }
+
+    protected function smartFilterHidden(): array
+    {
+        return ['city']; // the city chips below the bar
+    }
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['search', 'stage', 'state', 'path'], true) || str_starts_with($property, 'cities')) {
+        if (in_array($property, ['search', 'path'], true) || str_starts_with($property, 'cities')) {
             $this->resetPage();
         }
     }
@@ -63,70 +70,42 @@ class ProjectsIndex extends Component
 
     public function clearFilters(): void
     {
-        $this->reset('search', 'cities', 'stage', 'state', 'path');
-        $this->resetPage();
+        $this->reset('search', 'cities', 'path');
+        $this->clearSmartFilters();
     }
 
-    private function query(bool $withPath = true): Builder
+    /** The list query with the search, cities, smart filters and (optionally) the path tile; no columns or order. */
+    protected function filteredQuery(?string $exceptField = null, bool $withPath = true): Builder
     {
-        $current = DB::table('project_state_history')->select('project_id', 'project_state_id')->where('is_current', true)->whereNull('deleted_at');
-        $applicant = DB::table('project_applicants as pa')->join('people as pp', 'pp.id', '=', 'pa.person_id')
-            ->whereNull('pa.deleted_at')->select('pa.project_id', DB::raw('MIN(pp.id) as person_id'))->groupBy('pa.project_id');
+        $dataset = $this->dataset();
+        $query = $dataset->query();
 
-        $query = Project::query()
-            ->join('cities as c', 'c.id', '=', 'projects.city_id')
-            ->leftJoinSub($applicant, 'ap', 'ap.project_id', '=', 'projects.id')
-            ->leftJoin('people as p', 'p.id', '=', 'ap.person_id')
-            ->leftJoinSub($current, 'cs', 'cs.project_id', '=', 'projects.id')
-            ->leftJoin('project_states as st', 'st.id', '=', 'cs.project_state_id')
-            ->select('projects.id', 'projects.project_number', 'projects.name', 'projects.application_stage', 'projects.requested_amount', 'projects.request_date',
-                'c.code as city_code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'p.first_name', 'p.father_name', 'p.last_name',
-                'st.name_ar as state_ar', 'st.name_en as state_en');
-
-        $permitted = app(CityContext::class)->cityIds();
-        $chosen = array_values(array_intersect($this->cities, $permitted));
+        $chosen = array_values(array_intersect(array_map('intval', $this->cities), app(CityContext::class)->cityIds()));
         if ($chosen !== []) {
             $query->whereIn('projects.city_id', $chosen);
-        }
-        if (in_array($this->stage, ['preliminary', 'full'], true)) {
-            $query->where('projects.application_stage', $this->stage);
         }
         $groups = ProjectStatus::groups();
         if ($withPath && isset($groups[$this->path])) {
             $query->whereIn('st.name_en', $groups[$this->path]);
         }
-        if ($this->state !== '' && ctype_digit($this->state)) {
-            $query->where('cs.project_state_id', (int) $this->state);
-        }
-        $term = trim(mb_substr($this->search, 0, 100));
-        if ($term !== '') {
-            $number = ProjectNumberAllocator::parse($term);
-            if ($number !== null) {
-                [$code, $value] = $number;
-                $query->where('projects.project_number', $value);
-                if ($code !== null) {
-                    $query->where('c.code', $code);
-                }
-            } else {
-                // Every word must match the project's name, a part of the beneficiary's name (Arabic letters folded) or the national number.
-                foreach (preg_split('/\s+/u', $term) as $word) {
-                    $query->where(function ($q) use ($word) {
-                        foreach (['projects.name', 'p.first_name', 'p.father_name', 'p.last_name'] as $column) {
-                            ArabicSearch::orWhereLike($q, $column, $word);
-                        }
-                        $q->orWhere('p.national_number', 'like', ArabicSearch::like($word));
-                    });
-                }
-            }
-        }
+        $dataset->search($query, $this->search);
 
-        return $query->orderByDesc('projects.request_date')->orderBy('c.code')->orderByDesc('projects.project_number');
+        return $this->applySmartFilters($query, $exceptField);
+    }
+
+    private function query(): Builder
+    {
+        return $this->filteredQuery()
+            ->select('projects.id', 'projects.project_number', 'projects.name', 'projects.application_stage', 'projects.requested_amount', 'projects.request_date',
+                'c.code as city_code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'p.first_name', 'p.father_name', 'p.last_name',
+                'st.name_ar as state_ar', 'st.name_en as state_en')
+            ->orderByDesc('projects.request_date')->orderBy('c.code')->orderByDesc('projects.project_number');
     }
 
     /** @return array<string, int> group => projects matching every other filter */
     private function pathCounts(): array
     {
-        $byState = $this->query(false)->reorder()->toBase()->select('st.name_en')->selectRaw('COUNT(*) as n')->groupBy('st.name_en')->pluck('n', 'name_en');
+        $byState = $this->filteredQuery(null, false)->toBase()->select('st.name_en')->selectRaw('COUNT(*) as n')->groupBy('st.name_en')->pluck('n', 'name_en');
 
         return array_map(fn (array $states) => (int) collect($states)->sum(fn ($state) => $byState[$state] ?? 0), ProjectStatus::groups());
     }
@@ -139,7 +118,7 @@ class ProjectsIndex extends Component
             'projects' => $this->query()->paginate(15),
             'pathCounts' => $this->pathCounts(),
             'cityOptions' => City::whereIn('id', $permitted)->orderBy('id')->get(['id', 'code', 'name_ar', 'name_en']),
-            'stateOptions' => ProjectState::ordered()->get(['id', 'name_ar', 'name_en']),
+            'filterBar' => $this->filterBar(),
         ]);
     }
 }

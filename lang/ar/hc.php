@@ -60,4 +60,11 @@ return [
     'cmdk_none_title' => 'لا توجد نتائج', 'cmdk_none' => 'جرّب جزءاً من الاسم، أو الرقم الوطني، أو رقم المشروع.', 'cmdk_move' => 'للتنقل', 'cmdk_open' => 'للفتح', 'cmdk_close' => 'للإغلاق',
     'cmd_new_application' => 'طلب جديد', 'cmd_new_person' => 'إضافة شخص', 'cmd_national_check' => 'فحص رقم وطني', 'cmd_change_password' => 'تغيير كلمة المرور',
     'path_group_intake' => 'تسجيل', 'path_group_assessment' => 'دراسة', 'path_group_decision' => 'قرار (مؤجل)', 'path_group_funding' => 'تمويل', 'path_group_followup' => 'متابعة', 'path_group_closing' => 'انتهاء', 'path_group_stopped' => 'متوقف',
+    // Smart filter bar (smart-search plan 2026-11, phase 1)
+    'filters' => 'الفلاتر', 'filter_add' => 'فلتر', 'filter_remove' => 'إزالة فلتر :field', 'filter_done' => 'تم', 'filter_apply' => 'تطبيق', 'filter_operator' => 'طريقة المطابقة',
+    'filter_op_in' => 'يساوي', 'filter_op_not_in' => 'لا يساوي', 'filter_op_empty' => 'فارغ', 'filter_op_not_empty' => 'غير فارغ', 'filter_not' => 'ليس',
+    'filter_find_value' => 'ابحث في القيم', 'filter_no_values' => 'لا توجد قيم ضمن النتائج الحالية.', 'filter_presets' => 'فترات جاهزة', 'filter_from' => 'من', 'filter_to' => 'إلى',
+    'filter_preset_this_month' => 'هذا الشهر', 'filter_preset_last_90_days' => 'آخر 90 يوماً', 'filter_preset_this_year' => 'هذه السنة',
+    'filter_contains_hint' => 'يحتوي على (افصل البدائل بفاصلة أو سطر جديد)', 'search_multi_hint' => 'عدة أرقام أو أسماء؟ افصلها بفاصلة أو الصق عموداً من Excel.',
+    'project_type' => 'نوع المشروع', 'fund_type' => 'نوع التمويل', 'beneficiary_sex' => 'جنس المستفيد', 'sex_male' => 'ذكر', 'sex_female' => 'أنثى',
 ];

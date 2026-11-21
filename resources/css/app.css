@@ -418,3 +418,26 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-fin-tiles { margin-block-end: 16px; }
 .hc-fin-overdue td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 [dir="rtl"] .hc-fin-overdue td:first-child { box-shadow: inset -3px 0 0 var(--danger); }
+
+/* Smart filter bar (x-hc.filter-bar, smart-search plan 2026-11) */
+.hc-filter-bar { padding: 10px 20px; border-block-end: 1px solid var(--line); display: grid; gap: 10px; }
+.hc-filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hc-filter-add { position: relative; }
+.hc-filter-add .hc-chip { border-style: dashed; }
+.hc-filter-menu { inset-inline-end: auto; inset-inline-start: 0; max-height: 320px; overflow-y: auto; }
+.hc-filter-chip { display: inline-flex; align-items: center; min-height: 34px; border-radius: 999px; border: 1px solid var(--brand); background: var(--brand-soft); color: var(--brand); font-size: .85rem; max-width: 100%; }
+.hc-filter-chip.is-editing { box-shadow: var(--focus); }
+.hc-filter-chip button { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.hc-filter-chip-main { padding: 4px 4px 4px 0; padding-inline: 12px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+.hc-filter-chip-field { font-weight: 700; }
+.hc-filter-chip-x { display: inline-flex; padding: 6px 8px; border-radius: 999px; }
+.hc-filter-chip-x:hover { background: color-mix(in srgb, var(--brand) 15%, transparent); }
+.hc-filter-editor { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.hc-filter-editor-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hc-filter-ops { display: flex; flex-wrap: wrap; gap: 6px; }
+.hc-filter-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 12px; max-height: 260px; overflow-y: auto; }
+.hc-filter-option { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
+.hc-filter-option .num { margin-inline-start: auto; }
+.hc-filter-range { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.hc-filter-range .hc-field { flex: 1 1 160px; display: grid; gap: 4px; }
+@media (max-width: 640px) { .hc-filter-bar { padding: 10px 16px; } .hc-filter-chip-main { max-width: 220px; } }

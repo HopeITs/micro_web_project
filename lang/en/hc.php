@@ -55,4 +55,11 @@ return [
     'cmdk_none_title' => 'No results', 'cmdk_none' => 'Try part of the name, the national number or the project number.', 'cmdk_move' => 'to move', 'cmdk_open' => 'to open', 'cmdk_close' => 'to close',
     'cmd_new_application' => 'New application', 'cmd_new_person' => 'Add a person', 'cmd_national_check' => 'Check a national number', 'cmd_change_password' => 'Change password',
     'path_group_intake' => 'Intake', 'path_group_assessment' => 'Assessment', 'path_group_decision' => 'Decision (delayed)', 'path_group_funding' => 'Funding', 'path_group_followup' => 'Follow-up', 'path_group_closing' => 'Closing', 'path_group_stopped' => 'Stopped',
+    // Smart filter bar (smart-search plan 2026-11, phase 1)
+    'filters' => 'Filters', 'filter_add' => 'Filter', 'filter_remove' => 'Remove the :field filter', 'filter_done' => 'Done', 'filter_apply' => 'Apply', 'filter_operator' => 'Match',
+    'filter_op_in' => 'Is', 'filter_op_not_in' => 'Is not', 'filter_op_empty' => 'Empty', 'filter_op_not_empty' => 'Not empty', 'filter_not' => 'not',
+    'filter_find_value' => 'Find a value', 'filter_no_values' => 'No values in the current results.', 'filter_presets' => 'Quick ranges', 'filter_from' => 'From', 'filter_to' => 'To',
+    'filter_preset_this_month' => 'This month', 'filter_preset_last_90_days' => 'Last 90 days', 'filter_preset_this_year' => 'This year',
+    'filter_contains_hint' => 'Contains (separate alternatives with a comma or a new line)', 'search_multi_hint' => 'Several numbers or names? Separate them with commas or paste a column from Excel.',
+    'project_type' => 'Project type', 'fund_type' => 'Fund type', 'beneficiary_sex' => 'Beneficiary sex', 'sex_male' => 'Male', 'sex_female' => 'Female',
 ];

@@ -1,8 +1,8 @@
 {{-- Tabs shared by the account administration pages, plus the status and validation messages. --}}
 @php($locale = app()->getLocale())
 <nav class="hc-chips" aria-label="{{ __('admin.nav') }}" style="margin-block-end:16px">
-    @foreach(['admin.accounts.index' => ['admin.title', 'shield'], 'admin.accounts.new' => ['admin.new', 'plus'], 'admin.tasks' => ['admin.tasks_title', 'task'], 'admin.staff' => ['admin.staff_title', 'users'], 'admin.audit' => ['audit.title', 'clock']] as $name => [$label, $icon])
-        @php($on = request()->routeIs($name) || ($name === 'admin.accounts.index' && request()->routeIs('admin.accounts.show')) || ($name === 'admin.audit' && request()->routeIs('admin.audit.desktop')))
+    @foreach(['admin.accounts.index' => ['admin.title', 'shield'], 'admin.accounts.new' => ['admin.new', 'plus'], 'admin.tasks' => ['admin.tasks_title', 'task'], 'admin.staff' => ['admin.staff_title', 'users']] as $name => [$label, $icon])
+        @php($on = request()->routeIs($name) || ($name === 'admin.accounts.index' && request()->routeIs('admin.accounts.show')))
         <a class="hc-chip" href="{{ route($name, ['locale' => $locale]) }}" aria-pressed="{{ $on ? 'true' : 'false' }}" @if($on) aria-current="page" @endif><x-hc.icon :name="$icon" :size="16"/>{{ __($label) }}</a>
     @endforeach
 </nav>

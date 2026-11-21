@@ -15,10 +15,8 @@
         .audit-changes ins { text-decoration: none; font-weight: 600; }
     </style>
     <div class="hc-page-head">
-        <div><p class="hc-eyebrow">{{ __('hc.group_tools') }}</p><h1>{{ __('audit.title') }}</h1><p>{{ __('audit.intro') }}</p></div>
-        <x-hc.badge>{{ __('audit.read_only') }}</x-hc.badge>
+        <div><p class="hc-eyebrow">{{ __('hc.group_tools') }}</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h1>{{ __('audit.title') }}</h1><x-hc.badge>{{ __('audit.read_only') }}</x-hc.badge></div><p>{{ __('audit.intro') }}</p></div>
     </div>
-    @include('admin._nav')
 
     <x-hc.card :flush="true">
         @include('admin._audit-tabs', ['exportRoute' => 'admin.audit.export', 'query' => $query])
@@ -41,7 +39,7 @@
                     @foreach(array_keys(\App\Services\Staff\AuditLogService::AREAS) as $a)<option value="{{ $a }}" @selected(($filters['area'] ?? '') === $a)>{{ __('audit.areas.'.$a) }}</option>@endforeach</select>
             </div>
             <div class="hc-field grow"><label class="hc-label" for="actor">{{ __('audit.actor') }}</label><input id="actor" name="actor" type="search" class="hc-input" maxlength="100" value="{{ $filters['actor'] ?? '' }}" autocomplete="off"></div>
-            <div class="hc-field" style="justify-content:flex-end;flex-direction:row;gap:8px;align-items:flex-end">
+            <div class="hc-field" style="flex:0 0 auto;flex-direction:row;gap:8px;align-items:flex-end">
                 <x-hc.button type="submit" variant="secondary" icon="search">{{ __('audit.filter') }}</x-hc.button>
                 @if($query !== [])<x-hc.button variant="ghost" :href="route('admin.audit', ['locale' => $locale])">{{ __('audit.clear') }}</x-hc.button>@endif
             </div>

@@ -7,365 +7,372 @@ namespace App\Services\Assessments;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
-use App\Services\Operational\OperationalTables;
+use App\Services\Applications\ApplicationService;
+use App\Services\People\PeopleService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Assessment checklist (CheckList_Form). The checklist belongs to a person; a project and beneficiary select it.
- * Member rows are inserted or edited in place; deletion is not offered. Preserved rows are never rewritten unless changed.
+ * The assessment checklist and scores of an application (M4.7, desktop CheckList_Form and the score block of Application_Form), on the
+ * unified schema. The checklist belongs to the project's beneficiary; the scores to the project. Reading needs `assessments.view`,
+ * writing, deleting and printing `assessments.manage` (the desktop showed Save/Delete/Print to administrators and data entry only).
+ * Each yes/no question opens its own details (`when`); answering No clears them on save, as the desktop emptied them.
  */
 final class ChecklistService
 {
+    /** Member lists: key persons, visitors/team, committee (checklist_positions.type). */
     public const LOCATIONS = ['k', 't', 'c'];
 
-    private const DATES = ['c_HVisit_Date', 'c_PVisit_Date', 'c_TeamDate', 'c_CommityDate', 'c_ProTest_Date', 'c_ProTrain_BDate', 'c_ProTrain_EDate', 'c_MngTrain_Date', 'c_RejectMsgDate'];
-
-    private const TEXTS = [
-        'c_HVisit_Note' => 300, 'c_HVisit_Time' => 50, 'c_PVisit_Note' => 300, 'c_PVisit_Time' => 50, 'c_VisitsReport' => 65535, 'c_Notes' => 4294967295,
-        'c_NeedProTest_Note' => 65535, 'c_ProTest_Note' => 65535, 'c_ProTest_Result' => 65535,
-        'c_ProTrain_Trainer' => 300, 'c_ProTrain_Place' => 300, 'c_ProTrain_Note' => 65535, 'c_ProTrain_Result' => 65535,
-        'c_MngTrain_Trainer' => 300, 'c_MngTrain_Place' => 300, 'c_MngTrain_Result' => 65535,
+    /** checklists columns. `when` = the yes/no column that opens it; `members` = which member list a reference uses. */
+    public const HEADER = [
+        'visits' => [
+            'has_home_visit' => ['kind' => 'bool'],
+            'home_visit_date' => ['kind' => 'date', 'when' => 'has_home_visit'],
+            'home_visit_time' => ['kind' => 'text', 'max' => 20, 'when' => 'has_home_visit'],
+            'home_visitor_1_id' => ['kind' => 'member', 'members' => 't', 'when' => 'has_home_visit', 'needed' => true],
+            'home_visitor_2_id' => ['kind' => 'member', 'members' => 't', 'when' => 'has_home_visit'],
+            'home_visit_note' => ['kind' => 'textarea', 'when' => 'has_home_visit'],
+            'has_project_visit' => ['kind' => 'bool'],
+            'project_visit_date' => ['kind' => 'date', 'when' => 'has_project_visit'],
+            'project_visit_time' => ['kind' => 'text', 'max' => 20, 'when' => 'has_project_visit'],
+            'project_visitor_1_id' => ['kind' => 'member', 'members' => 't', 'when' => 'has_project_visit', 'needed' => true],
+            'project_visitor_2_id' => ['kind' => 'member', 'members' => 't', 'when' => 'has_project_visit'],
+            'project_visit_note' => ['kind' => 'textarea', 'when' => 'has_project_visit'],
+            'visits_report' => ['kind' => 'textarea'],
+        ],
+        'experience' => [
+            'needs_professional_test' => ['kind' => 'bool'],
+            'professional_test_need_note' => ['kind' => 'textarea', 'when' => 'needs_professional_test'],
+            'has_professional_test' => ['kind' => 'bool'],
+            'professional_test_date' => ['kind' => 'date', 'when' => 'has_professional_test'],
+            'professional_tester_id' => ['kind' => 'member', 'members' => null, 'when' => 'has_professional_test', 'needed' => true],
+            'professional_test_note' => ['kind' => 'textarea', 'when' => 'has_professional_test', 'needed' => true],
+            'professional_test_result' => ['kind' => 'textarea', 'when' => 'has_professional_test'],
+            'has_professional_training' => ['kind' => 'bool'],
+            'professional_trainer' => ['kind' => 'text', 'max' => 255, 'when' => 'has_professional_training', 'needed' => true],
+            'professional_training_place' => ['kind' => 'text', 'max' => 255, 'when' => 'has_professional_training', 'needed' => true],
+            'professional_training_start' => ['kind' => 'date', 'when' => 'has_professional_training'],
+            'professional_training_end' => ['kind' => 'date', 'when' => 'has_professional_training'],
+            'professional_training_note' => ['kind' => 'textarea', 'when' => 'has_professional_training', 'needed' => true],
+            'professional_training_result' => ['kind' => 'textarea', 'when' => 'has_professional_training'],
+            'has_management_training' => ['kind' => 'bool'],
+            'management_trainer' => ['kind' => 'text', 'max' => 255, 'when' => 'has_management_training', 'needed' => true],
+            'management_training_place' => ['kind' => 'text', 'max' => 255, 'when' => 'has_management_training', 'needed' => true],
+            'management_training_date' => ['kind' => 'date', 'when' => 'has_management_training'],
+            'management_training_result' => ['kind' => 'textarea', 'when' => 'has_management_training'],
+        ],
+        'decision' => [
+            'team_date' => ['kind' => 'date'],
+            'committee_date' => ['kind' => 'date'],
+            'notes' => ['kind' => 'textarea'],
+            'rejection_message' => ['kind' => 'bool'],
+            'rejection_message_date' => ['kind' => 'date', 'when' => 'rejection_message'],
+            'rejection_message_sender_account_id' => ['kind' => 'account', 'when' => 'rejection_message', 'needed' => true],
+        ],
     ];
 
-    /** Flags: two-state visit/message flags and tri-state need/has flags (-1 means not applicable). */
-    private const FLAGS = ['c_HasHomeVisit' => [0, 1], 'c_HasProjectVisit' => [0, 1], 'c_RejectMsg' => [0, 1], 'c_NeedProTest' => [-1, 0, 1], 'c_HasProTest' => [-1, 0, 1], 'c_HasProTrain' => [-1, 0, 1], 'c_HasMngTrain' => [-1, 0, 1]];
+    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private ApplicationService $applications, private PeopleService $people) {}
 
-    private const REFERENCES = ['HVisit_Visitor1_ID', 'HVisit_Visitor2_ID', 'PVisit_Visitor1_ID', 'PVisit_Visitor2_ID', 'ProTest_User_ID'];
-
-    /** Details emptied by the desktop when their switch is off. */
-    private const DEPENDENTS = [
-        'c_HasHomeVisit' => ['fields' => ['c_HVisit_Date', 'c_HVisit_Time', 'c_HVisit_Note'], 'references' => ['HVisit_Visitor1_ID', 'HVisit_Visitor2_ID']],
-        'c_HasProjectVisit' => ['fields' => ['c_PVisit_Date', 'c_PVisit_Time', 'c_PVisit_Note'], 'references' => ['PVisit_Visitor1_ID', 'PVisit_Visitor2_ID']],
-        'c_HasProTest' => ['fields' => ['c_ProTest_Date', 'c_ProTest_Note', 'c_ProTest_Result'], 'references' => ['ProTest_User_ID']],
-        'c_HasProTrain' => ['fields' => ['c_ProTrain_Trainer', 'c_ProTrain_Place', 'c_ProTrain_BDate', 'c_ProTrain_EDate', 'c_ProTrain_Note', 'c_ProTrain_Result'], 'references' => []],
-        'c_HasMngTrain' => ['fields' => ['c_MngTrain_Trainer', 'c_MngTrain_Place', 'c_MngTrain_Date', 'c_MngTrain_Result'], 'references' => []],
-        'c_RejectMsg' => ['fields' => ['c_RejectMsgDate'], 'references' => []],
-    ];
-
-    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private OperationalTables $tables) {}
-
-    public function fieldNames(): array
+    /** @return array<string, array> every header field, flat */
+    public static function fields(): array
     {
-        return array_merge(self::DATES, array_keys(self::TEXTS), array_keys(self::FLAGS));
+        return array_merge(...array_values(self::HEADER));
     }
 
-    public function referenceNames(): array
+    public function project(WebAccount $account, int $projectId): object
     {
-        return self::REFERENCES;
-    }
-
-    private function authorize(WebAccount $account, int $city, bool $write = false): void
-    {
-        $capabilities = ['applications.view', 'people.view', 'assessments.view', ...($write ? ['assessments.manage'] : [])];
-        foreach ($capabilities as $capability) {
-            if (! $this->access->check($account, $city, $capability)) {
-                $this->audit->record($account->id, 'access.denied', 'denied');
-                abort(403);
-            }
-        }
-    }
-
-    private function project(int $id): object
-    {
-        $row = $this->tables->query('microproject')->where('p.id', $id)->first();
-        abort_if($row === null, 404);
-
-        return $row;
-    }
-
-    private function links(object $project): Collection
-    {
-        $mp = $this->tables->relation('person_microproject', 'MicroProject_ID');
-
-        return $this->tables->query('person_microproject')->where('p.city_id', $project->city_id)->where('p.source_id', $project->source_id)
-            ->where('p.'.$mp['resolved_column'], $project->id)->where('p.'.$mp['state_column'], 'resolved')->orderBy('p.id')->get();
-    }
-
-    /** Beneficiaries of the project. A checklist is only reachable through a beneficiary link of this project. */
-    public function beneficiaries(WebAccount $account, int $projectId): Collection
-    {
-        $project = $this->project($projectId);
-        $this->authorize($account, (int) $project->city_id);
-
-        return $this->beneficiaryRows($project);
-    }
-
-    private function beneficiaryRows(object $project): Collection
-    {
-        $personRef = $this->tables->relation('person_microproject', 'Person_ID');
-
-        return $this->links($project)->filter(fn ($link) => $link->c_PersonType === 'مستفيد' && $link->{$personRef['state_column']} === 'resolved')
-            ->map(function ($link) use ($project, $personRef) {
-                $person = $this->tables->find('person', (int) $link->{$personRef['resolved_column']}, (int) $project->city_id, (int) $project->source_id);
-                if ($person === null) {
-                    return null;
-                }
-
-                return (object) ['id' => (int) $person->id, 'label' => trim(($person->c_P_FirstName ?? '').' '.($person->c_P_LastName ?? '')).' · #'.$person->id];
-            })->filter()->unique('id')->values();
-    }
-
-    private function headers(object $project, int $personId): Collection
-    {
-        $personRef = $this->tables->relation('checklist', 'Person_ID');
-
-        return $this->tables->query('checklist')->where('p.city_id', $project->city_id)->where('p.source_id', $project->source_id)
-            ->where('p.'.$personRef['resolved_column'], $personId)->where('p.'.$personRef['state_column'], 'resolved')->orderBy('p.id')->get();
-    }
-
-    private function memberRows(object $project, int $personId): Collection
-    {
-        $personRef = $this->tables->relation('person_checklistmembers', 'Person_ID');
-
-        return $this->tables->query('person_checklistmembers')->where('p.city_id', $project->city_id)->where('p.source_id', $project->source_id)
-            ->where('p.'.$personRef['resolved_column'], $personId)->where('p.'.$personRef['state_column'], 'resolved')->orderBy('p.id')->get();
-    }
-
-    private function version(Collection $headers, Collection $members): string
-    {
-        $strip = fn (Collection $rows) => $rows->map(fn ($row) => collect((array) $row)->except(['city_name_en', 'city_name_ar'])->all())->all();
-
-        return hash('sha256', json_encode([$strip($headers), $strip($members)], JSON_THROW_ON_ERROR));
-    }
-
-    /** Catalog members offered per location, with their position names. */
-    public function catalog(object $project): array
-    {
-        $positionRef = $this->tables->relation('checklist_member', 'Position_ID');
-        $positions = $this->tables->catalog('checklist_position', (int) $project->city_id, (int) $project->source_id)->keyBy('id');
-        $result = array_fill_keys(self::LOCATIONS, []);
-        foreach ($this->tables->catalog('checklist_member', (int) $project->city_id, (int) $project->source_id) as $member) {
-            $position = $member->{$positionRef['state_column']} === 'resolved' ? $positions->get($member->{$positionRef['resolved_column']}) : null;
-            if ($position === null || ! in_array($position->c_Type, self::LOCATIONS, true)) {
-                continue;
-            }
-            $result[$position->c_Type][] = (object) ['id' => (int) $member->id, 'label' => trim(($member->c_Name ?? '').' · '.($position->c_Name ?? ''), ' ·'), 'active' => (int) $member->c_IsActive !== 0];
+        $project = $this->applications->project($account, $projectId);
+        if (! $this->access->check($account, (int) $project->city_id, 'assessments.view')) {
+            $this->audit->record($account->id, 'access.denied', 'denied');
+            abort(403);
         }
 
-        return $result;
+        return $project;
     }
 
-    /** All members of a project's checklist catalog by canonical id, for reference validation. */
-    private function memberLocation(object $project, int $memberId): ?string
+    public function canManage(WebAccount $account, object $project): bool
     {
-        foreach ($this->catalog($project) as $location => $members) {
-            foreach ($members as $member) {
-                if ($member->id === $memberId) {
-                    return $location;
-                }
-            }
+        return $this->access->check($account, (int) $project->city_id, 'assessments.manage');
+    }
+
+    private function writable(WebAccount $account, int $projectId): object
+    {
+        $project = $this->project($account, $projectId);
+        if (! $this->canManage($account, $project)) {
+            $this->audit->record($account->id, 'access.denied', 'denied');
+            abort(403);
         }
 
-        return null;
+        return $project;
     }
 
-    public function show(WebAccount $account, int $projectId, int $personId, ?int $headerId = null): array
+    /** The project's beneficiary (the checklist's person), or null. */
+    public function beneficiary(int $projectId): ?object
     {
-        $project = $this->project($projectId);
-        $city = (int) $project->city_id;
-        $this->authorize($account, $city);
-        $people = $this->beneficiaryRows($project);
-        abort_unless($people->contains('id', $personId), 404);
-        $headers = $this->headers($project, $personId);
-        $members = $this->memberRows($project, $personId);
-        $header = $headerId !== null ? $headers->firstWhere('id', $headerId) : ($headers->count() === 1 ? $headers->first() : null);
-        abort_if($headerId !== null && $header === null, 404);
-        $this->audit->record($account->id, 'assessments.view', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
-
-        return [
-            'project' => $project, 'people' => $people, 'personId' => $personId, 'headers' => $headers, 'header' => $header,
-            'members' => $members, 'version' => $this->version($headers, $members), 'catalog' => $this->catalog($project),
-            'canManage' => $this->access->check($account, $city, 'assessments.manage'),
-            'needsHeaderChoice' => $headerId === null && $headers->count() > 1,
-        ];
+        return DB::table('project_applicants as a')->join('people as p', 'p.id', '=', 'a.person_id')->where('a.project_id', $projectId)->whereNull('a.deleted_at')
+            ->orderByRaw('CASE WHEN a.role = ? THEN 0 ELSE 1 END', [ApplicationService::BENEFICIARY])->orderBy('a.id')->first(['p.*']);
     }
+
+    /** The person's checklist for this project: the one linked to the project, else the person's latest (old records had no project). */
+    private function header(int $personId, int $projectId): ?object
+    {
+        return DB::table('checklists')->where('person_id', $personId)->whereNull('deleted_at')
+            ->orderByRaw('CASE WHEN project_id = ? THEN 0 WHEN project_id IS NULL THEN 1 ELSE 2 END', [$projectId])->orderByDesc('id')->first();
+    }
+
+    // ---------------------------------------------------------------- lists
 
     /**
-     * Saves one person's checklist. $members is a list of {id?, location, member_id, opinion, notes, name_notes, role_notes}.
-     * Existing member rows not mentioned are left untouched.
+     * Checklist members of the city for a list ('k', 't', 'c', or null for all), with their position as group.
+     *
+     * @return Collection<int, object{id: int, label: string, group: ?string}>
      */
-    public function save(WebAccount $account, int $projectId, int $personId, ?int $headerId, array $fields, array $references, array $members, string $version): int
+    public function members(int $city, ?string $location, array $keep = []): Collection
     {
-        return DB::transaction(function () use ($account, $projectId, $personId, $headerId, $fields, $references, $members, $version) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            $project = $this->project($projectId);
-            $city = (int) $project->city_id;
-            $source = (int) $project->source_id;
-            $this->authorize($account, $city, true);
-            abort_unless($this->beneficiaryRows($project)->contains('id', $personId), 422, 'Select a beneficiary of this project.');
-            DB::table('op_person')->where('id', $personId)->lockForUpdate()->first();
-            $headers = $this->headers($project, $personId);
-            $existing = $this->memberRows($project, $personId);
-            abort_unless(hash_equals($this->version($headers, $existing), $version), 409, 'Checklist changed. Reload before saving.');
-            abort_if($headers->count() > 1 && $headerId === null, 422, 'Several checklists exist for this person; choose one.');
-            $header = $headerId !== null ? $headers->firstWhere('id', $headerId) : $headers->first();
-            abort_if($headerId !== null && $header === null, 404);
+        $en = app()->getLocale() === 'en';
 
-            $payload = $this->headerPayload($project, $header, $fields, $references);
-            if ($header === null) {
-                $headerId = $this->tables->insert('checklist', $city, $source, $payload + $this->tables->link('checklist', 'Person_ID', $personId));
-            } else {
-                $payload = $this->changed($header, $payload);
-                if ($payload !== []) {
-                    DB::table('op_checklist')->where('id', $header->id)->update($payload);
-                }
-                $headerId = (int) $header->id;
+        return DB::table('checklist_members as m')->leftJoin('checklist_positions as p', 'p.id', '=', 'm.checklist_position_id')->where('m.city_id', $city)
+            ->where(fn ($q) => $q->where('m.is_active', true)->when($keep !== [], fn ($k) => $k->orWhereIn('m.id', array_map('intval', $keep))))
+            ->when($location !== null, fn ($q) => $q->where('p.type', $location))
+            ->orderBy('m.sort_order')->orderBy('m.name_ar')->get(['m.id', 'm.name_ar', 'm.name_en', 'p.name_ar as position_ar', 'p.name_en as position_en'])
+            ->map(fn ($m) => (object) ['id' => (int) $m->id, 'label' => $en && $m->name_en ? $m->name_en : $m->name_ar, 'group' => $en && $m->position_en ? $m->position_en : $m->position_ar]);
+    }
+
+    /** Enabled accounts holding a role in the city: who may have sent a rejection message. */
+    public function senders(int $city): Collection
+    {
+        return DB::table('web_accounts as a')->join('account_city_roles as r', 'r.account_id', '=', 'a.id')->where('r.city_id', $city)->whereNull('r.revoked_at')->whereNull('a.disabled_at')
+            ->select('a.id', 'a.username')->distinct()->orderBy('a.username')->get()->map(fn ($a) => (object) ['id' => (int) $a->id, 'label' => (string) $a->username]);
+    }
+
+    public function opinions(): Collection
+    {
+        return DB::table('checklist_opinions')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en'])
+            ->map(fn ($o) => (object) ['id' => (int) $o->id, 'label' => app()->getLocale() === 'en' && $o->name_en ? $o->name_en : $o->name_ar]);
+    }
+
+    /** The 10 assessment criteria with their options (value 1, 0 or -1 = N/A). */
+    public function criteria(): Collection
+    {
+        $en = app()->getLocale() === 'en';
+        $options = DB::table('score_options')->where('is_active', true)->orderBy('sort_order')->orderByDesc('value')->get()->groupBy('score_criterion_id');
+
+        return DB::table('score_criteria')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get()->map(fn ($c) => (object) [
+            'id' => (int) $c->id, 'label' => $en && $c->name_en ? $c->name_en : $c->name_ar,
+            'options' => ($options->get($c->id) ?? collect())->map(fn ($o) => (object) ['value' => (int) $o->value, 'label' => $en && $o->name_en ? $o->name_en : $o->name_ar])->values(),
+        ]);
+    }
+
+    // ---------------------------------------------------------------- state
+
+    /** The form state of a project's checklist and scores. */
+    public function load(WebAccount $account, int $projectId): array
+    {
+        $project = $this->project($account, $projectId);
+        $person = $this->beneficiary($projectId);
+        $header = $person ? $this->header((int) $person->id, $projectId) : null;
+        $values = [];
+        foreach (self::fields() as $field => $spec) {
+            $v = $header->{$field} ?? null;
+            $values[$field] = match (true) {
+                $v === null => '',
+                $spec['kind'] === 'bool' => (int) $v === 1 ? '1' : ((int) $v === 0 ? '0' : ''),
+                $spec['kind'] === 'date' => substr((string) $v, 0, 10),
+                default => (string) $v,
+            };
+        }
+        $members = array_fill_keys(self::LOCATIONS, []);
+        if ($person) {
+            foreach (DB::table('checklist_member_opinions')->where('person_id', $person->id)->whereNull('deleted_at')->orderBy('id')->get() as $row) {
+                $location = in_array($row->location, self::LOCATIONS, true) ? $row->location : 't';
+                $members[$location][] = [
+                    'id' => (int) $row->id, 'checklist_member_id' => (string) $row->checklist_member_id, 'checklist_opinion_id' => (string) ($row->checklist_opinion_id ?? ''),
+                    'notes' => (string) ($row->notes ?? ''), 'name_notes' => (string) ($row->name_notes ?? ''), 'role_notes' => (string) ($row->role_notes ?? ''),
+                ];
             }
-            $this->saveMembers($project, $personId, $existing, $members);
-            $this->audit->record($account->id, 'assessments.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+        }
+        $scores = [];
+        $saved = DB::table('project_scores')->where('project_id', $projectId)->whereNull('deleted_at')->get()->keyBy('score_criterion_id');
+        foreach ($this->criteria() as $c) {
+            $row = $saved->get($c->id);
+            $scores[$c->id] = ['value' => $row && $row->value !== null ? (string) $row->value : '', 'notes' => (string) ($row->notes ?? '')];
+        }
+        if ($header !== null || $saved->isNotEmpty()) {
+            $this->audit->record($account->id, 'assessments.view', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId);
+        }
 
-            return $headerId;
+        return ['header' => $values, 'members' => $members, 'removed' => [], 'scores' => $scores, 'exists' => $header !== null, 'person_id' => $person ? (int) $person->id : null];
+    }
+
+    // ---------------------------------------------------------------- saving
+
+    public function save(WebAccount $account, int $projectId, array $state): void
+    {
+        $project = $this->writable($account, $projectId);
+        $city = (int) $project->city_id;
+        $person = $this->beneficiary($projectId) ?? throw ValidationException::withMessages(['header' => __('checklists.errors.no_beneficiary')]);
+        $current = $this->header((int) $person->id, $projectId);
+        $errors = [];
+        $header = $this->validateHeader($state['header'] ?? [], $city, (array) ($current ?? []), $errors);
+        $rows = $this->validateMembers($state['members'] ?? [], $city, (int) $person->id, $errors);
+        $scores = $this->validateScores($state['scores'] ?? [], $errors);
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+        DB::transaction(function () use ($account, $project, $city, $person, $current, $header, $rows, $scores, $state) {
+            $now = now();
+            if ($current === null) {
+                DB::table('checklists')->insert($header + ['city_id' => $city, 'person_id' => $person->id, 'project_id' => $project->id, 'created_at' => $now, 'updated_at' => $now]);
+            } else {
+                DB::table('checklists')->where('id', $current->id)->update($header + ['project_id' => $current->project_id ?? $project->id, 'updated_at' => $now]);
+            }
+            foreach ($rows as $row) {
+                $id = $row['id'];
+                unset($row['id']);
+                if ($id === null) {
+                    DB::table('checklist_member_opinions')->insert($row + ['city_id' => $city, 'person_id' => $person->id, 'recorded_at' => $now, 'created_at' => $now, 'updated_at' => $now]);
+                } else {
+                    DB::table('checklist_member_opinions')->where('id', $id)->update($row + ['updated_at' => $now]);
+                }
+            }
+            $removed = array_map('intval', $state['removed'] ?? []);
+            if ($removed !== []) {
+                DB::table('checklist_member_opinions')->whereIn('id', $removed)->where('person_id', $person->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+            }
+            // Scores replace the project's previous ones (the desktop deleted and re-inserted them).
+            DB::table('project_scores')->where('project_id', $project->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+            foreach ($scores as $criterion => $score) {
+                DB::table('project_scores')->insert(['city_id' => $city, 'project_id' => $project->id, 'score_criterion_id' => $criterion, 'value' => $score['value'], 'notes' => $score['notes'], 'created_at' => $now, 'updated_at' => $now]);
+            }
+            $this->audit->record($account->id, 'assessments.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: (int) $project->id);
         });
     }
 
-    private function headerPayload(object $project, ?object $header, array $fields, array $references): array
+    /** Deletes the beneficiary's checklist, its member opinions and the project's scores (the desktop Delete button). */
+    public function delete(WebAccount $account, int $projectId): void
     {
-        // A form re-submits every field; values equal to the stored row are untouched and are not revalidated (legacy sentinels survive).
-        if ($header !== null) {
-            $fields = $this->changed($header, $fields);
-        }
-        $unknown = array_diff(array_keys($fields), $this->fieldNames());
-        if ($unknown !== [] || array_diff(array_keys($references), self::REFERENCES)) {
-            throw ValidationException::withMessages(['fields' => 'Unsupported checklist field.']);
-        }
-        $rules = [];
-        foreach (self::DATES as $name) {
-            $rules[$name] = ['nullable', 'date_format:Y-m-d'];
-        }
-        foreach (self::TEXTS as $name => $max) {
-            $rules[$name] = ['nullable', 'string', 'max:'.$max];
-        }
-        foreach (self::FLAGS as $name => $allowed) {
-            $rules[$name] = ['nullable', 'integer', Rule::in($allowed)];
-        }
-        // Only supplied values are validated; untouched legacy values (sentinels included) are kept as stored.
-        $supplied = Validator::make($fields, array_intersect_key($rules, $fields))->validate();
-        foreach (array_merge(self::DATES, array_keys(self::FLAGS)) as $name) {
-            if (($supplied[$name] ?? null) === '') {
-                $supplied[$name] = null;
-            }
-        }
-        $effective = [];
-        foreach ($this->fieldNames() as $name) {
-            $effective[$name] = array_key_exists($name, $supplied) ? $supplied[$name] : ($header->{$name} ?? null);
-        }
-        $given = [];
-        $refs = [];
-        foreach (self::REFERENCES as $key) {
-            $relation = $this->tables->relation('checklist', $key);
-            if (array_key_exists($key, $references)) {
-                $given[$key] = $references[$key] === null || $references[$key] === '' ? null : (int) $references[$key];
-                if ($given[$key] !== null && $this->memberLocation($project, $given[$key]) === null) {
-                    throw ValidationException::withMessages(['references.'.$key => 'Select a checklist member from this city.']);
+        $project = $this->writable($account, $projectId);
+        $person = $this->beneficiary($projectId);
+        DB::transaction(function () use ($account, $project, $person, $projectId) {
+            $now = now();
+            if ($person) {
+                $header = $this->header((int) $person->id, $projectId);
+                if ($header) {
+                    DB::table('checklists')->where('id', $header->id)->update(['deleted_at' => $now, 'updated_at' => $now]);
                 }
+                DB::table('checklist_member_opinions')->where('person_id', $person->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
             }
-            $refs[$key] = array_key_exists($key, $given) ? $given[$key]
-                : ($header !== null && $header->{$relation['state_column']} === 'resolved' ? (int) $header->{$relation['resolved_column']} : null);
+            DB::table('project_scores')->where('project_id', $projectId)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+            $this->audit->record($account->id, 'assessments.saved', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id);
+        });
+    }
+
+    private function validateHeader(array $input, int $city, array $current, array &$errors): array
+    {
+        $fields = self::fields();
+        $plain = [];
+        foreach ($fields as $field => $spec) {
+            $plain[$field] = match ($spec['kind']) {
+                'member' => ['kind' => 'lookup', 'table' => 'checklist_members', 'city' => true] + array_intersect_key($spec, ['when' => 1]),
+                'account' => ['kind' => 'int', 'min' => 1, 'max' => PHP_INT_MAX] + array_intersect_key($spec, ['when' => 1]),
+                default => array_diff_key($spec, ['needed' => 1, 'members' => 1]),
+            };
         }
-        $sender = $this->tables->relation('checklist', 'RejectMsgSender_ID');
-        $this->validateSections($effective, $refs, $header !== null && $header->{$sender['state_column']} === 'resolved');
-        $payload = $supplied;
-        foreach (self::DEPENDENTS as $flag => $dependents) {
-            // Only a switch changed by this save empties its section; unrelated saves leave stored details alone.
-            if (! array_key_exists($flag, $supplied) || (int) ($effective[$flag] ?? 0) === 1) {
+        try {
+            $values = $this->people->validate($plain, $input, $city, $current, 'header.');
+        } catch (ValidationException $e) {
+            $errors += $e->errors();
+
+            return [];
+        }
+        foreach ($fields as $field => $spec) {
+            // A member must belong to its list (visitors are the team list).
+            if ($spec['kind'] === 'member' && $values[$field] !== null && ($spec['members'] ?? null) !== null
+                && $values[$field] !== (int) ($current[$field] ?? 0) && ! $this->members($city, $spec['members'])->contains('id', $values[$field])) {
+                $errors['header.'.$field] = [__('people.errors.choice')];
+            }
+            if ($spec['kind'] === 'account' && $values[$field] !== null && $values[$field] !== (int) ($current[$field] ?? 0) && ! $this->senders($city)->contains('id', $values[$field])) {
+                $errors['header.'.$field] = [__('people.errors.choice')];
+            }
+            // The details a "Yes" needs (desktop check_data).
+            if (($spec['needed'] ?? false) && ($values[$spec['when']] ?? null) === true && ($values[$field] === null || $values[$field] === '')) {
+                $errors['header.'.$field] = [__('checklists.errors.needed')];
+            }
+        }
+        $values['rejection_message'] = $values['rejection_message'] === null ? null : (int) $values['rejection_message'];
+
+        return $values;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function validateMembers(array $lists, int $city, int $personId, array &$errors): array
+    {
+        $rows = [];
+        $opinions = $this->opinions()->pluck('id')->all();
+        foreach (self::LOCATIONS as $location) {
+            $allowed = $this->members($city, $location, array_column($lists[$location] ?? [], 'checklist_member_id'))->pluck('id')->all();
+            foreach (array_values($lists[$location] ?? []) as $i => $row) {
+                $key = "members.$location.$i.";
+                $member = (int) ($row['checklist_member_id'] ?? 0);
+                if ($member === 0 && trim(implode('', array_map('strval', array_diff_key($row, ['id' => 0])))) === '') {
+                    continue; // an untouched empty row
+                }
+                if (! in_array($member, $allowed, true)) {
+                    $errors[$key.'checklist_member_id'] = [__('people.errors.choice')];
+                }
+                $opinion = ($row['checklist_opinion_id'] ?? '') === '' ? null : (int) $row['checklist_opinion_id'];
+                if ($location !== 'k' && $opinion !== null && ! in_array($opinion, $opinions, true)) {
+                    $errors[$key.'checklist_opinion_id'] = [__('people.errors.choice')];
+                }
+                $id = ($row['id'] ?? null) ? (int) $row['id'] : null;
+                if ($id !== null && ! DB::table('checklist_member_opinions')->where('id', $id)->where('person_id', $personId)->whereNull('deleted_at')->exists()) {
+                    abort(404);
+                }
+                $text = fn (string $f, int $max) => mb_substr(trim((string) ($row[$f] ?? '')), 0, $max) ?: null;
+                $rows[] = [
+                    'id' => $id, 'location' => $location, 'checklist_member_id' => $member, 'checklist_opinion_id' => $location === 'k' ? null : $opinion,
+                    'notes' => $text('notes', 65535), 'name_notes' => $location === 'k' ? $text('name_notes', 255) : null, 'role_notes' => $location === 'k' ? $text('role_notes', 255) : null,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /** @return array<int, array{value: ?int, notes: ?string}> answered criteria only */
+    private function validateScores(array $scores, array &$errors): array
+    {
+        $out = [];
+        foreach ($this->criteria() as $c) {
+            $value = trim((string) ($scores[$c->id]['value'] ?? $scores[(string) $c->id]['value'] ?? ''));
+            $notes = trim((string) ($scores[$c->id]['notes'] ?? $scores[(string) $c->id]['notes'] ?? ''));
+            if ($value === '' && $notes === '') {
                 continue;
             }
-            foreach ($dependents['fields'] as $name) {
-                if (($effective[$name] ?? null) !== null) {
-                    $payload[$name] = null;
-                }
+            if ($value !== '' && ! $c->options->contains('value', (int) $value)) {
+                $errors["scores.{$c->id}.value"] = [__('people.errors.choice')];
             }
-            foreach ($dependents['references'] as $key) {
-                $given[$key] = null;
-                $refs[$key] = null;
-            }
-        }
-        foreach ($given as $key => $id) {
-            $relation = $this->tables->relation('checklist', $key);
-            $stored = $header !== null && $header->{$relation['state_column']} === 'resolved' ? (int) $header->{$relation['resolved_column']} : null;
-            if ($id !== $stored || ($header === null && $id !== null)) {
-                $payload += $this->tables->link('checklist', $key, $id);
-            }
+            $out[$c->id] = ['value' => $value === '' ? null : (int) $value, 'notes' => $notes === '' ? null : mb_substr($notes, 0, 65535)];
         }
 
-        return $payload;
+        return $out;
     }
 
-    /** Rules of CheckList_Form.check_data. */
-    private function validateSections(array $values, array $refs, bool $hasSender): void
+    /** Everything the printable checklist needs (cl.docx layout). */
+    public function printable(WebAccount $account, int $projectId): array
     {
-        $required = [];
-        // The sender is a historical source user and cannot be chosen for a web actor; a rejection message needs an existing one.
-        if ((int) $values['c_RejectMsg'] === 1 && ! $hasSender) {
-            $required['c_RejectMsg'] = 'A rejection message needs a recorded sender.';
-        }
-        if ((int) $values['c_HasHomeVisit'] === 1 && $refs['HVisit_Visitor1_ID'] === null) {
-            $required['references.HVisit_Visitor1_ID'] = 'Select at least one visitor for the home visit.';
-        }
-        if ((int) $values['c_HasProjectVisit'] === 1 && $refs['PVisit_Visitor1_ID'] === null) {
-            $required['references.PVisit_Visitor1_ID'] = 'Select at least one visitor for the project visit.';
-        }
-        if ((int) $values['c_HasProTest'] === 1 && (blank($values['c_ProTest_Note']) || $refs['ProTest_User_ID'] === null)) {
-            $required['c_ProTest_Note'] = 'Complete the professional test information.';
-        }
-        if ((int) $values['c_HasProTrain'] === 1 && (blank($values['c_ProTrain_Trainer']) || blank($values['c_ProTrain_Place']) || blank($values['c_ProTrain_Note']))) {
-            $required['c_ProTrain_Trainer'] = 'Complete the professional training information.';
-        }
-        if ((int) $values['c_HasMngTrain'] === 1 && (blank($values['c_MngTrain_Trainer']) || blank($values['c_MngTrain_Place']))) {
-            $required['c_MngTrain_Trainer'] = 'Complete the management training information.';
-        }
-        if ($required !== []) {
-            throw ValidationException::withMessages($required);
-        }
-    }
+        $project = $this->writable($account, $projectId);
+        $state = $this->load($account, $projectId);
+        $city = DB::table('cities')->where('id', $project->city_id)->first();
+        $names = DB::table('checklist_members as m')->leftJoin('checklist_positions as p', 'p.id', '=', 'm.checklist_position_id')->where('m.city_id', $project->city_id)
+            ->get(['m.id', 'm.name_ar', 'p.name_ar as position'])->keyBy('id');
+        $this->audit->record($account->id, 'assessments.printed', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId);
 
-    /** Only values that differ from the stored row are written, so exact legacy text survives. */
-    private function changed(object $row, array $payload): array
-    {
-        $blank = fn ($value) => $value === null || $value === '';
-
-        return array_filter($payload, fn ($value, $key) => ! property_exists($row, $key)
-            || ! ($blank($value) && $blank($row->{$key}))
-            && ((($value === null) !== ($row->{$key} === null)) || (string) $value !== (string) $row->{$key}), ARRAY_FILTER_USE_BOTH);
-    }
-
-    private function saveMembers(object $project, int $personId, Collection $existing, array $members): void
-    {
-        $memberRef = $this->tables->relation('person_checklistmembers', 'Member_ID');
-        foreach ($members as $index => $input) {
-            $location = $input['location'] ?? null;
-            $row = Validator::make($input, [
-                'id' => ['nullable', 'integer', 'min:1'], 'location' => ['required', Rule::in(self::LOCATIONS)],
-                'member_id' => ['required', 'integer', 'min:1'], 'opinion' => ['nullable', 'integer', Rule::in([-1, 0, 1])],
-                'notes' => ['nullable', 'string', 'max:65535'], 'name_notes' => ['nullable', 'string', 'max:400'], 'role_notes' => ['nullable', 'string', 'max:500'],
-            ])->validate();
-            if ($this->memberLocation($project, (int) $row['member_id']) !== $location) {
-                throw ValidationException::withMessages(['members.'.$index.'.member_id' => 'The member does not belong to this list.']);
-            }
-            $payload = [
-                'c_Location' => $location,
-                'c_Opinion' => $location === 'k' ? -1 : (int) ($row['opinion'] ?? -1),
-                'c_Notes' => $row['notes'] ?? null,
-            ] + ($location === 'k' ? ['c_NameNotes' => $row['name_notes'] ?? null, 'c_RoleNotes' => $row['role_notes'] ?? null] : [])
-              + $this->tables->link('person_checklistmembers', 'Member_ID', (int) $row['member_id']);
-            if (($row['id'] ?? null) === null) {
-                $this->tables->insert('person_checklistmembers', (int) $project->city_id, (int) $project->source_id, $payload + [
-                    'c_created_at' => now()->format('Y-m-d H:i:s'),
-                ] + $this->tables->link('person_checklistmembers', 'Person_ID', $personId));
-
-                continue;
-            }
-            $current = $existing->firstWhere('id', (int) $row['id']);
-            abort_if($current === null, 422, 'Checklist member row does not belong to this person.');
-            abort_unless($current->c_Location === $location, 422, 'A member row cannot move between lists.');
-            $changes = $this->changed($current, $payload);
-            if ($changes !== []) {
-                DB::table('op_person_checklistmembers')->where('id', $current->id)->update($changes);
-            }
-        }
+        return [
+            'project' => $project, 'city' => $city, 'person' => $this->beneficiary($projectId), 'state' => $state, 'names' => $names,
+            'opinions' => $this->opinions()->keyBy('id'), 'criteria' => $this->criteria(),
+            'sender' => $state['header']['rejection_message_sender_account_id'] ? DB::table('web_accounts')->where('id', $state['header']['rejection_message_sender_account_id'])->value('username') : null,
+        ];
     }
 }

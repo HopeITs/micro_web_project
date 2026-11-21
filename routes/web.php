@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountAdminController;
 use App\Http\Controllers\AccountPasswordController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ManifestController;
@@ -42,6 +43,9 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
             Route::get('/applications/{project}/edit', [ApplicationController::class, 'edit'])->whereNumber('project')->name('applications.edit');
             Route::get('/applications/{project}/annex', [ApplicationController::class, 'annex'])->whereNumber('project')->name('applications.annex');
+            // M4.7 checklist and assessment (ChecklistService rechecks assessments.view / assessments.manage).
+            Route::get('/applications/{project}/checklist', [ChecklistController::class, 'show'])->whereNumber('project')->name('checklists.show');
+            Route::get('/applications/{project}/checklist/print', [ChecklistController::class, 'print'])->whereNumber('project')->name('checklists.print');
 
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');

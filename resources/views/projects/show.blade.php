@@ -21,6 +21,9 @@
             @if(app(\App\Services\Applications\ApplicationService::class)->canWrite(auth()->user(), (int) $project->city_id))
                 <x-hc.button icon="settings" variant="secondary" :href="route('applications.edit', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('applications.edit') }}</x-hc.button>
             @endif
+            @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'assessments.view'))
+                <x-hc.button icon="clipboard" variant="secondary" :href="route('checklists.show', ['locale' => app()->getLocale(), 'project' => $project->id])">Checklist</x-hc.button>
+            @endif
             @php($annex = app(\App\Services\Applications\ProjectAnnexService::class)->kind($project))
             @if($annex)
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('applications.annex', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('annexes.'.$annex) }}</x-hc.button>

@@ -77,6 +77,11 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/visits/results/export', [\App\Http\Controllers\VisitController::class, 'resultsExport'])->middleware('throttle:10,1')->name('visits.results.export');
             Route::get('/visits/statistics', [\App\Http\Controllers\VisitController::class, 'statistics'])->name('visits.statistics');
             Route::get('/visits/statistics/export', [\App\Http\Controllers\VisitController::class, 'statisticsExport'])->middleware('throttle:10,1')->name('visits.statistics.export');
+
+            // M4.13 special cases (SpecialCaseService / SpecialCaseListService recheck applications.view + special_cases.view, manage, delete and reports.export per city).
+            Route::get('/applications/{project}/special-cases', [\App\Http\Controllers\SpecialCaseController::class, 'project'])->whereNumber('project')->name('special-cases.project');
+            Route::get('/special-cases', [\App\Http\Controllers\SpecialCaseController::class, 'index'])->name('special-cases.index');
+            Route::get('/special-cases/export', [\App\Http\Controllers\SpecialCaseController::class, 'export'])->middleware('throttle:10,1')->name('special-cases.export');
             // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).
             Route::get('/applications/{project}/executive-file', [ExecutiveFileController::class, 'show'])->whereNumber('project')->name('executive.show');
             Route::get('/applications/{project}/purchases', [PurchasingController::class, 'show'])->whereNumber('project')->name('purchasing.show');

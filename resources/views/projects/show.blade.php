@@ -33,6 +33,10 @@
                 <x-hc.button icon="map" variant="secondary" :href="route('visits.hub', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('visits.open') }}</x-hc.button>
             @endif
             @php($viewsApplication = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
+            {{-- M4.13: the project's special cases (applications.view + special_cases.view). --}}
+            @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'special_cases.view'))
+                <x-hc.button icon="clipboard" variant="secondary" :href="route('special-cases.project', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('special_cases.open') }}</x-hc.button>
+            @endif
             @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'executive_files.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('executive.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('executive.open') }}</x-hc.button>
             @endif

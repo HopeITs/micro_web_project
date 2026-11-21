@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Brings existing accounts in line with the export rules of 27 October 2026: the cashier duty is now the financial role, and the roles that
  * hold the new export and attachment-category grants (`finance.export`, `reports.export`, `attachments.personal|legal|financial`) give them
- * to the accounts that already hold the role. Only the new grants are added, never anything an administrator revoked by hand. Since M4.10 it also grants purchasing to the data-entry and legal holders and takes executive-file writing and purchasing from financial holders (unless another of their roles includes them). Safe to repeat.
+ * to the accounts that already hold the role. Only the new grants are added, never anything an administrator revoked by hand. Since M4.10 it also grants purchasing to the data-entry and legal holders and takes executive-file writing and purchasing from financial holders, and since M4.13 special-case writing from monitoring holders (unless another of their roles includes them). Safe to repeat.
  */
 final class SyncExportRoles extends Command
 {

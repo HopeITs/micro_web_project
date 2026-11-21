@@ -4,49 +4,44 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\Field\SpecialCaseListService;
 use App\Services\Field\SpecialCaseService;
-use Illuminate\Http\RedirectResponse;
+use App\Services\Reports\TableExport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * M4.13 special cases: a project's cases (Livewire ProjectSpecialCases) and the list of all cases (SpecialCaseList) with its export.
+ * The services recheck every capability per city; the page visit is audited here once.
+ */
 final class SpecialCaseController
 {
-    public function show(Request $request, string $locale, string $application, SpecialCaseService $cases): View
+    public function project(Request $request, string $locale, int $project, SpecialCaseService $cases): View
     {
-        return view('field.special-cases', $cases->show($request->user(), $this->id($application)) + ['applicationId' => $this->id($application)]);
+        $page = $cases->page($request->user(), $project, opened: true);
+
+        return view('special-cases.project', ['project' => $page['project'], 'code' => (string) DB::table('cities')->where('id', $page['project']->city_id)->value('code')]);
     }
 
-    public function save(Request $request, string $locale, string $application, SpecialCaseService $cases): RedirectResponse
+    public function index(Request $request, SpecialCaseListService $list): View
     {
-        $data = $request->validate([
-            'version' => ['required', 'string', 'size:64'], 'case_id' => ['nullable', 'integer', 'min:1'], 'type_id' => ['nullable', 'integer', 'min:1'],
-            'date' => ['nullable', 'string', 'max:10'], 'reason' => ['nullable', 'string', 'max:65535'], 'description' => ['nullable', 'string', 'max:65535'], 'action' => ['nullable', 'string', 'max:65535'],
-        ]);
-        $id = $cases->save($request->user(), $this->id($application), $data, $data['version']);
+        $list->opened($request->user());
 
-        return redirect()->route('special-cases.show', ['locale' => $locale, 'application' => $application])->withFragment('case-'.$id)->with('status', __('field.saved'));
+        return view('special-cases.index');
     }
 
-    public function delete(Request $request, string $locale, string $application, string $case, SpecialCaseService $cases): RedirectResponse
+    public function export(Request $request, string $locale, SpecialCaseListService $list, TableExport $export): StreamedResponse
     {
-        $data = $request->validate(['version' => ['required', 'string', 'size:64']]);
-        $cases->delete($request->user(), $this->id($application), $this->id($case), $data['version']);
+        try {
+            $filters = SpecialCaseListService::clean($request->query());
+        } catch (ValidationException) {
+            abort(422);
+        }
+        [$headings, $rows] = $list->export($request->user(), $filters);
 
-        return redirect()->route('special-cases.show', ['locale' => $locale, 'application' => $application])->with('status', __('field.deleted'));
-    }
-
-    public function restore(Request $request, string $locale, string $application, string $case, SpecialCaseService $cases): RedirectResponse
-    {
-        $cases->restore($request->user(), $this->id($application), $this->id($case));
-
-        return redirect()->route('special-cases.show', ['locale' => $locale, 'application' => $application])->with('status', __('field.restored'));
-    }
-
-    private function id(string $value): int
-    {
-        $id = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        abort_if($id === false, 404);
-
-        return $id;
+        return $export->stream(TableExport::format($request->query('format')), 'special-cases-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));
     }
 }

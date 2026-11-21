@@ -4,11 +4,6 @@ return [
     'title' => 'Field operations', 'back' => 'Back to the project', 'saved' => 'Saved.', 'deleted' => 'Deleted.', 'restored' => 'Restored.', 'restore' => 'Restore', 'deleted_records' => 'Deleted records (administrators)', 'delete' => 'Delete', 'delete_confirm' => 'Confirm deletion', 'save' => 'Save',
     'links' => ['special-cases' => 'Special cases', 'visits' => 'Visits', 'me' => 'Monitoring and evaluation visits'],
     'nav_schedule' => 'Visit schedule', 'nav_meetings' => 'Profession meetings',
-    'special' => [
-        'title' => 'Special cases', 'case' => 'Review of', 'new' => 'New review', 'none' => 'This project has no special-case reviews.',
-        'scope' => 'Reviews recorded for this project. The acting account is audited; deleting reviews is not available.',
-        'date' => 'Date', 'type' => 'Review type', 'reason' => 'Reason for the review', 'description' => 'Description', 'action' => 'Action taken',
-    ],
     'errors' => [
         'date' => 'Enter a valid date.', 'type' => 'Choose the review type.', 'reason' => 'Write the reason for the review (up to 65,535 characters).', 'long' => 'The text is too long.', 'imported' => 'Imported records are preserved and cannot be deleted.',
         'me_number' => 'Enter a visit number from 1 to 99.', 'me_number_taken' => 'This person already has a visit with this number.', 'me_profit' => 'Enter the net profit (up to four decimals).',

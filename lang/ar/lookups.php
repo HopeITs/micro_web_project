@@ -3,11 +3,11 @@
 return [
     'title' => 'القوائم',
     'intro' => 'القيم التي تظهر في قوائم النماذج. الشوارع والكهنة وأعضاء الـ Checklist خاصة بكل مدينة؛ وباقي القوائم مشتركة بين المدن الخمس.',
-    'groups' => ['people' => 'الأشخاص والطلبات', 'finance' => 'التمويل', 'projects' => 'حالات المشروع', 'checklist' => 'Checklist'],
+    'groups' => ['people' => 'الأشخاص والطلبات', 'finance' => 'التمويل', 'projects' => 'حالات المشروع', 'checklist' => 'Checklist', 'field' => 'المتابعة والتقييم'],
     'names' => [
         'streets' => 'المناطق (الشوارع)', 'priests' => 'الكهنة', 'education_specialties' => 'الاختصاصات العلمية', 'education_types' => 'الدرجات العلمية',
         'occupations' => 'المهن والخبرات', 'aid_sources' => 'الجهات المساعِدة', 'aid_types' => 'أنواع المساعدات', 'donors' => 'الجهات المانحة',
-        'donor_groups' => 'مجموعات المانحين', 'purchasing_categories' => 'فئات المشتريات', 'state_reasons' => 'أسباب الحالات', 'checklist_members' => 'أعضاء الـ Checklist', 'checklist_positions' => 'مناصب الـ Checklist',
+        'donor_groups' => 'مجموعات المانحين', 'purchasing_categories' => 'فئات المشتريات', 'state_reasons' => 'أسباب الحالات', 'checklist_members' => 'أعضاء الـ Checklist', 'checklist_positions' => 'مناصب الـ Checklist', 'special_case_types' => 'أنواع المراجعة (الحالات الخاصة)',
     ],
     'city_list' => 'خاصة بكل مدينة', 'shared_list' => 'مشتركة بين المدن', 'read_only' => 'للعرض فقط',
     'read_only_hint' => 'هذه القائمة مشتركة بين المدن الخمس، فلا يعدّلها إلا من يملك صلاحية تعديل القوائم في كل المدن.',

@@ -9,7 +9,7 @@ return [
     'group_applications' => 'الطلبات', 'group_finance' => 'المالية', 'group_field' => 'المتابعة والتقييم', 'group_tools' => 'الأدوات',
     'nav_home' => 'الرئيسية', 'nav_projects' => 'المشاريع', 'nav_new_application' => 'طلب جديد', 'nav_people' => 'الأشخاص والعائلات',
     'nav_checklist' => 'Checklist', 'nav_national_number' => 'فحص الرقم الوطني', 'nav_loans' => 'القروض والدفعات', 'nav_payments' => 'جدول الدفعات',
-    'nav_attachments' => 'المرفقات', 'nav_visits' => 'الزيارات', 'nav_visit_results' => 'نتائج الزيارات', 'nav_visitor_statistics' => 'إحصائيات الزوار', 'nav_kobo' => 'مزامنة Kobo', 'nav_meetings' => 'اجتماعات المهن',
+    'nav_attachments' => 'المرفقات', 'nav_visits' => 'الزيارات', 'nav_visit_results' => 'نتائج الزيارات', 'nav_visitor_statistics' => 'إحصائيات الزوار', 'nav_special_cases' => 'الحالات الخاصة', 'nav_kobo' => 'مزامنة Kobo', 'nav_meetings' => 'اجتماعات المهن',
     'nav_search' => 'البحث', 'nav_statistics' => 'الإحصاءات', 'nav_tasks' => 'لوحة المهام', 'nav_accounts' => 'الحسابات والصلاحيات', 'nav_lookups' => 'القوائم', 'nav_audit' => 'سجل الأحداث', 'nav_design' => 'مكونات التصميم',
 
     // login

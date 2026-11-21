@@ -42,10 +42,11 @@ final class AccessRoles
         'guest' => self::READ,
         // Duties the desktop kept as flags on a user (IsME, IsCommunication); IsCashier maps to the financial role.
         'monitoring' => [
-            'projects.view', 'applications.view', 'visits.view', 'visits.manage', 'me_visits.view', 'me_visits.manage', 'special_cases.view', 'special_cases.manage',
+            'projects.view', 'applications.view', 'visits.view', 'visits.manage', 'me_visits.view', 'me_visits.manage', 'special_cases.view',
             'profession_meetings.view', 'profession_meetings.manage', 'reports.export', ...self::TASKS,
             // M4.12: the monitoring duty is chosen as a visitor (owner decision 1, 21 Nov 2026).
             'visits.visitor',
+            // M4.13 (owner decision 1, 21 Nov 2026): monitoring reads special cases; writing is the administrator's and data entry's, as on the desktop.
         ],
         // May read, never export.
         'communication' => ['projects.view', 'applications.view', ...self::TASKS],

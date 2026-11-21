@@ -33,6 +33,8 @@ final class LookupCatalog
             'fields' => ['checklist_position_id' => ['kind' => 'parent', 'list' => 'checklist_positions', 'required' => false]]],
         'checklist_positions' => ['table' => 'checklist_positions', 'city' => false, 'group' => 'checklist', 'desktop' => 'AddNewChecklistPosition',
             'fields' => ['type' => ['kind' => 'choice', 'options' => ['t', 'k', 'c'], 'required' => true]]],
+        // M4.13 (owner decision 5): the special case types (هاتفية / مقابلة), which the desktop could not edit.
+        'special_case_types' => ['table' => 'special_case_types', 'city' => false, 'group' => 'field', 'desktop' => 'specialcasetype'],
     ];
 
     /** @return array{table: string, city: bool, group: string, desktop: string, fields: array<string, array>} */

@@ -129,7 +129,9 @@ final class GlobalSearch
             if (! $this->access->check($account, $project['city'], 'applications.view')) {
                 continue;
             }
-            foreach (['executive' => ['executive.show', 'executive_files.view', 'clipboard'], 'purchasing' => ['purchasing.show', 'purchasing.view', 'clipboard']] as $key => [$route, $capability, $icon]) {
+            // M4.13: "New special case ALP-1001" opens the project's special cases (special_cases.view).
+            foreach (['executive' => ['executive.show', 'executive_files.view', 'clipboard'], 'purchasing' => ['purchasing.show', 'purchasing.view', 'clipboard'],
+                'special_cases' => ['special-cases.project', 'special_cases.view', 'clipboard']] as $key => [$route, $capability, $icon]) {
                 if (Route::has($route) && $this->access->check($account, $project['city'], $capability)) {
                     $out[] = ['title' => __($key.'.cmd').' '.$project['number'], 'meta' => $project['title'], 'url' => route($route, ['locale' => app()->getLocale(), 'project' => $project['project']]), 'icon' => $icon];
                 }

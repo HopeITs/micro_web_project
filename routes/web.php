@@ -7,7 +7,9 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\ExecutiveFileController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\PurchasingController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ManifestController;
@@ -63,6 +65,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/applications/{project}/finance', [FinanceController::class, 'show'])->whereNumber('project')->name('finance.show');
             Route::get('/payments', [FinanceController::class, 'payments'])->name('finance.payments');
             Route::get('/payments/export', [FinanceController::class, 'export'])->middleware('throttle:10,1')->name('finance.payments.export');
+
+            // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).
+            Route::get('/applications/{project}/executive-file', [ExecutiveFileController::class, 'show'])->whereNumber('project')->name('executive.show');
+            Route::get('/applications/{project}/purchases', [PurchasingController::class, 'show'])->whereNumber('project')->name('purchasing.show');
 
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');

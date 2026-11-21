@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Brings existing accounts in line with the export rules of 27 October 2026: the cashier duty is now the financial role, and the roles that
  * hold the new export and attachment-category grants (`finance.export`, `reports.export`, `attachments.personal|legal|financial`) give them
- * to the accounts that already hold the role. Only the new grants are added, never anything an administrator revoked by hand. Safe to repeat.
+ * to the accounts that already hold the role. Only the new grants are added, never anything an administrator revoked by hand. Since M4.10 it also grants purchasing to the data-entry and legal holders and takes executive-file writing and purchasing from financial holders (unless another of their roles includes them). Safe to repeat.
  */
 final class SyncExportRoles extends Command
 {
@@ -31,7 +31,7 @@ final class SyncExportRoles extends Command
 
             return self::FAILURE;
         }
-        $counts = ['cashier roles merged' => 0, 'grants added' => 0];
+        $counts = ['cashier roles merged' => 0, 'grants added' => 0, 'grants removed' => 0];
         DB::beginTransaction();
         try {
             foreach (DB::table('account_city_roles')->where('role', 'cashier')->whereNull('revoked_at')->get() as $row) {
@@ -54,6 +54,26 @@ final class SyncExportRoles extends Command
                     if (! $held) {
                         $provisioner->grant($account, (int) $row->city_id, $capability, $decision);
                         $counts['grants added']++;
+                    }
+                }
+            }
+            // Capabilities taken away from a role (M4.10): revoked unless another active role of the account in that city still includes them.
+            foreach (AccountAccess::REMOVED_CAPABILITIES as $role => $removed) {
+                foreach (DB::table('account_city_roles')->where('role', $role)->whereNull('revoked_at')->get() as $row) {
+                    $account = WebAccount::find($row->account_id);
+                    if ($account === null) {
+                        continue;
+                    }
+                    $kept = [];
+                    foreach ($roles->roles($account, (int) $row->city_id) as $other) {
+                        $kept = array_merge($kept, AccessRoles::capabilities($other));
+                    }
+                    foreach (array_diff($removed, $kept) as $capability) {
+                        $held = DB::table('account_city_capabilities')->where('account_id', $row->account_id)->where('city_id', $row->city_id)->where('capability', $capability)->whereNull('revoked_at')->exists();
+                        if ($held) {
+                            $provisioner->revoke($account, (int) $row->city_id, $capability, $decision);
+                            $counts['grants removed']++;
+                        }
                     }
                 }
             }

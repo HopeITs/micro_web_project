@@ -70,4 +70,5 @@ return [
     'view_share' => 'Share with colleagues', 'view_unshare' => 'Stop sharing', 'view_shared' => 'Shared', 'view_shared_by' => 'Shared by :name', 'view_changed' => 'changed', 'view_cancel' => 'Cancel',
     'project_type' => 'Project type', 'fund_type' => 'Fund type', 'beneficiary_sex' => 'Beneficiary sex', 'sex_male' => 'Male', 'sex_female' => 'Female',
     'person_sex' => 'Sex', 'age' => 'Age', 'birth_date' => 'Birth date', 'marital_status' => 'Marital status', 'education_level' => 'Education level', 'registered_on' => 'Registered on',
+    'paid_amount' => 'Paid amount', 'filter_preset_next_30_days' => 'Next 30 days', 'pay_view_relaxed' => 'With a search or filters the list shows every instalment (paid and unpaid).',
 ];

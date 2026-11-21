@@ -2,7 +2,11 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasSmartFilters;
 use App\Services\Finance\FinanceService;
+use App\Support\Datasets\Dataset;
+use App\Support\Datasets\InstallmentsDataset;
+use Illuminate\Database\Eloquent\Builder;
 use App\Services\Finance\PaymentScheduleService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Url;
@@ -12,7 +16,72 @@ use Livewire\WithPagination;
 /** The payment schedule page (M4.9, owner decision 4): count tiles that filter the list, the filters, totals per currency. */
 class PaymentSchedule extends Component
 {
+    use HasSmartFilters {
+        savableViewFilters as smartSavableViewFilters;
+        loadViewFilters as smartLoadViewFilters;
+    }
     use WithPagination;
+
+    /** Project numbers / names (several separated by a comma or a new line); can hold a name, so it stays out of the URL. */
+    public string $search = '';
+
+    private ?InstallmentsDataset $datasetInstance = null;
+
+    protected function dataset(): Dataset
+    {
+        return $this->datasetInstance ??= new InstallmentsDataset;
+    }
+
+    protected function smartFilterHidden(): array
+    {
+        return ['city', 'group', 'currency']; // city chips and the selects of the page
+    }
+
+    protected function savedViewShareCapability(): string
+    {
+        return 'finance.view';
+    }
+
+    /** The city chips are saved as a `city` filter (ids only); the search box and the tab are not saved. */
+    protected function filtersCameFromUrl(): bool
+    {
+        return $this->filters !== [] || $this->cities !== [];
+    }
+
+    protected function savableViewFilters(): array
+    {
+        $filters = $this->smartSavableViewFilters();
+        $allowed = app(PaymentScheduleService::class)->cities(auth()->user())->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $chosen = array_values(array_intersect(array_map('intval', $this->cities), $allowed));
+        if ($chosen !== []) {
+            $filters[] = ['field' => 'city', 'op' => 'in', 'values' => array_map('strval', $chosen)];
+        }
+
+        return $filters;
+    }
+
+    protected function loadViewFilters(array $filters): void
+    {
+        $city = $filters['city'] ?? null;
+        unset($filters['city']);
+        $this->cities = $city !== null && $city['op'] === 'in' ? array_map('intval', $city['values']) : [];
+        $this->smartLoadViewFilters($filters);
+    }
+
+    protected function resetForView(): void
+    {
+        $this->search = '';
+    }
+
+    /** The list query with every filter but `$exceptField`'s (facet counts); the account's finance cities come first. */
+    protected function filteredQuery(?string $exceptField = null): Builder
+    {
+        $schedule = app(PaymentScheduleService::class);
+        $filters = $this->filters();
+        $ids = $schedule->cityIdsFor(auth()->user(), $filters);
+
+        return $schedule->builder($ids, $filters + ['spec' => $this->querySpec(), 'search' => $this->search], $exceptField);
+    }
 
     #[Url(as: 'view')]
     public string $tab = 'due';
@@ -32,6 +101,17 @@ class PaymentSchedule extends Component
 
     #[Url]
     public string $currency = '';
+
+    /** @return array<string, array{op: string, values: list<mixed>}> the bar's filters that may travel in the export address (no name filters, no search box) */
+    private function exportableFilters(): array
+    {
+        $out = [];
+        foreach ($this->smartSavableViewFilters() as $filter) {
+            $out[$filter['field']] = ['op' => $filter['op'], 'values' => $filter['values']];
+        }
+
+        return $out;
+    }
 
     public function mount(): void
     {
@@ -59,7 +139,8 @@ class PaymentSchedule extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['tab', 'cities', 'year', 'month', 'group', 'currency']);
+        $this->reset(['tab', 'cities', 'year', 'month', 'group', 'currency', 'search']);
+        $this->clearSmartFilters();
         $this->resetPage();
     }
 
@@ -82,6 +163,13 @@ class PaymentSchedule extends Component
     {
         $filters = $this->filters();
 
-        return view('livewire.payment-schedule', $schedule->schedule(auth()->user(), $filters, audit: false) + ['filters' => array_filter($filters, fn ($v) => $v !== null && $v !== [])]);
+        $smart = $filters + ['spec' => $this->querySpec(), 'search' => $this->search];
+
+        return view('livewire.payment-schedule', $schedule->schedule(auth()->user(), $smart, audit: false) + [
+            'filters' => array_filter($filters, fn ($v) => $v !== null && $v !== []),
+            'exportFilters' => ['f' => $this->exportableFilters()],
+            'relaxed' => $filters['view'] === 'due' && PaymentScheduleService::narrowed($smart),
+            'filterBar' => $this->filterBar(),
+        ]);
     }
 }

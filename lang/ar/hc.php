@@ -75,4 +75,5 @@ return [
     'view_share' => 'مشاركته مع الزملاء', 'view_unshare' => 'إيقاف المشاركة', 'view_shared' => 'مُشارك', 'view_shared_by' => 'شاركه :name', 'view_changed' => 'معدّل', 'view_cancel' => 'إلغاء',
     'project_type' => 'نوع المشروع', 'fund_type' => 'نوع التمويل', 'beneficiary_sex' => 'جنس المستفيد', 'sex_male' => 'ذكر', 'sex_female' => 'أنثى',
     'person_sex' => 'الجنس', 'age' => 'العمر', 'birth_date' => 'تاريخ الميلاد', 'marital_status' => 'الحالة الاجتماعية', 'education_level' => 'المستوى التعليمي', 'registered_on' => 'تاريخ التسجيل',
+    'paid_amount' => 'المبلغ المدفوع', 'filter_preset_next_30_days' => 'الـ 30 يوماً القادمة', 'pay_view_relaxed' => 'مع وجود بحث أو فلاتر يعرض الجدول كل الدفعات (مدفوعة وغير مدفوعة).',
 ];

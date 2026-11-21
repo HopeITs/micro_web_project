@@ -16,6 +16,12 @@ return [
     |
     */
 
+    /*
+     * Staff sign in with their institution e-mail; only addresses of this domain are accepted for accounts
+     * (login, forgot password, adding a missing e-mail, administrator forms).
+     */
+    'institution_domain' => strtolower((string) env('AUTH_EMAIL_DOMAIN', 'hcsyria.org')),
+
     'defaults' => [
         'guard' => 'account',
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
@@ -42,6 +48,8 @@ return [
         'account' => [
             'driver' => 'session',
             'provider' => 'accounts',
+            // "Remember me" keeps a device signed in for 30 days (minutes).
+            'remember' => (int) env('AUTH_REMEMBER_MINUTES', 43200),
         ],
         'web' => [
             'driver' => 'session',

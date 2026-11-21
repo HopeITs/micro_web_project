@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountAdminController;
+use App\Http\Controllers\AccountEmailController;
 use App\Http\Controllers\AccountPasswordController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AuditLogController;
@@ -28,12 +29,21 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AuthController::class, 'show'])->name('auth.login');
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.attempt');
+        // Forgot password: a single-use link is e-mailed to the institution address of the account.
+        Route::get('/forgot-password', [AccountPasswordController::class, 'forgot'])->name('auth.forgot');
+        Route::post('/forgot-password', [AccountPasswordController::class, 'request'])->middleware('throttle:login')->name('auth.forgot.request');
+        Route::get('/reset-password/{token}', [AccountPasswordController::class, 'reset'])->where('token', '[A-Za-z0-9]{40}')->name('auth.reset');
+        Route::post('/reset-password/{token}', [AccountPasswordController::class, 'resetStore'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:login')->name('auth.reset.store');
     });
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::middleware([RequireCurrentAccount::class, RestrictToPermittedCities::class])->group(function () {
             Route::get('/account/password', [AccountPasswordController::class, 'edit'])->name('account.password');
             Route::post('/account/password', [AccountPasswordController::class, 'update'])->block(10, 10)->name('account.password.update');
+            // An account without an e-mail adds its institution e-mail (proven by an e-mailed code) before anything else.
+            Route::get('/account/email', [AccountEmailController::class, 'edit'])->name('account.email');
+            Route::post('/account/email', [AccountEmailController::class, 'send'])->middleware('throttle:login')->name('account.email.send');
+            Route::post('/account/email/confirm', [AccountEmailController::class, 'confirm'])->middleware('throttle:login')->name('account.email.confirm');
             Route::get('/', HomeController::class)->name('home');
             Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('/projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');

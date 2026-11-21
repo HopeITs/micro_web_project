@@ -72,6 +72,11 @@
 </aside>
 <main id="main" class="hc-main" tabindex="-1">
     @if(app()->environment('local'))<x-hc.alert type="warning" class="mb-4" style="margin-block-end:16px">{{ __('hc.synthetic_notice') }}</x-hc.alert>@endif
+    @if(session()->has('last_login'))
+        <x-hc.alert type="info" style="margin-block-end:16px" data-last-login>
+            @if(session('last_login')){{ __('hc.last_login', ['when' => \Illuminate\Support\Carbon::parse(session('last_login'))->setTimezone(\App\Services\Staff\AuditLogService::TIMEZONE)->locale(app()->getLocale())->translatedFormat(app()->getLocale() === 'ar' ? 'l j F Y، الساعة H:i' : 'l j F Y, H:i')]) }}@else{{ __('hc.first_login_welcome') }}@endif
+        </x-hc.alert>
+    @endif
     {{ $slot }}
 </main>
 @livewireScripts

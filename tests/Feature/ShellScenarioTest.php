@@ -33,7 +33,7 @@ class ShellScenarioTest extends TestCase
 
     private function damascusOnlyAccount(): WebAccount
     {
-        $account = app(AccountProvisioner::class)->createPlain('test.damascus', null, Hash::make('a-long-test-password'), 'test:damascus-only');
+        $account = app(AccountProvisioner::class)->createPlain('test.damascus', 'test.damascus@hcsyria.org', Hash::make('a-long-test-password'), 'test:damascus-only');
         DB::table('web_accounts')->where('id', $account->id)->update(['password_changed_at' => now()]);
         app(AccessRoles::class)->assign($account->fresh(), $this->cityId('DAM'), 'data-entry', 'test:damascus-only');
 
@@ -42,7 +42,7 @@ class ShellScenarioTest extends TestCase
 
     public function test_data_entry_signs_in_and_sees_home_and_projects(): void
     {
-        $this->post('/ar/login', ['username' => 'role.data-entry', 'password' => 'password'])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => 'role.data-entry@hcsyria.org', 'password' => 'password'])->assertRedirect('/ar');
         $this->get('/ar')->assertOk()->assertSee('200')->assertSee('دمشق');
         $this->get('/ar/projects')->assertOk()->assertSeeLivewire(ProjectsIndex::class);
         $this->get('/en/projects')->assertOk()->assertSee('Projects');
@@ -50,7 +50,7 @@ class ShellScenarioTest extends TestCase
 
     public function test_wrong_password_is_refused_with_a_clear_message(): void
     {
-        $this->from('/ar/login')->post('/ar/login', ['username' => 'role.data-entry', 'password' => 'wrong'])->assertRedirect('/ar/login');
+        $this->from('/ar/login')->post('/ar/login', ['login' => 'role.data-entry@hcsyria.org', 'password' => 'wrong'])->assertRedirect('/ar/login');
         $this->get('/ar/login')->assertSee(__('hc.login_error', [], 'ar'));
         $this->get('/ar')->assertRedirect();
     }
@@ -93,10 +93,12 @@ class ShellScenarioTest extends TestCase
         ]);
         $account = app(AccountProvisioner::class)->provision('sample.user', $userId, [$userId], [$this->cityId('LAT') => ['projects.view']], 'test:legacy-login');
 
-        $this->post('/ar/login', ['username' => 'sample.user', 'password' => 'wrong-pass'])->assertSessionHasErrors();
-        $this->post('/ar/login', ['username' => 'sample.user', 'password' => 'desktop-pass-123'])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => 'sample.user', 'password' => 'wrong-pass'])->assertSessionHasErrors();
+        $this->post('/ar/login', ['login' => 'sample.user', 'password' => 'desktop-pass-123'])->assertRedirect('/ar');
         $this->assertStringStartsWith('$argon2id$', (string) DB::table('web_accounts')->where('id', $account->id)->value('password_hash'));
-        $this->get('/ar/projects')->assertOk();
+        // It has no institution e-mail yet, so it must add one before anything else (21 Nov 2026).
+        $this->get('/ar/projects')->assertRedirect('/ar/account/email');
+        $this->get('/ar/account/email')->assertOk();
     }
 
     public function test_guest_role_menu_hides_finance_and_administration(): void

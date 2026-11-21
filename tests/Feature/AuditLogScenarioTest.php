@@ -33,7 +33,7 @@ class AuditLogScenarioTest extends TestCase
 
     private function signIn(string $username, string $password = 'password'): void
     {
-        $this->post('/ar/login', ['username' => $username, 'password' => $password])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => \Database\Seeders\RoleAccountsSeeder::email($username) ?? $username, 'password' => $password])->assertRedirect('/ar');
     }
 
     private function accountId(string $username): int
@@ -44,7 +44,7 @@ class AuditLogScenarioTest extends TestCase
     /** An administrator of one city only (Homs). */
     private function homsAdministrator(): void
     {
-        $account = app(AccountProvisioner::class)->createPlain('homs.admin', null, Hash::make('password'), 'test:audit');
+        $account = app(AccountProvisioner::class)->createPlain('homs.admin', 'homs.admin@hcsyria.org', Hash::make('password'), 'test:audit');
         DB::table('web_accounts')->where('id', $account->id)->update(['password_changed_at' => now('UTC')->format('Y-m-d H:i:s.u')]);
         app(AccessRoles::class)->assign($account->fresh(), $this->city('HMS'), 'administrator', 'test:audit');
     }
@@ -198,14 +198,14 @@ class AuditLogScenarioTest extends TestCase
 
         $this->signIn('super.admin');
         $guest = $this->accountId('role.guest');
-        $this->post('/ar/admin/accounts/'.$guest.'/email', ['email' => 'guest.new@example.org'])->assertRedirect();
+        $this->post('/ar/admin/accounts/'.$guest.'/email', ['email' => 'guest.new@hcsyria.org'])->assertRedirect();
         $this->get('/ar/admin/audit?kind=')->assertOk()
             ->assertSee('تغيّر حقل واحد')->assertSee(__('people.fields.mobile', [], 'ar'))->assertSee('0944000111')
             ->assertSee('تغيّر (القيمة لا تُعرض)')->assertDontSee('09999999999')
-            ->assertSee('البريد الإلكتروني')->assertSee('guest.new@example.org');
+            ->assertSee('البريد الإلكتروني')->assertSee('guest.new@hcsyria.org');
         $csv = $this->get('/en/admin/audit/export?format=csv')->assertOk()->streamedContent();
         $this->assertStringContainsString('→ 0944000111', $csv);
-        $this->assertStringContainsString('E-mail: — → guest.new@example.org', $csv);
+        $this->assertStringContainsString('E-mail: role.guest@hcsyria.org → guest.new@hcsyria.org', $csv);
         $this->assertStringNotContainsString('09999999999', $csv);
     }
 

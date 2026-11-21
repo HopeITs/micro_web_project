@@ -37,7 +37,7 @@ class QuickSearchScenarioTest extends TestCase
 
     private function damascusDataEntry(): WebAccount
     {
-        $account = app(AccountProvisioner::class)->createPlain('test.dam.search', null, Hash::make('a-long-test-password'), 'test:quick-search');
+        $account = app(AccountProvisioner::class)->createPlain('test.dam.search', 'test.dam.search@hcsyria.org', Hash::make('a-long-test-password'), 'test:quick-search');
         DB::table('web_accounts')->where('id', $account->id)->update(['password_changed_at' => now()]);
         $damascus = (int) DB::table('cities')->where('code', 'DAM')->value('id');
         app(AccessRoles::class)->assign($account->fresh(), $damascus, 'data-entry', 'test:quick-search');

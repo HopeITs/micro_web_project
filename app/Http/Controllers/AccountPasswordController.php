@@ -35,7 +35,7 @@ final class AccountPasswordController
         return redirect()->route('projects.index', ['locale' => $locale])->with('status', __('account.changed'));
     }
 
-    /** Not logged in: user name and e-mail on file open the reset page. */
+    /** Not logged in: the institution e-mail of the account receives a single-use reset link. */
     public function forgot(): View
     {
         return view('auth.forgot');
@@ -43,13 +43,11 @@ final class AccountPasswordController
 
     public function request(Request $request, string $locale, AccountPasswords $passwords): RedirectResponse
     {
-        $data = $request->validate(['username' => ['required', 'string', 'max:200'], 'email' => ['required', 'string', 'max:190']]);
-        $token = $passwords->requestReset($data['username'], $data['email']);
-        if ($token === null) {
-            return back()->withErrors(['username' => __('account.no_match')])->withInput($request->only('username'));
-        }
+        $data = $request->validate(['email' => ['required', 'string', 'max:190']]);
+        $passwords->requestReset($data['email'], $locale);
 
-        return redirect()->route('auth.reset', ['locale' => $locale, 'token' => $token]);
+        // The same answer whether or not the address belongs to an account.
+        return redirect()->route('auth.forgot', ['locale' => $locale])->with('sent', mb_strtolower(trim($data['email'])));
     }
 
     public function reset(string $locale, string $token, AccountPasswords $passwords): View

@@ -191,3 +191,31 @@ document.addEventListener('alpine:init', () => {
         enter() { const list = this.filtered(); if (this.open && list.length > 0) this.choose(list[Math.max(this.active, 0)]); },
     }));
 });
+
+// Sign-in pages (x-hc.password): show/hide the password and warn when Caps Lock is on. Plain DOM, so it works without Livewire.
+document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('[data-password-toggle]') : null;
+    if (!button) return;
+    const input = document.getElementById(button.getAttribute('aria-controls') || '');
+    if (!(input instanceof HTMLInputElement)) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    button.setAttribute('aria-pressed', String(show));
+    const label = show ? button.dataset.labelHide : button.dataset.labelShow;
+    if (label) { button.setAttribute('aria-label', label); button.setAttribute('title', label); }
+    input.focus({ preventScroll: true });
+});
+const capsWarning = (event) => {
+    if (!(event instanceof KeyboardEvent) || typeof event.getModifierState !== 'function') return;
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!input || !input.closest('[data-password]')) return;
+    const warning = document.getElementById(`${input.id}-caps`);
+    if (!warning) return;
+    warning.hidden = !event.getModifierState('CapsLock');
+};
+document.addEventListener('keydown', capsWarning);
+document.addEventListener('keyup', capsWarning);
+// Before a form is sent, hide the typed password again so it is not left visible on screen.
+document.addEventListener('submit', (event) => {
+    event.target instanceof HTMLFormElement && event.target.querySelectorAll('[data-password] input[type="text"]').forEach((input) => { input.type = 'password'; });
+});

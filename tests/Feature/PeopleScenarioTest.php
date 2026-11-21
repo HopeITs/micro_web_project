@@ -44,7 +44,7 @@ class PeopleScenarioTest extends TestCase
 
     private function damascusOnly(string $role): WebAccount
     {
-        $account = app(AccountProvisioner::class)->createPlain('dam.'.$role, null, Hash::make('a-long-test-password'), 'test:dam');
+        $account = app(AccountProvisioner::class)->createPlain('dam.'.$role, 'dam.'.$role.'@hcsyria.org', Hash::make('a-long-test-password'), 'test:dam');
         DB::table('web_accounts')->where('id', $account->id)->update(['password_changed_at' => now()]);
         app(AccessRoles::class)->assign($account->fresh(), $this->city('DAM'), $role, 'test:dam');
 

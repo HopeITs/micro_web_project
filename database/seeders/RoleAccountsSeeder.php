@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountProvisioner;
+use App\Support\InstitutionEmail;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -24,6 +25,15 @@ final class RoleAccountsSeeder extends Seeder
     public const PASSWORD = 'password';
 
     public const DECISION = 'seed:test-role-accounts';
+
+    /**
+     * Sign-in e-mail of a test account (logins use the institution e-mail since 21 Nov 2026): <user name>@<institution domain>.
+     * `judy` gets none, so the owner sees the transition (user name once, then "add your e-mail").
+     */
+    public static function email(string $username): ?string
+    {
+        return $username === 'judy' ? null : $username.'@'.InstitutionEmail::domain();
+    }
 
     /** username => role; `super.admin` is an extra administrator kept from the first local test round, `judy` the owner's own (20 Nov 2026). */
     public static function accounts(): array
@@ -45,7 +55,11 @@ final class RoleAccountsSeeder extends Seeder
         $now = now('UTC')->format('Y-m-d H:i:s.u');
         foreach (self::accounts() as $username => $role) {
             $account = WebAccount::where('username', $username)->first()
-                ?? $provisioner->createPlain($username, null, Hash::make(self::PASSWORD), self::DECISION);
+                ?? $provisioner->createPlain($username, self::email($username), Hash::make(self::PASSWORD), self::DECISION);
+            $email = self::email($username);
+            if ($email !== null && $account->email === null && DB::table('web_accounts')->where('email', $email)->doesntExist()) {
+                DB::table('web_accounts')->where('id', $account->id)->update(['email' => $email]);
+            }
             // A normal password, not the one-time kind: password_changed_at set means no forced change at first login.
             DB::table('web_accounts')->where('id', $account->id)->update(['password_hash' => Hash::make(self::PASSWORD), 'password_changed_at' => $now, 'disabled_at' => null, 'updated_at' => $now]);
             foreach ($cities as $city) {

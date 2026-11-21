@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('login', fn (Request $request) => [
             Limit::perMinute(30)->by('login-ip:'.hash('sha256', (string) $request->ip())),
-            Limit::perMinute(6)->by('login-identity:'.hash('sha256', json_encode([$request->input('username'), $request->ip()]))),
+            Limit::perMinute(6)->by('login-identity:'.hash('sha256', json_encode([mb_strtolower(trim((string) $request->input('login', $request->input('email')))), $request->ip()]))),
         ]);
     }
 }

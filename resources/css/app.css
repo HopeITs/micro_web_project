@@ -367,3 +367,31 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 .hc-chip[aria-pressed="true"] span { color: var(--surface); background: transparent; }
 @media (max-width: 560px) { .hc-counts-path { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ------------------------------------------------------------------ Sign-in pages: e-mail login, remember me, show password */
+.hc-auth-panel { width: min(100%, 400px); display: flex; flex-direction: column; gap: 16px; }
+.hc-auth-form .hc-auth-panel form { width: 100%; }
+.hc-auth-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.hc-auth-head h2 { font-size: 1.4rem; }
+.hc-auth-fields { display: flex; flex-direction: column; gap: 16px; }
+.hc-auth-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .92rem; }
+.hc-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.hc-check input { accent-color: var(--brand); width: 18px; height: 18px; margin: 0; }
+.hc-link { color: var(--brand); font-weight: 600; text-decoration: none; }
+.hc-link:hover, .hc-link:focus-visible { text-decoration: underline; }
+.hc-input-icon { position: relative; }
+.hc-input-icon > svg { position: absolute; inset-block-start: 50%; inset-inline-start: 12px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.hc-input-icon > .hc-input { padding-inline-start: 40px; }
+/* The e-mail and password are typed left to right, so the icon and the eye button stay on the physical left/right. */
+.hc-input-icon > .hc-input.ltr { padding-inline-start: 12px; padding-left: 40px; }
+.hc-input-icon > .hc-input.ltr + svg, .hc-input-icon > svg:has(+ .hc-input.ltr) { inset-inline-start: auto; left: 12px; }
+.hc-password { position: relative; }
+.hc-password .hc-input { padding-right: 46px; }
+.hc-password-toggle { position: absolute; inset-block: 0; right: 4px; margin-block: auto; width: 38px; height: 34px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer; }
+.hc-password-toggle:hover { color: var(--ink); background: var(--surface-2); }
+.hc-password-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.hc-password-toggle .when-shown, .hc-password-toggle[aria-pressed="true"] .when-hidden { display: none; }
+.hc-password-toggle[aria-pressed="true"] .when-shown { display: inline; }
+.hc-caps { display: flex; align-items: center; gap: 6px; margin-block-start: 6px; font-size: .82rem; color: var(--warn); font-weight: 600; }
+.hc-caps[hidden] { display: none; }
+.hc-code-input { font-size: 1.5rem; letter-spacing: .5em; text-align: center; font-variant-numeric: tabular-nums; }

@@ -15,7 +15,12 @@ return [
     'login_title' => 'Sign in', 'login_heading' => 'Micro Projects management',
     'login_intro' => 'One platform for every city: applications, assessment, loans, visits and reports.',
     'username' => 'User name', 'password' => 'Password', 'login' => 'Sign in', 'forgot' => 'Forgot your password?',
-    'login_error' => 'The user name or password is not correct.', 'login_note' => 'Use the same user name and password as the desktop program.',
+    'login_error' => 'The e-mail or password is not correct.', 'login_note' => 'Sign in with your institution e-mail (@hcsyria.org). If no e-mail is stored for your account yet, sign in this time with your desktop user name and password; you will then be asked to add your e-mail.',
+    'login_email' => 'Institution e-mail', 'login_email_hint' => 'For example name@hcsyria.org — or your user name if your account has no e-mail yet',
+    'login_use_email' => 'This account now signs in with its institution e-mail. Type your e-mail instead of the user name.',
+    'show_password' => 'Show password', 'hide_password' => 'Hide password', 'caps_lock' => 'Caps Lock is on.',
+    'remember_me' => 'Remember me on this device', 'remember_hint' => 'Keeps you signed in for 30 days. Do not use it on a shared computer.',
+    'last_login' => 'Your last sign-in was :when.', 'first_login_welcome' => 'This is your first sign-in to the website. Welcome.',
 
     'home_eyebrow' => 'Today', 'home_title' => 'Welcome, :name', 'home_intro' => 'Summary of the projects in the cities you may access.',
     'stat_projects' => 'Projects', 'stat_financed' => 'Financed projects', 'stat_review' => 'Under review', 'stat_preliminary' => 'Preliminary applications',

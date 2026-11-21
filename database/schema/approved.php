@@ -6,7 +6,7 @@
  * other SHA. Change it only after the user approves a new version.
  */
 return [
-    'version' => 'v1.4',
-    'file' => 'docs/planning/m1/unified-schema-v1.4.json',
-    'sha256' => '6d95d4fc6e5375b9cb7975a58439be1e0105246f63ad3228a3fd89b6f46b7e61',
+    'version' => 'v1.5',
+    'file' => 'docs/planning/m1/unified-schema-v1.5.json',
+    'sha256' => 'b734681deedda50f8ac4e4c4af3069a01f569a05c5f59525102ff13a3c63459d',
 ];

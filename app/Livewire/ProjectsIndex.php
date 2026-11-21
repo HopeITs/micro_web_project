@@ -23,7 +23,10 @@ use Livewire\WithPagination;
  */
 class ProjectsIndex extends Component
 {
-    use HasSmartFilters;
+    use HasSmartFilters {
+        savableViewFilters as smartSavableViewFilters;
+        loadViewFilters as smartLoadViewFilters;
+    }
     use WithPagination;
 
     public string $search = '';
@@ -45,6 +48,37 @@ class ProjectsIndex extends Component
     protected function smartFilterHidden(): array
     {
         return ['city']; // the city chips below the bar
+    }
+
+    /** Saved views: the city chips are stored as a `city` filter (ids only); the search box and the path tile are not stored. */
+    protected function filtersCameFromUrl(): bool
+    {
+        return $this->filters !== [] || $this->cities !== [] || $this->path !== '';
+    }
+
+    protected function savableViewFilters(): array
+    {
+        $filters = $this->smartSavableViewFilters();
+        $chosen = array_values(array_intersect(array_map('intval', $this->cities), app(CityContext::class)->cityIds()));
+        if ($chosen !== []) {
+            $filters[] = ['field' => 'city', 'op' => 'in', 'values' => array_map('strval', $chosen)];
+        }
+
+        return $filters;
+    }
+
+    protected function loadViewFilters(array $filters): void
+    {
+        $city = $filters['city'] ?? null;
+        unset($filters['city']);
+        $this->cities = $city !== null && $city['op'] === 'in' ? array_map('intval', $city['values']) : [];
+        $this->smartLoadViewFilters($filters);
+    }
+
+    protected function resetForView(): void
+    {
+        $this->search = '';
+        $this->path = '';
     }
 
     public function updated(string $property): void

@@ -2,11 +2,16 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Models\SavedView;
+use App\Models\WebAccount;
+use App\Services\AccountAccess;
+use App\Services\AccountAuditTrail;
 use App\Support\Datasets\Dataset;
 use App\Support\Datasets\Field;
 use App\Support\Datasets\QuerySpec;
 use App\Support\Datasets\SearchTerms;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 
@@ -44,6 +49,9 @@ trait HasSmartFilters
     {
         // Whatever came in through the URL is checked against the registry; anything else is dropped.
         $this->filters = $this->sanitizeFilters($this->filters, false);
+        if (! $this->filtersCameFromUrl()) {
+            $this->applyDefaultView();
+        }
     }
 
     /** The current filters as a validated spec (invalid entries are left out). */
@@ -92,6 +100,8 @@ trait HasSmartFilters
         $this->filters = [];
         $this->textFilters = [];
         $this->editingFilter = null;
+        $this->activeViewId = null;
+        $this->viewNotice = null;
         $this->smartFiltersChanged();
     }
 
@@ -223,7 +233,331 @@ trait HasSmartFilters
             'chips' => $chips,
             'editor' => $editor,
             'presets' => array_combine(QuerySpec::DATE_PRESETS, array_map(fn ($p) => __('hc.filter_preset_'.$p), QuerySpec::DATE_PRESETS)),
+            'views' => $this->savedViewsBar(),
         ];
+    }
+
+    // ---------------------------------------------------------------- saved views (schema v1.5 `saved_views`)
+
+    /**
+     * A view keeps only the filters that may sit in the address (field keys, lookup ids, codes, numbers, dates):
+     * never the search box, never name or national-number filters. Applying one re-checks every filter against the
+     * dataset as the viewer sees it, so a shared view never reaches a city the viewer may not read.
+     */
+    public ?int $activeViewId = null;
+
+    public ?string $viewNotice = null;
+
+    public ?string $viewError = null;
+
+    protected function savedViewKind(): string
+    {
+        return 'view';
+    }
+
+    /** The capability that lets an account share its views with everyone who opens the same list. */
+    protected function savedViewShareCapability(): string
+    {
+        return 'projects.view';
+    }
+
+    /** Whether the address brought filters; when it did not, the account's default view is applied on opening. */
+    protected function filtersCameFromUrl(): bool
+    {
+        return $this->filters !== [];
+    }
+
+    /**
+     * The current filters a view may store, as QuerySpec filters.
+     *
+     * @return list<array{field: string, op: string, values: list<mixed>}>
+     */
+    protected function savableViewFilters(): array
+    {
+        $out = [];
+        foreach ($this->sanitizeFilters($this->filters, false) as $key => $filter) {
+            if (! in_array($filter['op'], ['in', 'not_in'], true) || $filter['values'] !== []) {
+                $out[] = ['field' => $key, 'op' => $filter['op'], 'values' => $filter['values']];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Puts a view's checked filters on the component (a list may move some of them, e.g. the city, to its own controls).
+     *
+     * @param  array<string, array{op: string, values: list<mixed>}>  $filters
+     */
+    protected function loadViewFilters(array $filters): void
+    {
+        $this->filters = $filters;
+    }
+
+    /** Clears whatever else narrows the list before a view is applied (the search box, other controls). */
+    protected function resetForView(): void
+    {
+        if (property_exists($this, 'search')) {
+            $this->search = '';
+        }
+    }
+
+    public function applyView(int $id): void
+    {
+        $view = $this->visibleViews()->firstWhere('id', $id);
+        abort_if($view === null, 404);
+        $this->putView($view);
+    }
+
+    public function saveView(?string $name = null): void
+    {
+        $account = $this->viewAccount();
+        $name = $this->viewName($name);
+        if ($name === null) {
+            return;
+        }
+        $filters = $this->savableViewFilters();
+        if ($filters === []) {
+            $this->viewError = __('hc.view_nothing_to_save');
+
+            return;
+        }
+        if ($this->ownViews()->where('name', $name)->exists()) {
+            $this->viewError = __('hc.view_name_taken');
+
+            return;
+        }
+        $view = SavedView::create([
+            'account_id' => $account->id, 'dataset' => $this->dataset()->key(), 'kind' => $this->savedViewKind(), 'name' => $name,
+            'spec' => (new QuerySpec($filters))->validate($this->dataset())->toArray(), 'columns' => null, 'is_shared' => false, 'is_default' => false,
+        ]);
+        app(AccountAuditTrail::class)->record($account->id, 'saved_views.created', 'succeeded', decision: 'saved_view:'.$view->id,
+            details: [['field' => 'name', 'after' => $name], ['field' => 'dataset', 'after' => $view->dataset]]);
+        $this->activeViewId = $view->id;
+        $this->viewError = null;
+        $this->viewNotice = __('hc.view_saved', ['name' => $name]);
+    }
+
+    /** Replaces an own view's filters with the current ones. */
+    public function overwriteView(int $id): void
+    {
+        $view = $this->ownView($id);
+        $filters = $this->savableViewFilters();
+        if ($filters === []) {
+            $this->viewError = __('hc.view_nothing_to_save');
+
+            return;
+        }
+        $view->update(['spec' => (new QuerySpec($filters))->validate($this->dataset())->toArray()]);
+        $this->activeViewId = $view->id;
+        $this->viewError = null;
+        $this->viewNotice = __('hc.view_updated', ['name' => $view->name]);
+    }
+
+    public function renameView(int $id, ?string $name = null): void
+    {
+        $view = $this->ownView($id);
+        $name = $this->viewName($name);
+        if ($name === null) {
+            return;
+        }
+        if ($this->ownViews()->where('name', $name)->whereKeyNot($view->id)->exists()) {
+            $this->viewError = __('hc.view_name_taken');
+
+            return;
+        }
+        $view->update(['name' => $name]);
+        $this->viewError = null;
+    }
+
+    public function deleteView(int $id): void
+    {
+        $view = $this->ownView($id);
+        $account = $this->viewAccount();
+        $name = $view->name;
+        $view->delete();
+        app(AccountAuditTrail::class)->record($account->id, 'saved_views.deleted', 'succeeded', decision: 'saved_view:'.$id,
+            details: [['field' => 'name', 'before' => $name], ['field' => 'dataset', 'before' => $this->dataset()->key()]]);
+        if ($this->activeViewId === $id) {
+            $this->activeViewId = null;
+        }
+        $this->viewNotice = __('hc.view_deleted', ['name' => $name]);
+    }
+
+    /** Makes an own view the one applied when the list opens without filters, or stops it being that (one per list). */
+    public function toggleDefaultView(int $id): void
+    {
+        $view = $this->ownView($id);
+        DB::transaction(function () use ($view) {
+            $makeDefault = ! $view->is_default;
+            $this->ownViews()->where('is_default', true)->update(['is_default' => false]);
+            if ($makeDefault) {
+                $view->update(['is_default' => true]);
+            }
+        });
+    }
+
+    public function toggleShareView(int $id): void
+    {
+        $view = $this->ownView($id);
+        abort_unless($view->is_shared || $this->canShareViews(), 403); // un-sharing is always allowed
+        $view->update(['is_shared' => ! $view->is_shared]);
+    }
+
+    public function canShareViews(): bool
+    {
+        $account = auth()->user();
+
+        return $account instanceof WebAccount && app(AccountAccess::class)->cities($account, $this->savedViewShareCapability())->isNotEmpty();
+    }
+
+    /** @return Collection<int, SavedView> own views first, then the ones others shared */
+    protected function visibleViews(): Collection
+    {
+        $account = auth()->user();
+        if (! $account instanceof WebAccount) {
+            return new Collection;
+        }
+
+        return SavedView::visibleTo($account->id, $this->dataset()->key(), $this->savedViewKind())->with('account:id,username')
+            ->orderByRaw('CASE WHEN account_id = ? THEN 0 ELSE 1 END', [$account->id])->orderBy('name')->get();
+    }
+
+    private function savedViewsBar(): array
+    {
+        $account = auth()->user();
+        if (! $account instanceof WebAccount) {
+            return ['list' => [], 'active' => null, 'can_save' => false, 'can_share' => false, 'notice' => null, 'error' => null];
+        }
+        $views = $this->visibleViews();
+        $current = $this->viewKeyed($this->savableViewFilters());
+        $active = null;
+        $list = $views->map(function (SavedView $v) use ($account, $current, &$active) {
+            $item = ['id' => $v->id, 'name' => $v->name, 'own' => $v->account_id === $account->id, 'shared' => $v->is_shared,
+                'default' => $v->is_default, 'owner' => (string) $v->account?->username, 'active' => $v->id === $this->activeViewId];
+            if ($item['active']) {
+                $active = $item + ['changed' => $this->checkedViewFilters($v->spec)[0] !== $current];
+            }
+
+            return $item;
+        })->all();
+
+        return ['list' => $list, 'active' => $active, 'can_save' => $current !== [], 'can_share' => $this->canShareViews(),
+            'notice' => $this->viewNotice, 'error' => $this->viewError];
+    }
+
+    private function applyDefaultView(): void
+    {
+        $account = auth()->user();
+        if (! $account instanceof WebAccount) {
+            return;
+        }
+        $view = $this->ownViews()->where('is_default', true)->first();
+        if ($view !== null) {
+            $this->putView($view);
+        }
+    }
+
+    private function putView(SavedView $view): void
+    {
+        [$filters, $dropped] = $this->checkedViewFilters($view->spec);
+        $this->textFilters = [];
+        $this->editingFilter = null;
+        $this->resetForView();
+        $this->loadViewFilters($filters);
+        $this->smartFiltersChanged();
+        $this->activeViewId = $view->id;
+        $this->viewNotice = $dropped ? __('hc.view_filters_dropped') : null;
+    }
+
+    /**
+     * A stored spec checked again against the dataset as the viewer sees it now: unknown or no-longer-valid
+     * filters, text filters, and option values the viewer cannot see (another city) are left out.
+     *
+     * @return array{0: array<string, array{op: string, values: list<mixed>}>, 1: bool} the filters, and whether any were left out
+     */
+    private function checkedViewFilters(mixed $spec): array
+    {
+        $items = is_array($spec) && is_array($spec['filters'] ?? null) ? $spec['filters'] : null;
+        if ($items === null) {
+            return [[], true];
+        }
+        $dataset = $this->dataset();
+        $clean = [];
+        $dropped = false;
+        foreach ($items as $item) {
+            $field = is_array($item) && is_string($item['field'] ?? null) ? $dataset->field($item['field']) : null;
+            if ($field === null || $field->type === 'text' || $field->sensitive || isset($clean[$field->key])) {
+                $dropped = true;
+
+                continue;
+            }
+            $op = (string) ($item['op'] ?? '');
+            $values = is_array($item['values'] ?? null) ? array_values($item['values']) : [];
+            if ($field->hasOptions() && in_array($op, ['in', 'not_in'], true)) {
+                $options = $field->options();
+                $kept = array_values(array_filter($values, fn ($v) => is_scalar($v) && array_key_exists((string) $v, $options)));
+                $dropped = $dropped || count($kept) !== count($values);
+                $values = $kept;
+                if ($values === []) {
+                    continue;
+                }
+            }
+            if (QuerySpec::filterErrors($dataset, ['field' => $field->key, 'op' => $op, 'values' => $values]) !== []) {
+                $dropped = true;
+
+                continue;
+            }
+            $clean[$field->key] = ['op' => $op, 'values' => $values];
+        }
+
+        return [$clean, $dropped];
+    }
+
+    /** @return array<string, array{op: string, values: list<mixed>}> */
+    private function viewKeyed(array $filters): array
+    {
+        $out = [];
+        foreach ($filters as $f) {
+            $out[$f['field']] = ['op' => $f['op'], 'values' => $f['values']];
+        }
+
+        return $out;
+    }
+
+    private function viewName(?string $name): ?string
+    {
+        $name = trim((string) preg_replace('/\s+/u', ' ', (string) $name));
+        if ($name === '' || mb_strlen($name) > 120) {
+            $this->viewError = __('hc.view_name_invalid');
+
+            return null;
+        }
+
+        return $name;
+    }
+
+    private function viewAccount(): WebAccount
+    {
+        $account = auth()->user();
+        abort_unless($account instanceof WebAccount, 403);
+
+        return $account;
+    }
+
+    /** @return Builder<SavedView> */
+    private function ownViews(): Builder
+    {
+        return SavedView::query()->where('account_id', $this->viewAccount()->id)
+            ->where('dataset', $this->dataset()->key())->where('kind', $this->savedViewKind());
+    }
+
+    private function ownView(int $id): SavedView
+    {
+        $view = $this->ownViews()->whereKey($id)->first();
+        abort_if($view === null, 403);
+
+        return $view;
     }
 
     /** @return array<string, Field> */
@@ -256,6 +590,8 @@ trait HasSmartFilters
 
     private function smartFiltersChanged(): void
     {
+        $this->viewNotice = null;
+        $this->viewError = null;
         if (method_exists($this, 'resetPage')) {
             $this->resetPage();
         }

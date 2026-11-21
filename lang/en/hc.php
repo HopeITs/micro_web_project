@@ -61,5 +61,12 @@ return [
     'filter_find_value' => 'Find a value', 'filter_no_values' => 'No values in the current results.', 'filter_presets' => 'Quick ranges', 'filter_from' => 'From', 'filter_to' => 'To',
     'filter_preset_this_month' => 'This month', 'filter_preset_last_90_days' => 'Last 90 days', 'filter_preset_this_year' => 'This year',
     'filter_contains_hint' => 'Contains (separate alternatives with a comma or a new line)', 'search_multi_hint' => 'Several numbers or names? Separate them with commas or paste a column from Excel.',
+    'views_mine' => 'My views', 'view_save' => 'Save view', 'view_save_as' => 'Save the current filters as a view', 'view_name' => 'View name', 'view_save_hint' => 'Only the filters are saved, never the search box or names.',
+    'view_saved' => 'View ":name" saved.', 'view_updated' => 'View ":name" updated with the current filters.', 'view_deleted' => 'View ":name" deleted.',
+    'view_name_taken' => 'You already have a view with this name.', 'view_name_invalid' => 'Give the view a name (up to 120 characters).', 'view_nothing_to_save' => 'Choose at least one filter first.',
+    'view_filters_dropped' => 'Some filters of this view do not apply to what you can see and were left out.',
+    'view_actions' => 'View options', 'view_overwrite' => 'Update with the current filters', 'view_rename' => 'Rename', 'view_delete' => 'Delete', 'view_confirm_delete' => 'Delete this view? The projects are not affected.',
+    'view_make_default' => 'Open the list with this view', 'view_unset_default' => 'Stop opening with this view', 'view_default' => 'Default',
+    'view_share' => 'Share with colleagues', 'view_unshare' => 'Stop sharing', 'view_shared' => 'Shared', 'view_shared_by' => 'Shared by :name', 'view_changed' => 'changed', 'view_cancel' => 'Cancel',
     'project_type' => 'Project type', 'fund_type' => 'Fund type', 'beneficiary_sex' => 'Beneficiary sex', 'sex_male' => 'Male', 'sex_female' => 'Female',
 ];

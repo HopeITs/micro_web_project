@@ -34,7 +34,7 @@ return [
         'password_changed' => 'Changed password', 'password_reset_requested' => 'Asked for a password reset', 'password_reset' => 'Reset password',
         'password_reset_denied' => 'Password reset refused', 'password_rehashed' => 'Password storage upgraded',
         'account_provisioned' => 'Account created', 'legacy_linked' => 'Desktop identity linked', 'legacy_revoked' => 'Desktop identity unlinked', 'legacy_restored' => 'Desktop identity restored',
-        'capability_granted' => 'Permission granted', 'capability_revoked' => 'Permission removed',
+        'capability_granted' => 'Permission granted', 'capability_revoked' => 'Permission removed', 'saved_views_created' => 'View saved', 'saved_views_deleted' => 'Saved view deleted',
         'accounts_role_assigned' => 'Role assigned', 'accounts_role_revoked' => 'Role removed', 'accounts_email_set' => 'E-mail changed',
         'accounts_disabled' => 'Account disabled', 'accounts_enabled' => 'Account enabled', 'accounts_tasks_saved' => 'Task responsibilities saved',
         'logs_listed' => 'Opened the audit log', 'reports_exported' => 'Exported a report', 'national_checked' => 'Checked a national number',

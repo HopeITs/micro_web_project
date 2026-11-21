@@ -9,27 +9,16 @@
         <div class="hc-toolbar">
             <div class="hc-field grow">
                 <label class="hc-label" for="q">{{ __('hc.search') }}</label>
-                <div style="position:relative">
-                    <input id="q" class="hc-input" type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('hc.search_placeholder') }}" autocomplete="off" style="padding-inline-start:40px">
+                {{-- A column pasted from Excel arrives as lines and an input drops line breaks, so they become commas (OR). --}}
+                <div style="position:relative" x-data>
+                    <input id="q" class="hc-input" type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('hc.search_placeholder') }}" title="{{ __('hc.search_multi_hint') }}" autocomplete="off" style="padding-inline-start:40px"
+                           x-on:paste="const t = ($event.clipboardData || window.clipboardData).getData('text'); if (/[\r\n]/.test(t)) { $event.preventDefault(); $el.setRangeText(t.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(', '), $el.selectionStart, $el.selectionEnd, 'end'); $el.dispatchEvent(new Event('input', { bubbles: true })); }">
                     <x-hc.icon name="search" :size="18" style="position:absolute;inset-inline-start:12px;inset-block-start:12px;color:var(--muted)"/>
                 </div>
-            </div>
-            <div class="hc-field">
-                <label class="hc-label" for="stage">{{ __('hc.stage') }}</label>
-                <select id="stage" class="hc-select" wire:model.live="stage">
-                    <option value="">{{ __('hc.all') }}</option>
-                    <option value="preliminary">{{ __('hc.stage_preliminary') }}</option>
-                    <option value="full">{{ __('hc.stage_full') }}</option>
-                </select>
-            </div>
-            <div class="hc-field">
-                <label class="hc-label" for="state">{{ __('hc.state') }}</label>
-                <select id="state" class="hc-select" wire:model.live="state">
-                    <option value="">{{ __('hc.any_state') }}</option>
-                    @foreach($stateOptions as $s)<option value="{{ $s->id }}">{{ $en && $s->name_en ? $s->name_en : $s->name_ar }}</option>@endforeach
-                </select>
+                <span class="hc-hint">{{ __('hc.search_multi_hint') }}</span>
             </div>
         </div>
+        <x-hc.filter-bar :bar="$filterBar"/>
         <div class="hc-toolbar" style="align-items:center">
             <span class="hc-label">{{ __('hc.cities') }}</span>
             <div class="hc-chips" role="group" aria-label="{{ __('hc.cities') }}">
@@ -38,7 +27,7 @@
                 @endforeach
             </div>
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('hc.results', ['count' => number_format($projects->total())]) }}</span>
-            @if($search !== '' || $cities !== [] || $stage !== '' || $state !== '' || $path !== '')
+            @if($search !== '' || $cities !== [] || $path !== '' || $filterBar['chips'] !== [])
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('hc.clear') }}</x-hc.button>
             @endif
         </div>

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasDatasetColumns;
 use App\Livewire\Concerns\HasSmartFilters;
 use App\Services\Finance\FinanceService;
 use App\Support\Datasets\Dataset;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 /** The payment schedule page (M4.9, owner decision 4): count tiles that filter the list, the filters, totals per currency. */
 class PaymentSchedule extends Component
 {
+    use HasDatasetColumns;
     use HasSmartFilters {
         savableViewFilters as smartSavableViewFilters;
         loadViewFilters as smartLoadViewFilters;
@@ -102,15 +104,29 @@ class PaymentSchedule extends Component
     #[Url]
     public string $currency = '';
 
-    /** @return array<string, array{op: string, values: list<mixed>}> the bar's filters that may travel in the export address (no name filters, no search box) */
-    private function exportableFilters(): array
+    protected function exportRoute(): string
     {
-        $out = [];
-        foreach ($this->smartSavableViewFilters() as $filter) {
-            $out[$filter['field']] = ['op' => $filter['op'], 'values' => $filter['values']];
-        }
+        return 'payments.export';
+    }
 
-        return $out;
+    /** Everything the list query depends on travels to the export through the server-side token, never in an address. */
+    protected function exportStateProperties(): array
+    {
+        return ['search', 'tab', 'cities', 'year', 'month', 'group', 'currency', 'filters', 'textFilters', 'tableSort'];
+    }
+
+    /** The page's list query for the export: view, year, month and filters applied, in schedule order unless the user sorted. */
+    public function exportQuery(): Builder
+    {
+        [$query, $dateColumn] = app(PaymentScheduleService::class)->exportList(auth()->user(), $this->scheduleFilters());
+
+        return $this->sortList() === [] ? $query->orderBy($dateColumn) : $query;
+    }
+
+    /** @return array<string, mixed> the page's filters with the bar's spec and the search */
+    private function scheduleFilters(): array
+    {
+        return $this->filters() + ['spec' => $this->querySpec(), 'search' => $this->search];
     }
 
     public function mount(): void
@@ -162,14 +178,21 @@ class PaymentSchedule extends Component
     public function render(PaymentScheduleService $schedule): View
     {
         $filters = $this->filters();
+        $smart = $this->scheduleFilters();
+        $overview = $schedule->overview(auth()->user(), $smart, audit: false);
+        $query = $overview['query'];
+        if ($this->sortList() === []) {
+            $query->orderBy($overview['dateColumn']);
+        }
 
-        $smart = $filters + ['spec' => $this->querySpec(), 'search' => $this->search];
-
-        return view('livewire.payment-schedule', $schedule->schedule(auth()->user(), $smart, audit: false) + [
+        return view('livewire.payment-schedule', [
+            'rows' => $this->tableQuery($query)->toBase()->paginate($this->perPage()),
+            'totals' => $overview['totals'], 'tiles' => $overview['tiles'], 'cityOptions' => $overview['cityOptions'], 'groups' => $overview['groups'],
             'filters' => array_filter($filters, fn ($v) => $v !== null && $v !== []),
-            'exportFilters' => ['f' => $this->exportableFilters()],
             'relaxed' => $filters['view'] === 'due' && PaymentScheduleService::narrowed($smart),
             'filterBar' => $this->filterBar(),
+            'table' => $this->dataTable(),
+            'columnPicker' => $this->columnPicker(),
         ]);
     }
 }

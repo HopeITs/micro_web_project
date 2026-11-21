@@ -39,7 +39,7 @@ return [
         'view' => 'Show', 'year' => 'Year', 'month' => 'Month', 'all' => 'All', 'cities' => 'Cities', 'group' => 'Donor group', 'currency' => 'Currency',
         'totals' => 'Count and sum per currency', 'count' => ':count instalment(s)', 'currency_note' => 'Sums are per currency; amounts in different currencies are never added together.',
         'none' => 'No instalments match', 'none_hint' => 'Change the view or the filters.', 'clear' => 'Clear', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'open' => 'Finance',
-        'columns' => ['city' => 'City', 'number' => 'Project', 'beneficiary' => 'Beneficiary', 'group' => 'Group', 'currency' => 'Currency', 'amount' => 'Amount', 'due' => 'Due date', 'status' => 'Status', 'received' => 'Received on'],
+        'columns' => ['city' => 'City', 'number' => 'Project', 'beneficiary' => 'Beneficiary', 'group' => 'Group', 'currency' => 'Currency', 'amount' => 'Amount', 'due' => 'Due date', 'status' => 'Status', 'received' => 'Received on', 'loan_amount' => 'Loan amount', 'installment_no' => 'Instalment no.', 'days_overdue' => 'Days overdue', 'donor' => 'Donor'],
     ],
     'visit_notices_missing' => 'This project has no visit notices. They are created with its first loan, and only when the city has monitoring-and-evaluation staff.',
     'errors' => [

@@ -91,7 +91,7 @@ class InstallmentSmartFilterScenarioTest extends TestCase
         [, , , $soon] = $this->fixture();
         $page = $this->usd()->call('setFilterRange', 'due_on', now()->toDateString(), now()->addDays(30)->toDateString());
         $this->assertSame(1, $this->listed($page));
-        $this->assertSame($soon, $page->viewData('rows')->getCollection()->first()->due_on);
+        $this->assertSame($soon, $page->viewData('rows')->getCollection()->first()->col_due_on);
         $page = $this->usd()->call('setFilterPreset', 'due_on', 'next_30_days');
         $this->assertSame(1, $this->listed($page));
         $page = $this->usd()->call('setFilterRange', 'due_on', null, now()->subDay()->toDateString());

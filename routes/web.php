@@ -67,6 +67,8 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/applications/{project}/finance', [FinanceController::class, 'show'])->whereNumber('project')->name('finance.show');
             Route::get('/payments', [FinanceController::class, 'payments'])->name('finance.payments');
             Route::get('/payments/export', [FinanceController::class, 'export'])->middleware('throttle:10,1')->name('finance.payments.export');
+            // Smart-search phase 2: the payment schedule as shown (columns, filters, search, sort) from the list's single-use token; DatasetExport rechecks finance.export per city.
+            Route::get('/payments/export/{token}', \App\Http\Controllers\PaymentExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('payments.export');
 
             // M4.12 visits (VisitService / MonitoringVisitService / VisitScheduleService / VisitResultsService / VisitorStatisticsService recheck the capabilities per city).
             Route::get('/applications/{project}/visits', [\App\Http\Controllers\VisitController::class, 'hub'])->whereNumber('project')->name('visits.hub');

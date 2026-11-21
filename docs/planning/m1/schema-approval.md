@@ -62,3 +62,14 @@
 - **Unchanged:** every other table and column. `web_accounts.email` already existed and is unique. Password reset uses the existing `account_password_resets`.
 - **Approved SHA-256:** `6d95d4fc6e5375b9cb7975a58439be1e0105246f63ad3228a3fd89b6f46b7e61`. It covers [unified-schema-v1.4.json](unified-schema-v1.4.json) (137 tables, 1,487 columns). Earlier versions are unchanged.
 - **What this allows:** the migrations move to v1.4 without asking again.
+
+## Addendum v1.5 — saved views and AI query log (awaiting approval)
+
+- **Status: DRAFT. NOT approved.** No migration, model or `database/schema/approved.php` change may follow until the owner approves. `approved.php` stays on v1.4.
+- **Why:** the smart-search plan (`docs/planning/smart-search-plan-2026-11.md`, phase 1 item 2 and phase 4 audit) needs saved filtered views/reports per user, and an audit log with a daily per-user limit for AI queries. The decision text is in [unified-schema-v1.5.php](unified-schema-v1.5.php) (`addendum_v1_5`).
+- **What it adds:** two new tables (139 tables, 1,509 columns; v1.4 had 137 and 1,487). Nothing existing changes.
+  - `saved_views` (11 columns): `account_id` (FK `web_accounts`), `dataset`, `kind` (view|report), `name`, `spec` (JSON), `columns` (JSON, optional), `is_shared`, `is_default`, timestamps. Index (`account_id`, `dataset`); unique (`account_id`, `dataset`, `kind`, `name`). No soft delete (the user owns it and may delete it).
+  - `ai_queries` (11 columns): `account_id`, `dataset`, `prompt` (stored only after local redaction of national numbers and names), `spec` (JSON, optional), `status` (ok|rejected|error), `model`, `input_tokens`, `output_tokens`, `duration_ms`, `created_at`. Append-only. Index (`account_id`, `created_at`) for the daily limit.
+- **Privacy and city scoping:** views store field keys and lookup ids only, never personal data, national numbers or free-text search terms. Neither table has `city_id`: results are always computed at run time within the viewer's permitted cities and capabilities, so a shared view shares the filter, not the data.
+- **Tooling note:** `build-schema.php` gained an optional per-table `indexes` key (composite indexes); v1.4 regenerates byte-identical (SHA unchanged).
+- **Proposed SHA-256 (not approved):** `b734681deedda50f8ac4e4c4af3069a01f569a05c5f59525102ff13a3c63459d`, covering [unified-schema-v1.5.json](unified-schema-v1.5.json).

@@ -2,23 +2,19 @@
     @php($en = app()->getLocale() === 'en')
     @include('partials.filters-style')
     <x-hc.card :flush="true">
-        <div class="hc-filters"><div class="hc-filters-grid" style="--cols:3">
+        <div class="hc-toolbar">
             <div class="hc-field grow">
                 <label class="hc-label" for="q">{{ __('hc.search') }}</label>
-                <div style="position:relative">
-                    <input id="q" class="hc-input" type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('people.search_placeholder') }}" autocomplete="off" style="padding-inline-start:40px">
+                {{-- A column pasted from Excel arrives as lines and an input drops line breaks, so they become commas (OR). --}}
+                <div style="position:relative" x-data>
+                    <input id="q" class="hc-input" type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('people.search_placeholder') }}" title="{{ __('hc.search_multi_hint') }}" autocomplete="off" style="padding-inline-start:40px"
+                           x-on:paste="const t = ($event.clipboardData || window.clipboardData).getData('text'); if (/[\r\n]/.test(t)) { $event.preventDefault(); $el.setRangeText(t.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(', '), $el.selectionStart, $el.selectionEnd, 'end'); $el.dispatchEvent(new Event('input', { bubbles: true })); }">
                     <x-hc.icon name="search" :size="18" style="position:absolute;inset-inline-start:12px;inset-block-start:12px;color:var(--muted)"/>
                 </div>
+                <span class="hc-hint">{{ __('hc.search_multi_hint') }}</span>
             </div>
-            <div class="hc-field">
-                <label class="hc-label" for="projects">{{ __('people.projects_filter') }}</label>
-                <select id="projects" class="hc-select" wire:model.live="projects">
-                    <option value="">{{ __('hc.all') }}</option>
-                    <option value="with">{{ __('people.with_projects') }}</option>
-                    <option value="without">{{ __('people.without_projects') }}</option>
-                </select>
-            </div>
-        </div></div>
+        </div>
+        <x-hc.filter-bar :bar="$filterBar"/>
         <div class="hc-toolbar" style="align-items:center">
             <span class="hc-label">{{ __('hc.cities') }}</span>
             <div class="hc-chips" role="group" aria-label="{{ __('hc.cities') }}">
@@ -27,7 +23,7 @@
                 @endforeach
             </div>
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('hc.results', ['count' => number_format($people->total())]) }}</span>
-            @if($search !== '' || $cities !== [] || $projects !== '')
+            @if($search !== '' || $cities !== [] || $filterBar['chips'] !== [])
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('hc.clear') }}</x-hc.button>
             @endif
         </div>
@@ -43,7 +39,7 @@
                     <tr wire:key="person-{{ $p->id }}">
                         <td data-label="{{ __('people.name') }}"><a class="row-link" href="{{ route('people.show', ['locale' => app()->getLocale(), 'person' => $p->id]) }}">{{ \App\Services\People\PeopleService::fullName($p) }}</a></td>
                         <td data-label="{{ __('people.fields.national_number') }}" class="num ltr">{{ $p->national_number ?: '—' }}</td>
-                        <td data-label="{{ __('people.birth_year') }}" class="num">{{ $p->birth_date ? substr($p->birth_date, 0, 4) : '—' }}</td>
+                        <td data-label="{{ __('people.birth_year') }}" class="num">{{ $p->birth_date?->format('Y') ?? '—' }}</td>
                         <td data-label="{{ __('people.fields.mobile') }}" class="num ltr">{{ $p->mobile ?: '—' }}</td>
                         <td data-label="{{ __('people.family_number') }}" class="ltr">{{ $p->family_number ?: '—' }}</td>
                         <td data-label="{{ __('hc.city') }}">{{ $en ? $p->city_en : $p->city_ar }}</td>

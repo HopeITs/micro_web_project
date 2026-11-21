@@ -69,4 +69,5 @@ return [
     'view_make_default' => 'Open the list with this view', 'view_unset_default' => 'Stop opening with this view', 'view_default' => 'Default',
     'view_share' => 'Share with colleagues', 'view_unshare' => 'Stop sharing', 'view_shared' => 'Shared', 'view_shared_by' => 'Shared by :name', 'view_changed' => 'changed', 'view_cancel' => 'Cancel',
     'project_type' => 'Project type', 'fund_type' => 'Fund type', 'beneficiary_sex' => 'Beneficiary sex', 'sex_male' => 'Male', 'sex_female' => 'Female',
+    'person_sex' => 'Sex', 'age' => 'Age', 'birth_date' => 'Birth date', 'marital_status' => 'Marital status', 'education_level' => 'Education level', 'registered_on' => 'Registered on',
 ];

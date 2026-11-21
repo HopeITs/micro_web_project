@@ -120,6 +120,30 @@ final class PeopleService
                 'c.code as city_code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'f.family_number', DB::raw('COALESCE(pa.n, 0) as projects')]);
     }
 
+    /**
+     * The people list's base query from the smart-filter dataset (CityScope on top of `people.view` cities, so neither can be bypassed
+     * by a chosen city). @param  list<int>  $cities  the chosen city chips (ignored when outside the permitted ones)
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Person>
+     */
+    public function listQuery(WebAccount $account, \App\Support\Datasets\Dataset $dataset, array $cities = []): \Illuminate\Database\Eloquent\Builder
+    {
+        $permitted = $this->cityIds($account);
+        $permitted !== [] || $this->deny($account);
+        $context = app(\App\Support\CityContext::class);
+        $chosen = array_values(array_intersect(array_map('intval', $cities), $context->active() ? array_intersect($permitted, $context->cityIds()) : $permitted));
+
+        return $dataset->query()->whereIn('people.city_id', $chosen ?: $permitted);
+    }
+
+    /** One page of the people list (see listQuery). */
+    public function listPage(\Illuminate\Database\Eloquent\Builder $query): LengthAwarePaginator
+    {
+        return $query->orderBy('people.first_name')->orderBy('people.last_name')->orderBy('people.id')
+            ->paginate(self::PER_PAGE, ['people.id', 'people.first_name', 'people.father_name', 'people.last_name', 'people.national_number', 'people.birth_date', 'people.mobile', 'people.sex',
+                'c.code as city_code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'f.family_number', DB::raw('COALESCE(pa.n, 0) as projects')]);
+    }
+
     // ---------------------------------------------------------------- duplicates
 
     /**

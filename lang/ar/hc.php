@@ -74,4 +74,5 @@ return [
     'view_make_default' => 'فتح القائمة بهذا العرض', 'view_unset_default' => 'إيقاف الفتح بهذا العرض', 'view_default' => 'افتراضي',
     'view_share' => 'مشاركته مع الزملاء', 'view_unshare' => 'إيقاف المشاركة', 'view_shared' => 'مُشارك', 'view_shared_by' => 'شاركه :name', 'view_changed' => 'معدّل', 'view_cancel' => 'إلغاء',
     'project_type' => 'نوع المشروع', 'fund_type' => 'نوع التمويل', 'beneficiary_sex' => 'جنس المستفيد', 'sex_male' => 'ذكر', 'sex_female' => 'أنثى',
+    'person_sex' => 'الجنس', 'age' => 'العمر', 'birth_date' => 'تاريخ الميلاد', 'marital_status' => 'الحالة الاجتماعية', 'education_level' => 'المستوى التعليمي', 'registered_on' => 'تاريخ التسجيل',
 ];

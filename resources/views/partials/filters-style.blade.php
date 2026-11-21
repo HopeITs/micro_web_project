@@ -1,4 +1,4 @@
-{{-- Filter forms on the admin pages: an even grid sized by the card, not the window (the sidebar takes part of it).
+{{-- Filter forms (admin pages, people list): an even grid sized by the card, not the window (the sidebar takes part of it).
      Set --cols on the grid for the wide layout (default 4); medium cards get 2 columns, narrow ones 1.
      A field with .grow spans two columns; .hc-filters-actions holds the submit button and fills its cell. --}}
 @once

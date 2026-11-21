@@ -1,6 +1,6 @@
 {{-- M4.19: the two sources of the audit log, plus the export buttons for the current filters. --}}
 @php($locale = app()->getLocale())
-@include('admin._filters-style')
+@include('partials.filters-style')
 <style>
     .audit-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-block-end: 1px solid var(--line); }
     .audit-head .hc-chips { flex-wrap: wrap; }

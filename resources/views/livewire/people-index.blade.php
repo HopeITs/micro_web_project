@@ -1,7 +1,8 @@
 <div>
     @php($en = app()->getLocale() === 'en')
+    @include('partials.filters-style')
     <x-hc.card :flush="true">
-        <div class="hc-toolbar">
+        <div class="hc-filters"><div class="hc-filters-grid" style="--cols:3">
             <div class="hc-field grow">
                 <label class="hc-label" for="q">{{ __('hc.search') }}</label>
                 <div style="position:relative">
@@ -17,7 +18,7 @@
                     <option value="without">{{ __('people.without_projects') }}</option>
                 </select>
             </div>
-        </div>
+        </div></div>
         <div class="hc-toolbar" style="align-items:center">
             <span class="hc-label">{{ __('hc.cities') }}</span>
             <div class="hc-chips" role="group" aria-label="{{ __('hc.cities') }}">

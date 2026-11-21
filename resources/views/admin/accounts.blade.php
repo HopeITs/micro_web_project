@@ -11,7 +11,7 @@
     @include('admin._nav')
 
     <x-hc.card :flush="true">
-        @include('admin._filters-style')
+        @include('partials.filters-style')
         <form class="hc-filters" method="GET" action="{{ route('admin.accounts.index', ['locale' => $locale]) }}"><div class="hc-filters-grid" style="--cols:3">
             <div class="hc-field grow">
                 <label class="hc-label" for="q">{{ __('admin.search') }}</label>

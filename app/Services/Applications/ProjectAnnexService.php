@@ -94,7 +94,8 @@ final class ProjectAnnexService
     {
         $project = $this->writable($account, $projectId, 'agriculture');
         $clean = $this->checkAnswers('agriculture', $answers);
-        DB::transaction(function () use ($account, $project, $clean) {
+        $before = $this->agriculture((int) $project->id);
+        DB::transaction(function () use ($account, $project, $clean, $before) {
             $now = now();
             DB::table('project_agriculture_answers')->where('project_id', $project->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
             foreach ($clean as $question => $ids) {
@@ -102,7 +103,8 @@ final class ProjectAnnexService
                     DB::table('project_agriculture_answers')->insert(['city_id' => $project->city_id, 'project_id' => $project->id, 'ag_question_id' => $question, 'ag_answer_id' => $answer, 'created_at' => $now, 'updated_at' => $now]);
                 }
             }
-            $this->audit->record($account->id, 'applications.updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id);
+            $this->audit->record($account->id, 'applications.updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id,
+                details: $this->answerChanges('agriculture', $before, $clean));
         });
     }
 
@@ -191,11 +193,24 @@ final class ProjectAnnexService
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
-        DB::transaction(function () use ($account, $project, $values, $address, $street, $clean, $details) {
+        $old = $this->rehabilitation($project);
+        DB::transaction(function () use ($account, $project, $values, $address, $street, $clean, $details, $old) {
             $now = now();
             $name = mb_substr((string) $account->username, 0, 100);
             DB::table('projects')->where('id', $project->id)->update(['street_id' => $street, 'address_after_fund' => $address, 'updated_at' => $now]);
             $rehab = DB::table('project_rehabilitations')->where('project_id', $project->id)->whereNull('deleted_at')->orderByDesc('id')->lockForUpdate()->first();
+            // v1.3 change details: property and place fields, then each item whose answers or figures changed.
+            $changes = AccountAuditTrail::changes($old['header'], $values + ['street_id' => $street, 'address_after_fund' => $address]) ?? [];
+            $summary = fn (array $item) => implode(' · ', array_filter([implode('، ', $this->answerLabels('rehabilitation', $item['answers'] ?? [])),
+                $item['note'] ?? null, isset($item['quantity']) && $item['quantity'] !== '' ? '×'.$item['quantity'] : null, isset($item['price']) && $item['price'] !== '' ? (string) $item['price'] : null, $item['result'] ?? null], fn ($v) => $v !== null && $v !== ''));
+            foreach ($clean as $question => $ids) {
+                $was = $old['items'][$question] ?? null;
+                $current = ['answers' => $ids] + array_map(fn ($v) => $v === null ? '' : (string) $v, $details[$question]);
+                $wasText = $was === null ? '' : $summary($was);
+                if ($wasText !== $summary($current)) {
+                    $changes[] = ['field' => 'item.q'.$question, 'before' => $wasText === '' ? null : $wasText, 'after' => $summary($current)];
+                }
+            }
             if ($rehab === null) {
                 $rehabId = (int) DB::table('project_rehabilitations')->insertGetId($values + ['city_id' => $project->city_id, 'project_id' => $project->id, 'created_by_name' => $name, 'created_at' => $now, 'updated_at' => $now]);
             } else {
@@ -211,11 +226,44 @@ final class ProjectAnnexService
                     ]);
                 }
             }
-            $this->audit->record($account->id, 'applications.updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id);
+            $this->audit->record($account->id, 'applications.updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id,
+                details: $changes === [] ? null : $changes);
         });
     }
 
     // ---------------------------------------------------------------- shared
+
+    /** @param  list<int>  $ids  @return list<string> answer names */
+    private function answerLabels(string $kind, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return DB::table($kind === 'agriculture' ? 'ag_answers' : 'rehab_answers')->whereIn('id', array_map('intval', $ids))->orderBy('id')->pluck('name_ar')->all();
+    }
+
+    /**
+     * v1.3 change details of question answers, by name ("q<id>": old answers → new answers).
+     *
+     * @param  array<int, list<int>>  $before
+     * @param  array<int, list<int>>  $after
+     */
+    private function answerChanges(string $kind, array $before, array $after): ?array
+    {
+        $out = [];
+        foreach ($after + $before as $question => $_) {
+            $old = $before[$question] ?? [];
+            $new = $after[$question] ?? [];
+            sort($old);
+            sort($new);
+            if ($old !== $new) {
+                $out[] = ['field' => 'answer.q'.$question, 'before' => $old === [] ? null : implode('، ', $this->answerLabels($kind, $old)), 'after' => $new === [] ? null : implode('، ', $this->answerLabels($kind, $new))];
+            }
+        }
+
+        return $out === [] ? null : $out;
+    }
 
     /** Removes the whole annex of a project (the desktop's "delete the annex"). */
     public function delete(WebAccount $account, int $projectId, string $kind): void
@@ -230,7 +278,8 @@ final class ProjectAnnexService
                 DB::table('project_rehabilitation_items')->whereIn('project_rehabilitation_id', $ids)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
                 DB::table('project_rehabilitations')->whereIn('id', $ids)->update(['deleted_at' => $now, 'updated_at' => $now]);
             }
-            $this->audit->record($account->id, 'applications.updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id);
+            $this->audit->record($account->id, 'applications.updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id,
+                details: [['field' => 'annex.'.$kind, 'before' => __('annexes.'.$kind), 'after' => null]]);
         });
     }
 

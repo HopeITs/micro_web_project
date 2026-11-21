@@ -475,7 +475,9 @@ final class PeopleService
         return DB::transaction(function () use ($account, $city, $family, $member, $existing, $personId, $now, $new) {
             $memberPerson = $existing > 0 ? $existing : (int) DB::table('people')->insertGetId($new + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
             $id = (int) DB::table('family_members')->insertGetId($member + ['city_id' => $city, 'family_id' => $family['family']->id, 'person_id' => $memberPerson, 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now]);
-            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $personId);
+            $name = self::fullName(DB::table('people')->where('id', $memberPerson)->first());
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $personId,
+                details: [['field' => 'family.member', 'before' => null, 'after' => $name]]);
 
             return $id;
         });
@@ -487,7 +489,8 @@ final class PeopleService
         $row = $this->memberRow($personId, $memberId);
         $values = $this->validate(PersonFields::MEMBER, $input, (int) $person->city_id, (array) $row, 'edit.');
         DB::table('family_members')->where('id', $memberId)->update($values + ['updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId,
+            details: self::prefixed('family', AccountAuditTrail::changes($row, $values)));
     }
 
     /** Takes a member out of the family (the person record stays); the person itself cannot be removed from its own family here. */
@@ -497,7 +500,8 @@ final class PeopleService
         $row = $this->memberRow($personId, $memberId);
         (int) $row->person_id !== $personId || throw ValidationException::withMessages(['member' => __('people.errors.self_member')]);
         DB::table('family_members')->where('id', $memberId)->update(['deleted_at' => now(), 'updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId,
+            details: [['field' => 'family.member', 'before' => self::fullName(DB::table('people')->where('id', $row->person_id)->first()), 'after' => null]]);
     }
 
     private function memberRow(int $personId, int $memberId): object
@@ -564,7 +568,8 @@ final class PeopleService
         } else {
             DB::table($definition['table'])->where('id', $rowId)->update($values + ['updated_at' => $now]);
         }
-        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId,
+            details: self::prefixed($kind, AccountAuditTrail::changes($current, $values)));
 
         return $rowId;
     }
@@ -573,9 +578,16 @@ final class PeopleService
     {
         $person = $this->writable($account, $personId);
         $definition = PersonFields::DETAILS[$kind] ?? abort(404);
-        $this->detailRow($definition['table'], $personId, $rowId);
+        $row = $this->detailRow($definition['table'], $personId, $rowId);
         DB::table($definition['table'])->where('id', $rowId)->update(['deleted_at' => now(), 'updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId,
+            details: self::prefixed($kind, AccountAuditTrail::changes($row, array_fill_keys(array_keys($definition['fields']), null))));
+    }
+
+    /** v1.3 change details of a sub-table or the family, each field named "<table>.<field>". */
+    private static function prefixed(string $prefix, ?array $details): ?array
+    {
+        return $details === null ? null : array_map(fn (array $item) => ['field' => $prefix.'.'.$item['field']] + $item, $details);
     }
 
     private function detailRow(string $table, int $personId, int $rowId): object

@@ -316,8 +316,20 @@ final class ApplicationService
             if ($becomesFull) {
                 $this->openApplicationTasks($city, $projectId);
             }
-            $this->saveGrids($city, $projectId, $personId, $values['grids'], $state['removed'] ?? []);
-            $this->audit->record($account->id, $existing ? 'applications.updated' : 'applications.created', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+            $rowCounts = $this->saveGrids($city, $projectId, $personId, $values['grids'], $state['removed'] ?? []);
+            // v1.3 change details: project and story fields that changed (with the number and stage), then rows added/changed/removed per table.
+            // The beneficiary's own fields are recorded by PeopleService on its people.updated / people.created event.
+            $before = $existing ? (array) $existing + ['applicant' => (array) ($link ?? [])] : [];
+            $after = $project + ['project_number' => (int) DB::table('projects')->where('id', $projectId)->value('project_number')];
+            $details = AccountAuditTrail::changes($before, $after) ?? [];
+            foreach (AccountAuditTrail::changes((array) ($before['applicant'] ?? []), $values['applicant']) ?? [] as $item) {
+                $details[] = ['field' => 'applicant.'.$item['field']] + $item;
+            }
+            foreach ($rowCounts as $kind => $counts) {
+                $details[] = ['field' => 'rows.'.$kind, 'before' => null, 'after' => $counts];
+            }
+            $this->audit->record($account->id, $existing ? 'applications.updated' : 'applications.created', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId,
+                details: $details === [] ? null : $details);
 
             return $projectId;
         });
@@ -359,10 +371,19 @@ final class ApplicationService
         }
     }
 
-    /** @param  array<string, list<array>>  $grids  @param  array<string, list<int>>  $removed */
-    private function saveGrids(int $city, int $projectId, int $personId, array $grids, array $removed): void
+    /**
+     * @param  array<string, list<array>>  $grids
+     * @param  array<string, list<int>>  $removed
+     * @return array<string, string> per table with any change: "+added ~changed -removed" (audit details)
+     */
+    private function saveGrids(int $city, int $projectId, int $personId, array $grids, array $removed): array
     {
         $now = now();
+        $counts = [];
+        $count = function (string $kind, int $i) use (&$counts): void {
+            $counts[$kind] ??= [0, 0, 0];
+            $counts[$kind][$i]++;
+        };
         $family = $this->familyOf($personId);
         foreach ($grids as $kind => $rows) {
             $grid = ApplicationFields::grid($kind);
@@ -377,8 +398,13 @@ final class ApplicationService
                     if ($id === null) {
                         $member = (int) DB::table('people')->insertGetId($personValues + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
                         DB::table('family_members')->insert($memberValues + ['city_id' => $city, 'family_id' => $family->id, 'person_id' => $member, 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now]);
+                        $count($kind, 0);
                     } else {
                         $memberRow = DB::table('family_members')->where('id', $id)->where('family_id', $family->id)->whereNull('deleted_at')->first() ?? abort(404);
+                        $personBefore = DB::table('people')->where('id', $memberRow->person_id)->first();
+                        if (AccountAuditTrail::changes($personBefore, $personValues) !== null || AccountAuditTrail::changes($memberRow, $memberValues) !== null) {
+                            $count($kind, 1);
+                        }
                         DB::table('people')->where('id', $memberRow->person_id)->update($personValues + ['updated_at' => $now]);
                         DB::table('family_members')->where('id', $id)->update($memberValues + ['updated_at' => $now]);
                     }
@@ -387,9 +413,13 @@ final class ApplicationService
                 }
                 if ($id === null) {
                     DB::table($grid['table'])->insert($row + $ownerColumn + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
+                    $count($kind, 0);
                 } else {
                     $mine = DB::table($grid['table'])->where('id', $id)->where($ownerColumn)->whereNull('deleted_at');
-                    (clone $mine)->exists() || abort(404);
+                    $old = (clone $mine)->first() ?? abort(404);
+                    if (AccountAuditTrail::changes($old, $row) !== null) {
+                        $count($kind, 1);
+                    }
                     $mine->update($row + ['updated_at' => $now]);
                 }
             }
@@ -405,7 +435,12 @@ final class ApplicationService
                 'person' => $query->where('person_id', $personId),
                 default => $query->where('project_id', $projectId),
             };
-            $query->update(['deleted_at' => $now, 'updated_at' => $now]);
+            $gone = $query->update(['deleted_at' => $now, 'updated_at' => $now]);
+            for ($i = 0; $i < $gone; $i++) {
+                $count($kind, 2);
+            }
         }
+
+        return array_map(fn (array $c) => '+'.$c[0].' ~'.$c[1].' -'.$c[2], $counts);
     }
 }

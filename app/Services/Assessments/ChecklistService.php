@@ -222,6 +222,20 @@ final class ChecklistService
         }
         DB::transaction(function () use ($account, $project, $city, $person, $current, $header, $rows, $scores, $state) {
             $now = now();
+            // v1.3 change details: header fields, member rows per list, and each score by its criterion and option names.
+            $details = AccountAuditTrail::changes((array) ($current ?? []), $header) ?? [];
+            $memberCounts = [];
+            $oldScores = DB::table('project_scores')->where('project_id', $project->id)->whereNull('deleted_at')->get()->keyBy('score_criterion_id');
+            $criteria = $this->criteria()->keyBy('id');
+            $scoreText = fn (int $criterion, ?int $value, ?string $notes) => trim(($value === null ? '' : ($criteria[$criterion]->options->firstWhere('value', $value)->label ?? (string) $value)).($notes ? ' · '.$notes : '')) ?: null;
+            foreach ($criteria as $id => $c) {
+                $old = $oldScores->get($id);
+                $before = $old ? $scoreText($id, $old->value === null ? null : (int) $old->value, $old->notes) : null;
+                $after = isset($scores[$id]) ? $scoreText($id, $scores[$id]['value'], $scores[$id]['notes']) : null;
+                if ($before !== $after) {
+                    $details[] = ['field' => 'score.c'.$id, 'before' => $before, 'after' => $after];
+                }
+            }
             if ($current === null) {
                 DB::table('checklists')->insert($header + ['city_id' => $city, 'person_id' => $person->id, 'project_id' => $project->id, 'created_at' => $now, 'updated_at' => $now]);
             } else {
@@ -230,22 +244,38 @@ final class ChecklistService
             foreach ($rows as $row) {
                 $id = $row['id'];
                 unset($row['id']);
+                $memberCounts[$row['location']] ??= [0, 0, 0];
                 if ($id === null) {
                     DB::table('checklist_member_opinions')->insert($row + ['city_id' => $city, 'person_id' => $person->id, 'recorded_at' => $now, 'created_at' => $now, 'updated_at' => $now]);
+                    $memberCounts[$row['location']][0]++;
                 } else {
+                    $old = DB::table('checklist_member_opinions')->where('id', $id)->first();
+                    if (AccountAuditTrail::changes($old, $row) !== null) {
+                        $memberCounts[$row['location']][1]++;
+                    }
                     DB::table('checklist_member_opinions')->where('id', $id)->update($row + ['updated_at' => $now]);
                 }
             }
             $removed = array_map('intval', $state['removed'] ?? []);
             if ($removed !== []) {
+                foreach (DB::table('checklist_member_opinions')->whereIn('id', $removed)->where('person_id', $person->id)->whereNull('deleted_at')->pluck('location') as $location) {
+                    $memberCounts[$location] ??= [0, 0, 0];
+                    $memberCounts[$location][2]++;
+                }
                 DB::table('checklist_member_opinions')->whereIn('id', $removed)->where('person_id', $person->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+            }
+            foreach ($memberCounts as $location => $c) {
+                if ($c !== [0, 0, 0]) {
+                    $details[] = ['field' => 'members.'.$location, 'before' => null, 'after' => '+'.$c[0].' ~'.$c[1].' -'.$c[2]];
+                }
             }
             // Scores replace the project's previous ones (the desktop deleted and re-inserted them).
             DB::table('project_scores')->where('project_id', $project->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
             foreach ($scores as $criterion => $score) {
                 DB::table('project_scores')->insert(['city_id' => $city, 'project_id' => $project->id, 'score_criterion_id' => $criterion, 'value' => $score['value'], 'notes' => $score['notes'], 'created_at' => $now, 'updated_at' => $now]);
             }
-            $this->audit->record($account->id, 'assessments.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: (int) $project->id);
+            $this->audit->record($account->id, 'assessments.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: (int) $project->id,
+                details: $details === [] ? null : $details);
         });
     }
 
@@ -264,7 +294,8 @@ final class ChecklistService
                 DB::table('checklist_member_opinions')->where('person_id', $person->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
             }
             DB::table('project_scores')->where('project_id', $projectId)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
-            $this->audit->record($account->id, 'assessments.saved', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id);
+            $this->audit->record($account->id, 'assessments.saved', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id,
+                details: [['field' => 'checklist', 'before' => 'Checklist', 'after' => null]]);
         });
     }
 

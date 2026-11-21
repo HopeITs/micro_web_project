@@ -12,10 +12,6 @@ Existing web logic to reuse (P5, written on the old `op_*` tables, routes only i
 4. **Delete:** permanent, as on the desktop, after a confirmation, by the administrator and data entry. It is audited with details.
 5. **Scope now:** the city-wide list of all cases with filters and export, and the case types in the shared lookup editor (recommended). The administrator "Add Notes" e-mail is left to M4.16 (messages).
 
-## Owner decisions
-
-_(to be filled after the questions below are answered)_
-
 ## Facts found (21 Nov 2026)
 
 **Reachable in the last desktop version: yes.** Menu strip "M & E" → "New Special Case" (`SpecialCase_toolStripMenuItem`, Alt+S; `mEItems[6]`), shown to Admin (1), L0_Admin (8) and Data (2); the whole M&E menu is hidden for Financial (3), Lawful (7), Guest (4), Out of Service (6), Media (9). A second "New Special Case" in the old, detached "M & E" menu is dead. Existing cases are opened only from Search → "Special Cases" (double-click a row → `SpecialCase_Form(SC_ID)`); Search is open to every role, including 3, 4, 6, 7, 9 (they can read; export blocked for 4, 6, 7, 9). There is no city check in the form.

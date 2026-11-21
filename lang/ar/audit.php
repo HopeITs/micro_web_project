@@ -33,7 +33,7 @@ return [
         'password_changed' => 'غيّر كلمة المرور', 'password_reset_requested' => 'طلب استعادة كلمة المرور', 'password_reset' => 'استعاد كلمة المرور',
         'password_reset_denied' => 'استعادة كلمة مرور مرفوضة', 'password_rehashed' => 'تحديث تخزين كلمة المرور',
         'account_provisioned' => 'إنشاء حساب', 'legacy_linked' => 'ربط هوية البرنامج', 'legacy_revoked' => 'فك ربط هوية البرنامج', 'legacy_restored' => 'إعادة ربط هوية البرنامج',
-        'capability_granted' => 'منح صلاحية', 'capability_revoked' => 'سحب صلاحية',
+        'capability_granted' => 'منح صلاحية', 'capability_revoked' => 'سحب صلاحية', 'saved_views_created' => 'حفظ عرض', 'saved_views_deleted' => 'حذف عرض محفوظ',
         'accounts_role_assigned' => 'تعيين دور', 'accounts_role_revoked' => 'سحب دور', 'accounts_email_set' => 'تغيير البريد',
         'accounts_disabled' => 'تعطيل حساب', 'accounts_enabled' => 'تفعيل حساب', 'accounts_tasks_saved' => 'حفظ مسؤوليات المهام',
         'logs_listed' => 'فتح سجل الأحداث', 'reports_exported' => 'تصدير تقرير', 'national_checked' => 'فحص رقم وطني',

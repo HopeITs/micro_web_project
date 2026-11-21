@@ -6,7 +6,65 @@
 --}}
 @props(['bar'])
 @php($editor = $bar['editor'])
+@php($views = $bar['views'] ?? null)
 <div class="hc-filter-bar" {{ $attributes }}>
+    @if($views && ($views['list'] !== [] || $views['can_save']))
+        {{-- "My views": own views and the ones colleagues shared; only filters are stored, never the search or names. --}}
+        @php($av = $views['active'])
+        <div class="hc-views-row" role="group" aria-label="{{ __('hc.views_mine') }}" x-data="{ saving: false, renaming: false }">
+            <span class="hc-label">{{ __('hc.views_mine') }}</span>
+            @foreach($views['list'] as $v)
+                <button type="button" class="hc-view-chip @if($v['active']) is-active @endif" wire:key="view-{{ $v['id'] }}" wire:click="applyView({{ $v['id'] }})"
+                        aria-pressed="{{ $v['active'] ? 'true' : 'false' }}" @if(! $v['own']) title="{{ __('hc.view_shared_by', ['name' => $v['owner']]) }}" @endif>
+                    @if(! $v['own'])<x-hc.icon name="users" :size="14"/>@elseif($v['shared'])<x-hc.icon name="share" :size="14"/>@endif
+                    <span>{{ $v['name'] }}</span>
+                    @if($v['default'])<span class="hc-view-tag">{{ __('hc.view_default') }}</span>@endif
+                    @if($v['active'] && $av['changed'])<span class="hc-view-tag">{{ __('hc.view_changed') }}</span>@endif
+                </button>
+            @endforeach
+
+            @if($av && $av['own'])
+                <div class="hc-filter-add" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.stop="open = false">
+                    <button type="button" class="hc-chip" @click="open = ! open" :aria-expanded="open ? 'true' : 'false'" aria-haspopup="menu"><x-hc.icon name="settings" :size="14"/>{{ __('hc.view_actions') }}</button>
+                    <div class="hc-dropdown hc-filter-menu" x-show="open" x-cloak role="menu">
+                        @if($av['changed'] && $views['can_save'])
+                            <button type="button" role="menuitem" wire:click="overwriteView({{ $av['id'] }})" @click="open = false">{{ __('hc.view_overwrite') }}</button>
+                        @endif
+                        <button type="button" role="menuitem" @click="open = false; renaming = true; saving = false">{{ __('hc.view_rename') }}</button>
+                        <button type="button" role="menuitem" wire:click="toggleDefaultView({{ $av['id'] }})" @click="open = false">{{ $av['default'] ? __('hc.view_unset_default') : __('hc.view_make_default') }}</button>
+                        @if($av['shared'] || $views['can_share'])
+                            <button type="button" role="menuitem" wire:click="toggleShareView({{ $av['id'] }})" @click="open = false">{{ $av['shared'] ? __('hc.view_unshare') : __('hc.view_share') }}</button>
+                        @endif
+                        <button type="button" role="menuitem" class="is-danger" wire:click="deleteView({{ $av['id'] }})" wire:confirm="{{ __('hc.view_confirm_delete') }}" @click="open = false">{{ __('hc.view_delete') }}</button>
+                    </div>
+                </div>
+            @endif
+            @if($views['can_save'])
+                <button type="button" class="hc-chip hc-view-save" @click="saving = ! saving; renaming = false" :aria-expanded="saving ? 'true' : 'false'" title="{{ __('hc.view_save_as') }}"><x-hc.icon name="plus" :size="14"/>{{ __('hc.view_save') }}</button>
+            @endif
+
+            <form class="hc-view-form" x-show="saving" x-cloak x-data="{ name: '' }" @submit.prevent="$wire.saveView(name).then(() => { if (! $wire.viewError) { saving = false; name = '' } })">
+                <label class="hc-field grow"><span class="hc-label">{{ __('hc.view_name') }}</span>
+                    <input class="hc-input" x-model="name" maxlength="120" autocomplete="off" @keydown.escape.stop="saving = false"></label>
+                <x-hc.button type="submit" variant="secondary" size="sm">{{ __('hc.view_save') }}</x-hc.button>
+                <x-hc.button type="button" variant="ghost" size="sm" @click="saving = false">{{ __('hc.view_cancel') }}</x-hc.button>
+                <span class="hc-hint">{{ __('hc.view_save_hint') }}</span>
+            </form>
+            @if($av && $av['own'])
+                <form class="hc-view-form" x-show="renaming" x-cloak x-data="{ name: @js($av['name']) }" wire:key="view-rename-{{ $av['id'] }}" @submit.prevent="$wire.renameView({{ $av['id'] }}, name).then(() => { if (! $wire.viewError) renaming = false })">
+                    <label class="hc-field grow"><span class="hc-label">{{ __('hc.view_name') }}</span>
+                        <input class="hc-input" x-model="name" maxlength="120" autocomplete="off" @keydown.escape.stop="renaming = false"></label>
+                    <x-hc.button type="submit" variant="secondary" size="sm">{{ __('hc.view_rename') }}</x-hc.button>
+                    <x-hc.button type="button" variant="ghost" size="sm" @click="renaming = false">{{ __('hc.view_cancel') }}</x-hc.button>
+                </form>
+            @endif
+            @if($views['error'])
+                <p class="hc-view-msg is-error" role="alert">{{ $views['error'] }}</p>
+            @elseif($views['notice'])
+                <p class="hc-view-msg" role="status">{{ $views['notice'] }}</p>
+            @endif
+        </div>
+    @endif
     <div class="hc-filter-row" role="group" aria-label="{{ __('hc.filters') }}">
         @foreach($bar['chips'] as $chip)
             <span class="hc-filter-chip @if($editor && $editor['key'] === $chip['key']) is-editing @endif" wire:key="fchip-{{ $chip['key'] }}">

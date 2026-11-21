@@ -67,6 +67,8 @@ h2 { font-size: 1.1rem; font-weight: 700; }
 h3 { font-size: 1rem; font-weight: 700; }
 .num { font-variant-numeric: tabular-nums; }
 .ltr { direction: ltr; unicode-bidi: isolate; }
+/* Numbers, emails and codes keep their left-to-right order but line up with the Arabic labels above them. */
+[dir="rtl"] .ltr { text-align: right; }
 .muted { color: var(--muted); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip-link { position: absolute; inset-inline-start: 12px; inset-block-start: -60px; z-index: 100; background: var(--brand); color: var(--brand-ink); padding: 10px 16px; border-radius: var(--radius-sm); }

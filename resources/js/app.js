@@ -1,4 +1,39 @@
 // Alpine is provided by Livewire; do not initialize a second instance.
+import Sortable from 'sortablejs';
+
+// Column picker (x-hc.column-picker, smart-search phase 2): drag or arrow buttons reorder, checkboxes show/hide;
+// every change sends the ticked keys in their order to the Livewire list's setColumns(). At least one stays shown.
+document.addEventListener('alpine:init', () => {
+    window.Alpine.data('columnPicker', () => ({
+        open: false,
+        sortable: null,
+        init() {
+            this.sortable = Sortable.create(this.$refs.list, {
+                handle: '.hc-column-handle', draggable: 'li', animation: 150,
+                onEnd: (event) => { if (event.oldIndex !== event.newIndex) this.commit(); },
+            });
+        },
+        destroy() { this.sortable?.destroy(); },
+        keys() {
+            return [...this.$refs.list.querySelectorAll('li')]
+                .filter((li) => li.querySelector('input[type="checkbox"]')?.checked)
+                .map((li) => li.dataset.key);
+        },
+        commit(event = null) {
+            const keys = this.keys();
+            if (keys.length === 0) { if (event?.target) event.target.checked = true; return; }
+            this.$wire.setColumns(keys);
+        },
+        move(event, step) {
+            const li = event.target.closest('li');
+            const sibling = step < 0 ? li.previousElementSibling : li.nextElementSibling;
+            if (!sibling) return;
+            step < 0 ? sibling.before(li) : sibling.after(li);
+            event.target.focus();
+            this.commit();
+        },
+    }));
+});
 
 // Keep an entered value selected even if Livewire/Alpine is still loading.
 document.addEventListener('input', (event) => {

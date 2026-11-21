@@ -31,40 +31,32 @@
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('hc.clear') }}</x-hc.button>
             @endif
         </div>
+        <div class="hc-toolbar" style="align-items:center;padding-block-start:0">
+            <x-hc.column-picker :picker="$columnPicker"/>
+        </div>
 
         <div class="hc-table-wrap" wire:loading.class="opacity-60">
             @if($projects->isEmpty())
                 <x-hc.empty :title="__('hc.no_results')">{{ __('hc.no_results_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
-                <thead><tr><th>{{ __('hc.number') }}</th><th>{{ __('hc.beneficiary') }}</th><th>{{ __('hc.project') }}</th><th>{{ __('hc.city') }}</th><th>{{ __('hc.stage') }}</th><th>{{ __('hc.state') }}</th><th>{{ __('hc.request_date') }}</th><th class="num">{{ __('hc.requested') }}</th></tr></thead>
-                <tbody>
-                @foreach($projects as $p)
-                    @php($stateName = $en && $p->state_en ? $p->state_en : $p->state_ar)
-                    @php($tone = \App\Support\ProjectStatus::tone($p->state_en))
-                    <tr wire:key="p-{{ $p->id }}">
-                        <td data-label="{{ __('hc.number') }}"><a class="row-link" href="{{ route('projects.show', ['locale' => app()->getLocale(), 'project' => $p->id]) }}"><x-hc.project-number :code="$p->city_code" :number="$p->project_number"/></a></td>
-                        <td data-label="{{ __('hc.beneficiary') }}">{{ trim($p->first_name.' '.$p->father_name.' '.$p->last_name) ?: __('hc.not_set') }}</td>
-                        <td data-label="{{ __('hc.project') }}">{{ $p->name ?: __('hc.not_set') }}</td>
-                        <td data-label="{{ __('hc.city') }}">{{ $en ? $p->city_en : $p->city_ar }}</td>
-                        <td data-label="{{ __('hc.stage') }}"><x-hc.badge :tone="$p->application_stage === 'full' ? 'brand' : null">{{ __('hc.stage_'.$p->application_stage) }}</x-hc.badge></td>
-                        <td data-label="{{ __('hc.state') }}">@if($stateName)<x-hc.badge :tone="$tone" :icon="\App\Support\ProjectStatus::icon($p->state_en)">{{ $stateName }}</x-hc.badge>@else{{ __('hc.not_set') }}@endif</td>
-                        <td data-label="{{ __('hc.request_date') }}" class="num">{{ $p->request_date?->format('Y-m-d') ?? __('hc.not_set') }}</td>
-                        <td data-label="{{ __('hc.requested') }}" class="num">{{ $p->requested_amount !== null ? number_format((float) $p->requested_amount) : __('hc.not_set') }}</td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
+            <x-hc.data-table :rows="$projects" :table="$table"/>
             @endif
         </div>
 
-        @if($projects->lastPage() > 1)
+        @if($projects->total() > $table['per_page_choices'][0] || $projects->lastPage() > 1)
         <div class="hc-pagination">
             <span>{{ __('hc.page', ['page' => $projects->currentPage(), 'pages' => $projects->lastPage()]) }}</span>
+            <label class="hc-per-page"><span>{{ __('hc.per_page') }}</span>
+                <select class="hc-select" wire:model.live="perPage">
+                    @foreach($table['per_page_choices'] as $n)<option value="{{ $n }}">{{ $n }}</option>@endforeach
+                </select>
+            </label>
+            @if($projects->lastPage() > 1)
             <nav aria-label="pagination">
                 <x-hc.button variant="secondary" size="sm" wire:click="previousPage" :disabled="$projects->onFirstPage()">{{ __('hc.previous') }}</x-hc.button>
                 <x-hc.button variant="secondary" size="sm" wire:click="nextPage" :disabled="! $projects->hasMorePages()">{{ __('hc.next') }}</x-hc.button>
             </nav>
+            @endif
         </div>
         @endif
     </x-hc.card>

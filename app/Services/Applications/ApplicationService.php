@@ -92,6 +92,14 @@ final class ApplicationService
         return $state;
     }
 
+    /** A stored decimal as typed: "150000.00" → "150000", "12.50" → "12.5"; zeros are trimmed only after a decimal point. */
+    public static function plainNumber(mixed $value): string
+    {
+        $text = (string) $value;
+
+        return str_contains($text, '.') ? rtrim(rtrim($text, '0'), '.') : $text;
+    }
+
     /** @param  array<string, array>  $fields  @return array<string, string> values as the form holds them */
     public static function strings(array $fields, array $row): array
     {
@@ -103,7 +111,7 @@ final class ApplicationService
                 $spec['kind'] === 'bool' => (bool) $value ? '1' : '0',
                 $spec['kind'] === 'date' => substr((string) $value, 0, 10),
                 $spec['kind'] === 'choice' => strtolower((string) $value),
-                $spec['kind'] === 'decimal' => rtrim(rtrim((string) $value, '0'), '.'),
+                $spec['kind'] === 'decimal' => self::plainNumber($value),
                 default => (string) $value,
             };
         }

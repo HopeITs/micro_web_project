@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\Applications\ApplicationService;
+use App\Services\Applications\ProjectAnnexService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -21,6 +22,15 @@ final class ApplicationController
         $draft = is_string($draft) && preg_match('/\A[a-z0-9-]{8,64}\z/', $draft) === 1 ? $draft : null;
 
         return view('applications.create', ['personId' => $person, 'draft' => $draft]);
+    }
+
+    /** M4.6: the agriculture or rehabilitation annex (Livewire ProjectAnnex); 404 for other project types. */
+    public function annex(Request $request, string $locale, int $project, ProjectAnnexService $annexes): View
+    {
+        $row = $annexes->project($request->user(), $project);
+        $kind = $annexes->kind($row) ?? abort(404);
+
+        return view('applications.annex', ['project' => $row, 'kind' => $kind, 'code' => DB::table('cities')->where('id', $row->city_id)->value('code')]);
     }
 
     public function edit(Request $request, string $locale, int $project, ApplicationService $applications): View

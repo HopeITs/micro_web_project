@@ -41,6 +41,7 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // M4.5 application form (ApplicationService rechecks applications.manage + people.manage per city).
             Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
             Route::get('/applications/{project}/edit', [ApplicationController::class, 'edit'])->whereNumber('project')->name('applications.edit');
+            Route::get('/applications/{project}/annex', [ApplicationController::class, 'annex'])->whereNumber('project')->name('applications.annex');
 
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');

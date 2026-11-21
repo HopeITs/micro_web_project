@@ -11,7 +11,8 @@
     @include('admin._nav')
 
     <x-hc.card :flush="true">
-        <form class="hc-toolbar" method="GET" action="{{ route('admin.accounts.index', ['locale' => $locale]) }}">
+        @include('admin._filters-style')
+        <form class="hc-filters" method="GET" action="{{ route('admin.accounts.index', ['locale' => $locale]) }}"><div class="hc-filters-grid" style="--cols:3">
             <div class="hc-field grow">
                 <label class="hc-label" for="q">{{ __('admin.search') }}</label>
                 <input id="q" name="q" class="hc-input" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100" placeholder="{{ __('admin.search_placeholder') }}" autocomplete="off">
@@ -32,8 +33,8 @@
                     <option value="active" @selected(($filters['status'] ?? '') === 'active')>{{ __('admin.active') }}</option>
                     <option value="disabled" @selected(($filters['status'] ?? '') === 'disabled')>{{ __('admin.disabled') }}</option></select>
             </div>
-            <div class="hc-field" style="justify-content:flex-end"><x-hc.button type="submit" variant="secondary" icon="search">{{ __('admin.filter') }}</x-hc.button></div>
-        </form>
+            <div class="hc-filters-actions"><x-hc.button type="submit" variant="secondary" icon="search">{{ __('admin.filter') }}</x-hc.button></div>
+        </div></form>
         <div class="hc-toolbar" style="padding-block:0 12px"><span class="muted" aria-live="polite">{{ __('hc.results', ['count' => number_format($rows->total())]) }}</span></div>
 
         <div class="hc-table-wrap">

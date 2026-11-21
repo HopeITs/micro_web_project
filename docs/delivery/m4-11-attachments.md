@@ -17,8 +17,8 @@
   - guest, media, monitoring, communication: none
 
   A setting or replacing a photo also needs `people.manage`. Other cities and hidden categories answer 404.
-- **Delete** hides the record (`deleted_at`). The file stays on disk (`attachments.delete_files = false`).
-- **Audit log (v1.3 details):** the new events are `attachments.uploaded`, `attachments.deleted` and `attachments.view` (a download). They are recorded on the project or person, with decision `attachment:<id>`. Details hold the file name and type, never the content. The audit page shows them as "رفع مرفق / حذف مرفق / فتح مرفق".
+- **Delete is permanent**, as in the desktop: the row and the stored file are removed after an explicit confirmation that says it cannot be undone. The audit log keeps who deleted which file name, type and category, and when (never the content). Only a replaced personal photo is hidden (`deleted_at`) instead of removed.
+- **Audit log (v1.3 details):** the new events are `attachments.uploaded`, `attachments.deleted` and `attachments.view` (a download). They are recorded on the project or person, with decision `attachment:<id>`. Details hold the file name and type (and the category on delete), never the content. The audit page shows them as "رفع مرفق / حذف مرفق / فتح مرفق".
 - **Imported desktop files:** imported rows whose file is not on the private disk yet (FTP `ftp/<folder>/…`) are listed with "لم يُنقل الملف بعد". They open automatically once M5.4 copies the file to the same path. Unsafe stored paths (`..`, absolute paths, links) are never served.
 
 ## Schema
@@ -33,22 +33,29 @@ No schema change. Everything uses the approved v1.4 `attachments` and `attachmen
 - refused files: exe, renamed exe, over 10 MB, no type, photo type
 - each role sees only its categories (financial, legal, guest, media)
 - another city cannot open or upload
-- delete hides the record, keeps the file and logs the delete
+- delete asks for confirmation, removes the row and the file, and logs the name, type and category
+- the administrator sees every category, financial included
 - the person photo is set, replaced and kept out of the list, and legal is refused
 - imported FTP rows stay listed until moved, and a path-escape row is refused
 - search on the attachments page across cities and categories
 
-Full suite on 21 Nov: 129 tests, 0 failures (1363 assertions; only PHP 8.5 deprecation notices, as before).
+Full suite on 21 Nov (after the owner decisions): 129 tests, 0 failures (1369 assertions; only PHP 8.5 deprecation notices, as before).
 
 Browser (Arabic, `micro-web-m4-11`): data-entry uploaded a png and a pdf to ALP-1001 (desktop width), and the pdf opened inline. The person photo was set at 375px. Financial sees only the financial (imported, not moved) file plus the "2 hidden" note. There was no horizontal scroll at 375px on the project, person and attachments pages.
 
-## Open owner questions (defaults in `config/attachments.php`)
+## Owner decisions (21 November 2026)
 
-1. Allowed types and size: jpg/jpeg/png/pdf, 10 MB, 10 files per upload?
-2. Who may add or delete: the category grant, as proposed above?
-3. Delete: hide and keep the file (current default), or delete for good like the desktop?
-4. Person photo: `people.manage` + personal category; the old photo is hidden?
-5. Imported FTP rows listed as "not moved yet" until M5.4?
+Given through the coordinating session; the quoted words are the owner's.
+
+1. **File types and size:** "jpg, png, pdf حتى 10MB". Allowed: jpg, jpeg, png, pdf, at most 10 MB per file, several files per upload (`config/attachments.php`, up to 10 at a time).
+2. **Permissions:** "المدير يرى كل الفئات". Each category grant lets its holder see, add and delete in that category:
+   - administrator: all categories, financial included
+   - data-entry: personal and legal
+   - financial: financial
+   - legal: legal
+   - guest, media, monitoring, communication: none
+3. **Delete:** "حذف نهائي كسطح المكتب". Deleting is permanent (row and stored file). It is recorded in the audit log (who, file name, type, category, when; no contents) and asks for an explicit confirmation first.
+4. **Person photo** and 5. **Imported FTP files:** "موافق على الاثنين". The photo is set or replaced on the person page with `people.manage` + `attachments.personal`, and the old photo is kept hidden. Desktop FTP attachments are listed as "not moved yet" until M5.4.
 
 ## Not in this task
 

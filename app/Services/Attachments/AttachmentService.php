@@ -294,7 +294,7 @@ final class AttachmentService
                 ->where('t.name_en', self::PHOTO)->whereNull('a.deleted_at')->pluck('a.id');
             $id = $this->store($account, 'person', $person, (int) $type, [$file], 'photo')[0];
             foreach ($old as $previous) {
-                $this->remove($account, (int) $previous, $person, 'person');
+                $this->remove($account, (int) $previous, $person, 'person', permanent: false);
             }
 
             return $id;
@@ -369,10 +369,14 @@ final class AttachmentService
     {
         $row = $this->find($account, $id);
         $owner = $this->owner($account, $row->owner_kind, $row->owner_id);
-        $this->remove($account, $id, $owner, $row->owner_kind);
+        $this->remove($account, $id, $owner, $row->owner_kind, permanent: true);
     }
 
-    private function remove(WebAccount $account, int $id, object $owner, string $kind): void
+    /**
+     * Owner decision (21 Nov 2026): deleting is permanent, as in the desktop (the row and the stored file go; the audit log keeps who,
+     * which file and which category). Only a replaced personal photo is hidden instead (permanent: false).
+     */
+    private function remove(WebAccount $account, int $id, object $owner, string $kind, bool $permanent): void
     {
         $row = $this->query()->where('a.id', $id)->first();
         abort_if($row === null, 404);
@@ -380,15 +384,25 @@ final class AttachmentService
         if ($row->type_en === self::PHOTO && ! $this->canSetPhoto($account, (int) $row->city_id)) {
             $this->deny($account);
         }
-        DB::table('attachments')->where('id', $id)->update(['deleted_at' => now(), 'updated_at' => now()]);
-        if (config('attachments.delete_files') === true && ($path = $this->path($row)) !== null) {
+        if (! $permanent) {
+            DB::table('attachments')->where('id', $id)->update(['deleted_at' => now(), 'updated_at' => now()]);
+
+            return;
+        }
+        $path = $this->path($row);
+        DB::transaction(function () use ($account, $id, $row, $owner, $kind) {
+            DB::table('attachments')->where('id', $id)->delete();
+            $this->audit->record($account->id, 'attachments.deleted', 'succeeded', (int) $row->city_id, subjectType: self::OWNERS[$kind]['subject'],
+                subjectId: (int) $owner->id, decision: 'attachment:'.$id, details: [
+                    ['field' => 'attachment.original_name', 'before' => $row->original_name, 'after' => null],
+                    ['field' => 'attachment.type', 'before' => $this->typeName($row->attachment_type_id), 'after' => null],
+                    ['field' => 'attachment.category', 'before' => $row->category, 'after' => null],
+                ]);
+        });
+        // The file goes only after the row is gone, so a failed delete never leaves a row pointing at nothing.
+        if ($path !== null) {
             @unlink($path);
         }
-        $this->audit->record($account->id, 'attachments.deleted', 'succeeded', (int) $row->city_id, subjectType: self::OWNERS[$kind]['subject'],
-            subjectId: (int) $owner->id, decision: 'attachment:'.$id, details: [
-                ['field' => 'attachment.original_name', 'before' => $row->original_name, 'after' => null],
-                ['field' => 'attachment.type', 'before' => $this->typeName($row->attachment_type_id), 'after' => null],
-            ]);
     }
 
     private function typeName(?int $type): ?string

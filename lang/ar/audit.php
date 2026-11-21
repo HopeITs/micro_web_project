@@ -13,7 +13,7 @@ return [
     'none' => 'لا توجد أحداث مطابقة', 'read_only' => 'للقراءة فقط',
     'changed' => 'تغيّر (القيمة لا تُعرض)', 'changes_summary' => '{1} تغيّر حقل واحد|{2} تغيّر حقلان|[3,10] تغيّرت :count حقول|[11,*] تغيّر :count حقلاً', 'cut' => 'مختصر',
     'fields' => ['email' => 'البريد الإلكتروني', 'state' => 'الحالة', 'state_reason' => 'سبب الحالة', 'state_note' => 'ملاحظة الحالة', 'donor' => 'الجهة الممولة', 'tasks_opened' => 'مهام فُتحت', 'task' => 'المهمة',
-        'attachment' => ['original_name' => 'اسم الملف', 'type' => 'نوع المرفق']],
+        'attachment' => ['original_name' => 'اسم الملف', 'type' => 'نوع المرفق', 'category' => 'فئة المرفق']],
     'col' => [
         'number' => 'الرقم', 'desktop_number' => 'رقم البرنامج', 'time' => 'الوقت', 'account' => 'الحساب', 'user' => 'المستخدم', 'city' => 'المدينة',
         'action' => 'الإجراء', 'kind' => 'النوع', 'record' => 'السجل', 'changes' => 'ما الذي تغيّر', 'event' => 'رمز الحدث', 'details' => 'تفاصيل', 'table' => 'الشاشة / الجدول', 'description' => 'الوصف',

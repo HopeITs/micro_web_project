@@ -13,7 +13,7 @@ return [
     'none' => 'No events match', 'read_only' => 'Read only',
     'changed' => 'changed (value not shown)', 'changes_summary' => '{1} :count field changed|[2,*] :count fields changed', 'cut' => 'shortened',
     'fields' => ['email' => 'E-mail', 'state' => 'State', 'state_reason' => 'State reason', 'state_note' => 'State note', 'donor' => 'Donor', 'tasks_opened' => 'Tasks opened', 'task' => 'Task',
-        'attachment' => ['original_name' => 'File name', 'type' => 'Attachment type']],
+        'attachment' => ['original_name' => 'File name', 'type' => 'Attachment type', 'category' => 'Attachment category']],
     'col' => [
         'number' => 'No.', 'desktop_number' => 'Desktop no.', 'time' => 'Time', 'account' => 'Account', 'user' => 'User', 'city' => 'City',
         'action' => 'Action', 'kind' => 'Kind', 'record' => 'Record', 'changes' => 'What changed', 'event' => 'Event code', 'details' => 'Details', 'table' => 'Screen / table', 'description' => 'Description',

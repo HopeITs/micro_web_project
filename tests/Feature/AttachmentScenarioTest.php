@@ -164,6 +164,12 @@ class AttachmentScenarioTest extends TestCase
             $this->get('/ar/attachments/'.$id)->assertNotFound();
             $this->get('/ar/attachments')->assertForbidden();
         }
+
+        // Owner decision (21 Nov 2026): the administrator sees every category, financial included.
+        $this->as('role.administrator');
+        Livewire::test(AttachmentsPanel::class, ['owner' => 'project', 'ownerId' => $project->id])->assertSee('سند.pdf')->assertSee('إيصال 1.png');
+        $this->get('/ar/attachments/'.$receipt)->assertOk();
+        $this->get('/ar/attachments/'.$id)->assertOk();
     }
 
     public function test_another_city_cannot_open_or_upload(): void
@@ -178,20 +184,23 @@ class AttachmentScenarioTest extends TestCase
         Livewire::test(AttachmentsIndex::class)->assertDontSee('contract.pdf');
     }
 
-    public function test_delete_hides_the_file_and_keeps_it_in_the_log(): void
+    public function test_delete_is_permanent_and_kept_in_the_log(): void
     {
         $this->as('role.data-entry');
         $project = $this->project();
         [$id] = $this->upload('project', $project->id, $this->type('Contracts and Approvals'), [$this->pdf('عقد.pdf')]);
         $stored = DB::table('attachments')->where('id', $id)->value('stored_path');
 
-        Livewire::test(AttachmentsPanel::class, ['owner' => 'project', 'ownerId' => $project->id])->call('delete', $id)->assertSee(__('attachments.deleted'))->assertDontSee('عقد.pdf');
-        $this->assertNotNull(DB::table('attachments')->find($id)->deleted_at);
-        Storage::disk('local')->assertExists($stored);
+        // The button asks first, since the delete cannot be undone (owner decision, 21 Nov 2026).
+        Livewire::test(AttachmentsPanel::class, ['owner' => 'project', 'ownerId' => $project->id])->assertSeeHtml('wire:confirm="'.e(__('attachments.confirm_delete')).'"')
+            ->call('delete', $id)->assertSee(__('attachments.deleted'))->assertDontSee('عقد.pdf');
+        $this->assertNull(DB::table('attachments')->find($id), 'the row is gone, as in the desktop');
+        Storage::disk('local')->assertMissing($stored);
         $this->get('/ar/attachments/'.$id)->assertNotFound();
         $event = DB::table('account_audit_events')->where('event_type', 'attachments.deleted')->first();
         $this->assertSame('attachment:'.$id, $event->decision_locator);
         $this->assertStringContainsString('عقد.pdf', $event->details);
+        $this->assertStringContainsString('أوراق قانونية - Legal', $event->details);
         // The audit page lists the action in words, linked to the project.
         $this->as('role.administrator');
         $this->get('/ar/admin/audit?area=attachments')->assertOk()->assertSee('حذف مرفق')->assertSee('رفع مرفق');

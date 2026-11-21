@@ -1,32 +1,65 @@
 @php
-    $ar = app()->isLocale('ar');
+    $en = app()->getLocale() === 'en';
     $locale = app()->getLocale();
-    $query = array_filter(['locale' => $locale, 'cities' => $selectedCities] + collect($filters)->except(['cities', 'format'])->all(), fn ($v) => $v !== '' && $v !== null && $v !== []);
+    $query = array_filter(collect($filters)->except(['format'])->all(), fn ($v) => $v !== '' && $v !== null);
+    $tone = ['change' => 'info', 'view' => null, 'security' => 'warn', 'denied' => 'danger'];
 @endphp
-<x-layouts.app :title="__('audit.title')" :operational="true" :selected-cities="$selectedCities">
-    <div class="page-heading"><div><p class="eyebrow">{{ __('projects.workspace') }}</p><h1>{{ __('audit.title') }}</h1><p class="page-description">{{ __('audit.intro') }}</p></div><span class="version-note">{{ __('search.read_only') }}</span></div>
-    @include('people.messages')
-    <section class="card">
-        <form class="search-form project-filters" method="GET" action="{{ route('admin.audit', ['locale' => $locale]) }}">
-            <div class="field"><label for="from">{{ __('audit.from') }}</label><input class="input" id="from" type="date" name="from" value="{{ $filters['from'] ?? '' }}"></div>
-            <div class="field"><label for="to">{{ __('audit.to') }}</label><input class="input" id="to" type="date" name="to" value="{{ $filters['to'] ?? '' }}"></div>
-            <div class="field"><label for="event">{{ __('audit.event') }}</label><select class="input" id="event" name="event"><option value="">{{ __('reports.any') }}</option>
-                @foreach($events as $name)<option value="{{ $name }}" @selected(($filters['event'] ?? '') === $name)>{{ $name }}</option>@endforeach</select></div>
-            <div class="field"><label for="outcome">{{ __('audit.outcome') }}</label><select class="input" id="outcome" name="outcome"><option value="">{{ __('reports.any') }}</option>
-                @foreach(['succeeded', 'denied', 'failed'] as $name)<option value="{{ $name }}" @selected(($filters['outcome'] ?? '') === $name)>{{ $name }}</option>@endforeach</select></div>
-            <div class="field"><label for="actor">{{ __('audit.actor') }}</label><input class="input" id="actor" name="actor" maxlength="100" value="{{ $filters['actor'] ?? '' }}"></div>
-            <fieldset class="city-filter"><legend>{{ __('projects.city_filter') }}</legend><div class="city-filter-options">
-                @foreach($cities as $city)<label class="city-filter-option"><input type="checkbox" name="cities[]" value="{{ $city->id }}" @checked(in_array((int) $city->id, $selectedCities, true))><span>{{ $ar ? $city->name_ar : $city->name_en }}</span></label>@endforeach
-            </div><p class="field-hint">{{ __('projects.all_cities_hint') }}</p></fieldset>
-            <div class="filter-actions"><x-ui.button type="submit">{{ __('projects.apply_filters') }}</x-ui.button><a class="button button-secondary" href="{{ route('admin.audit', ['locale' => $locale]) }}">{{ __('projects.clear_filters') }}</a></div>
+<x-layouts.hc :title="__('audit.title')">
+    <div class="hc-page-head">
+        <div><p class="hc-eyebrow">{{ __('hc.group_tools') }}</p><h1>{{ __('audit.title') }}</h1><p>{{ __('audit.intro') }}</p></div>
+        <x-hc.badge>{{ __('audit.read_only') }}</x-hc.badge>
+    </div>
+    @include('admin._nav')
+
+    <x-hc.card :flush="true">
+        @include('admin._audit-tabs', ['exportRoute' => 'admin.audit.export', 'query' => $query])
+        <form class="hc-toolbar" method="GET" action="{{ route('admin.audit', ['locale' => $locale]) }}">
+            <div class="hc-field">
+                <label class="hc-label" for="city">{{ __('audit.city') }}</label>
+                <select id="city" name="city" class="hc-select"><option value="">{{ __('audit.all_cities') }}</option>
+                    @foreach($cities as $c)<option value="{{ $c->id }}" @selected((int) ($filters['city'] ?? 0) === (int) $c->id)>{{ $en ? $c->name_en : $c->name_ar }}</option>@endforeach</select>
+            </div>
+            <div class="hc-field"><label class="hc-label" for="from">{{ __('audit.from') }}</label><input id="from" name="from" type="date" class="hc-input" value="{{ $filters['from'] ?? '' }}"></div>
+            <div class="hc-field"><label class="hc-label" for="to">{{ __('audit.to') }}</label><input id="to" name="to" type="date" class="hc-input" value="{{ $filters['to'] ?? '' }}"></div>
+            <div class="hc-field">
+                <label class="hc-label" for="kind">{{ __('audit.kind') }}</label>
+                <select id="kind" name="kind" class="hc-select"><option value="">{{ __('audit.any') }}</option>
+                    @foreach(__('audit.kinds') as $k => $label)<option value="{{ $k }}" @selected(($filters['kind'] ?? '') === $k)>{{ $label }}</option>@endforeach</select>
+            </div>
+            <div class="hc-field">
+                <label class="hc-label" for="area">{{ __('audit.area') }}</label>
+                <select id="area" name="area" class="hc-select"><option value="">{{ __('audit.any') }}</option>
+                    @foreach(array_keys(\App\Services\Staff\AuditLogService::AREAS) as $a)<option value="{{ $a }}" @selected(($filters['area'] ?? '') === $a)>{{ __('audit.areas.'.$a) }}</option>@endforeach</select>
+            </div>
+            <div class="hc-field grow"><label class="hc-label" for="actor">{{ __('audit.actor') }}</label><input id="actor" name="actor" type="search" class="hc-input" maxlength="100" value="{{ $filters['actor'] ?? '' }}" autocomplete="off"></div>
+            <div class="hc-field" style="justify-content:flex-end;flex-direction:row;gap:8px;align-items:flex-end">
+                <x-hc.button type="submit" variant="secondary" icon="search">{{ __('audit.filter') }}</x-hc.button>
+                @if($query !== [])<x-hc.button variant="ghost" :href="route('admin.audit', ['locale' => $locale])">{{ __('audit.clear') }}</x-hc.button>@endif
+            </div>
         </form>
-        @if($errors->any())<div class="form-message form-message-error" role="alert">{{ __('reports.filter_error') }}</div>@endif
-        <p><a class="record-link" href="{{ route('admin.audit.export', $query + ['format' => 'xlsx']) }}">{{ __('audit.export_xlsx') }}</a> · <a class="record-link" href="{{ route('admin.audit.export', $query + ['format' => 'csv']) }}">{{ __('reports.export_csv') }}</a></p>
-        <p class="field-hint">{{ __('search.count', ['count' => number_format($rows->total())]) }} {{ __('audit.scope_note') }}</p>
-        <x-ui.table :caption="__('audit.title')"><thead><tr>@foreach(\App\Services\Staff\AuditLogService::headings() as $heading)<th scope="col">{{ $heading }}</th>@endforeach</tr></thead><tbody>
-        @forelse($rows as $line)<tr>@foreach($line as $cell)<td>{{ $cell }}</td>@endforeach</tr>
-        @empty<tr><td colspan="9">{{ __('projects.no_results') }}</td></tr>@endforelse
-        </tbody></x-ui.table>
-        <div class="pagination"><x-project-pagination :paginator="$rows" /></div>
-    </section>
-</x-layouts.app>
+        <div class="hc-toolbar" style="padding-block:0 12px"><span class="muted" aria-live="polite">{{ __('hc.results', ['count' => number_format($rows->total())]) }} · {{ __('audit.scope_note') }}</span></div>
+
+        <div class="hc-table-wrap">
+            @if($rows->isEmpty())
+                <x-hc.empty :title="__('audit.none')">{{ __('hc.no_results_hint') }}</x-hc.empty>
+            @else
+            <table class="hc-table stack">
+                <thead><tr><th>{{ __('audit.col.time') }}</th><th>{{ __('audit.col.account') }}</th><th>{{ __('audit.col.action') }}</th><th>{{ __('audit.col.record') }}</th><th>{{ __('audit.col.city') }}</th><th>{{ __('audit.col.kind') }}</th></tr></thead>
+                <tbody>
+                @foreach($rows as $row)
+                    <tr>
+                        <td data-label="{{ __('audit.col.time') }}" class="num"><bdi class="ltr">{{ $row['time'] }}</bdi></td>
+                        <td data-label="{{ __('audit.col.account') }}">@if($row['actor'])<bdi class="ltr">{{ $row['actor'] }}</bdi>@else<span class="muted">—</span>@endif</td>
+                        <td data-label="{{ __('audit.col.action') }}"><span title="{{ $row['event'] }}">{{ $row['label'] }}</span>@if($row['decision'] && $row['kind'] === 'security')<br><small class="muted ltr"><bdi>{{ $row['decision'] }}</bdi></small>@endif</td>
+                        <td data-label="{{ __('audit.col.record') }}">@if($row['url'])<a class="row-link" href="{{ $row['url'] }}"><bdi>{{ $row['subject'] }}</bdi></a>@elseif($row['subject'])<bdi>{{ $row['subject'] }}</bdi>@else<span class="muted">—</span>@endif</td>
+                        <td data-label="{{ __('audit.col.city') }}">{{ $row['city'] ?? '—' }}</td>
+                        <td data-label="{{ __('audit.col.kind') }}"><x-hc.badge :tone="$tone[$row['kind']]">{{ __('audit.kinds.'.$row['kind']) }}@if($row['outcome'] === 'failed') · {{ __('audit.outcomes.failed') }}@endif</x-hc.badge></td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+            @endif
+        </div>
+        @include('admin._audit-pages')
+    </x-hc.card>
+</x-layouts.hc>

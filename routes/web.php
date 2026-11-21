@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountAdminController;
 use App\Http\Controllers\AccountPasswordController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
@@ -62,6 +63,11 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/admin/staff', [AccountAdminController::class, 'staff'])->name('admin.staff');
             Route::get('/admin/tasks', [AccountAdminController::class, 'tasks'])->name('admin.tasks');
             Route::post('/admin/tasks', [AccountAdminController::class, 'saveTasks'])->block(10, 10)->name('admin.tasks.save');
+            // M4.19 audit log, read only (AuditLogService rechecks accounts.manage per city).
+            Route::get('/admin/audit', [AuditLogController::class, 'index'])->name('admin.audit');
+            Route::get('/admin/audit/export', [AuditLogController::class, 'export'])->middleware('throttle:10,1')->name('admin.audit.export');
+            Route::get('/admin/audit/desktop', [AuditLogController::class, 'desktop'])->name('admin.audit.desktop');
+            Route::get('/admin/audit/desktop/export', [AuditLogController::class, 'desktopExport'])->middleware('throttle:10,1')->name('admin.audit.desktop.export');
             Route::prefix('/admin/accounts/{account}')->where(['account' => '[1-9][0-9]{0,18}', 'link' => '[1-9][0-9]{0,18}'])->group(function () {
                 Route::get('/', [AccountAdminController::class, 'show'])->name('admin.accounts.show');
                 Route::post('/capabilities', [AccountAdminController::class, 'capabilities'])->block(10, 10)->name('admin.accounts.capabilities');

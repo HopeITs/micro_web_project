@@ -40,6 +40,7 @@ final class Navigation
             ['key' => 'tasks', 'icon' => 'task', 'capability' => 'tasks.view', 'task' => 'M4.16'],
             ['key' => 'accounts', 'icon' => 'shield', 'route' => 'admin.accounts.index', 'capability' => 'accounts.manage'],
             ['key' => 'lookups', 'icon' => 'clipboard', 'route' => 'lookups.index', 'capability' => 'lookups.manage'],
+            ['key' => 'audit', 'icon' => 'clock', 'route' => 'admin.audit', 'capability' => 'accounts.manage'],
             ['key' => 'design', 'icon' => 'settings', 'route' => 'design', 'capability' => 'accounts.manage'],
         ],
     ];
@@ -61,7 +62,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'admin.accounts.index' => 'admin.*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], default => $route
+                        'projects.index' => 'projects.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], default => $route
                     }),
                 ];
             }

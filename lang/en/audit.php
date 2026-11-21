@@ -12,7 +12,8 @@ return [
     'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'export_hint' => 'Exports every matching row, not only this page.',
     'none' => 'No events match', 'read_only' => 'Read only',
     'changed' => 'changed (value not shown)', 'changes_summary' => '{1} :count field changed|[2,*] :count fields changed', 'cut' => 'shortened',
-    'fields' => ['email' => 'E-mail', 'state' => 'State', 'state_reason' => 'State reason', 'state_note' => 'State note', 'donor' => 'Donor', 'tasks_opened' => 'Tasks opened', 'task' => 'Task'],
+    'fields' => ['email' => 'E-mail', 'state' => 'State', 'state_reason' => 'State reason', 'state_note' => 'State note', 'donor' => 'Donor', 'tasks_opened' => 'Tasks opened', 'task' => 'Task',
+        'donor_group' => 'Donor group', 'currency' => 'Currency', 'exchange_rate' => 'Exchange rate', 'amount' => 'Amount', 'taken_on' => 'Loan date', 'returned_amount' => 'Amount to return', 'installment_amount' => 'Instalment amount', 'installments_count' => 'Number of instalments', 'rate' => 'Repayment rate', 'receipt_number' => 'Receipt number', 'note' => 'Note', 'loan' => 'Loan', 'installment' => 'Instalment', 'installments' => 'Instalments', 'visit_notices' => 'Visit notices', 'notices_removed' => 'Notices removed'],
     'col' => [
         'number' => 'No.', 'desktop_number' => 'Desktop no.', 'time' => 'Time', 'account' => 'Account', 'user' => 'User', 'city' => 'City',
         'action' => 'Action', 'kind' => 'Kind', 'record' => 'Record', 'changes' => 'What changed', 'event' => 'Event code', 'details' => 'Details', 'table' => 'Screen / table', 'description' => 'Description',
@@ -35,6 +36,7 @@ return [
         'accounts_disabled' => 'Account disabled', 'accounts_enabled' => 'Account enabled', 'accounts_tasks_saved' => 'Task responsibilities saved',
         'logs_listed' => 'Opened the audit log', 'reports_exported' => 'Exported a report', 'national_checked' => 'Checked a national number',
         'lifecycle_transitioned' => 'Changed the project state', 'lifecycle_reason_updated' => 'Changed the state reason', 'lifecycle_undone' => 'Undid a project state change',
+        'finance_list' => 'Opened the payment schedule', 'finance_view' => 'Opened a project finance page', 'finance_donor_assigned' => 'Changed the donor', 'finance_loan_saved' => 'Saved the loan', 'finance_payments_saved' => 'Saved the instalments', 'finance_loan_deleted' => 'Deleted the loan', 'finance_installment_deleted' => 'Deleted an instalment',
         'application_draft_saved' => 'Saved an application draft', 'application_draft_viewed' => 'Opened an application draft', 'application_draft_discarded' => 'Discarded an application draft',
     ],
     'verbs' => [

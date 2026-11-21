@@ -12,7 +12,8 @@ return [
     'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'export_hint' => 'يصدّر كل السطور المطابقة، لا هذه الصفحة فقط.',
     'none' => 'لا توجد أحداث مطابقة', 'read_only' => 'للقراءة فقط',
     'changed' => 'تغيّر (القيمة لا تُعرض)', 'changes_summary' => '{1} تغيّر حقل واحد|{2} تغيّر حقلان|[3,10] تغيّرت :count حقول|[11,*] تغيّر :count حقلاً', 'cut' => 'مختصر',
-    'fields' => ['email' => 'البريد الإلكتروني', 'state' => 'الحالة', 'state_reason' => 'سبب الحالة', 'state_note' => 'ملاحظة الحالة', 'donor' => 'الجهة الممولة', 'tasks_opened' => 'مهام فُتحت', 'task' => 'المهمة'],
+    'fields' => ['email' => 'البريد الإلكتروني', 'state' => 'الحالة', 'state_reason' => 'سبب الحالة', 'state_note' => 'ملاحظة الحالة', 'donor' => 'الجهة الممولة', 'tasks_opened' => 'مهام فُتحت', 'task' => 'المهمة',
+        'donor_group' => 'المجموعة', 'currency' => 'العملة', 'exchange_rate' => 'سعر الصرف', 'amount' => 'المبلغ', 'taken_on' => 'تاريخ القرض', 'returned_amount' => 'المبلغ المسترد', 'installment_amount' => 'مبلغ القسط', 'installments_count' => 'عدد الأقساط', 'rate' => 'نسبة الاسترداد', 'receipt_number' => 'رقم الإيصال', 'note' => 'ملاحظات', 'loan' => 'القرض', 'installment' => 'القسط', 'installments' => 'الأقساط', 'visit_notices' => 'إشعارات الزيارات', 'notices_removed' => 'إشعارات حُذفت'],
     'col' => [
         'number' => 'الرقم', 'desktop_number' => 'رقم البرنامج', 'time' => 'الوقت', 'account' => 'الحساب', 'user' => 'المستخدم', 'city' => 'المدينة',
         'action' => 'الإجراء', 'kind' => 'النوع', 'record' => 'السجل', 'changes' => 'ما الذي تغيّر', 'event' => 'رمز الحدث', 'details' => 'تفاصيل', 'table' => 'الشاشة / الجدول', 'description' => 'الوصف',
@@ -35,6 +36,7 @@ return [
         'accounts_disabled' => 'تعطيل حساب', 'accounts_enabled' => 'تفعيل حساب', 'accounts_tasks_saved' => 'حفظ مسؤوليات المهام',
         'logs_listed' => 'فتح سجل الأحداث', 'reports_exported' => 'تصدير تقرير', 'national_checked' => 'فحص رقم وطني',
         'lifecycle_transitioned' => 'تغيير حالة المشروع', 'lifecycle_reason_updated' => 'تعديل سبب الحالة', 'lifecycle_undone' => 'تراجع عن تغيير حالة المشروع',
+        'finance_list' => 'فتح جدول الدفعات', 'finance_view' => 'فتح مالية مشروع', 'finance_donor_assigned' => 'تعديل الجهة الممولة', 'finance_loan_saved' => 'حفظ القرض', 'finance_payments_saved' => 'حفظ الأقساط', 'finance_loan_deleted' => 'حذف القرض', 'finance_installment_deleted' => 'حذف قسط',
         'application_draft_saved' => 'حفظ مسودة طلب', 'application_draft_viewed' => 'فتح مسودة طلب', 'application_draft_discarded' => 'حذف مسودة طلب',
     ],
     'verbs' => [

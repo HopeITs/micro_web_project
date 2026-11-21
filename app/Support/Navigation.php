@@ -25,8 +25,8 @@ final class Navigation
             ['key' => 'national_number', 'icon' => 'id', 'route' => 'people.national', 'capability' => 'people.view'],
         ],
         'finance' => [
-            ['key' => 'loans', 'icon' => 'wallet', 'capability' => 'finance.manage', 'task' => 'M4.9'],
-            ['key' => 'payments', 'icon' => 'calendar', 'capability' => 'finance.view', 'task' => 'M4.9'],
+            // M4.9: loans are recorded from each project's finance page; the schedule lists every instalment.
+            ['key' => 'payments', 'icon' => 'calendar', 'route' => 'finance.payments', 'capability' => 'finance.view'],
             ['key' => 'attachments', 'icon' => 'file', 'capability' => 'attachments.download', 'task' => 'M4.11'],
         ],
         'field' => [
@@ -62,7 +62,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], default => $route
+                        'projects.index' => 'projects.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'finance.payments' => ['finance.payments', 'finance.show'], default => $route
                     }),
                 ];
             }

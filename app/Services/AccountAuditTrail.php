@@ -13,7 +13,7 @@ final class AccountAuditTrail
         'lifecycle.transitioned' => ['application_entity'], 'lifecycle.reason_updated' => ['application_entity'], 'lifecycle.undone' => ['application_entity'],
         'assessments.view' => ['application_entity'], 'assessments.saved' => ['application_entity'], 'assessments.printed' => ['application_entity'], 'applications.printed' => ['application_entity'],
         'finance.list' => [], 'finance.view' => ['application_entity'], 'finance.donor_assigned' => ['application_entity'], 'finance.group_created' => ['application_entity'],
-        'finance.loan_saved' => ['application_entity'], 'finance.payments_saved' => ['application_entity'],
+        'finance.loan_saved' => ['application_entity'], 'finance.payments_saved' => ['application_entity'], 'finance.loan_deleted' => ['application_entity'], 'finance.installment_deleted' => ['application_entity'],
         'executive_files.view' => ['application_entity'], 'executive_files.saved' => ['application_entity'],
         'purchasing.view' => ['application_entity'], 'purchasing.saved' => ['application_entity'],
         'special_cases.view' => ['application_entity'], 'special_cases.saved' => ['application_entity'],

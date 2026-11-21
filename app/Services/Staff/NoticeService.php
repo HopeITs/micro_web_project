@@ -57,23 +57,23 @@ final class NoticeService
     }
 
     /** Stores one unseen notice. `$account` null makes it the shared copy (only visit and clearance notices may be shared). */
-    public function add(int $city, int $source, ?object $project, string $kind, string $date, string $title, string $body, ?int $account, ?int $sender = null, ?int $payKey = null): int
+    public function add(int $city, int $source, ?object $project, string $kind, string $date, string $title, string $body, ?int $account, ?int $sender = null, ?int $payKey = null, ?int $installmentId = null): int
     {
-        // Unified schema (v1.2+): no source_id; the desktop payment key is kept as legacy_pay_key. `$source` stays for the callers
-        // not yet moved to the unified schema (M4.9+), and is ignored.
+        // Unified schema (v1.2+): no source_id; the desktop payment key is kept as legacy_pay_key, a web instalment is linked by
+        // loan_installment_id (M4.9). `$source` stays for the callers not yet moved to the unified schema, and is ignored.
         return (int) DB::table('web_notices')->insertGetId([
             'city_id' => $city, 'account_id' => $account, 'sender_account_id' => $sender, 'project_id' => $project?->id, 'project_number' => $project?->project_number ?? $project?->c_MP_ID ?? null,
-            'kind' => $kind, 'legacy_pay_key' => $payKey, 'notice_date' => $date, 'original_date' => null, 'title' => $title, 'body' => $body, 'note' => null, 'change_reason' => null,
+            'kind' => $kind, 'loan_installment_id' => $installmentId, 'legacy_pay_key' => $payKey, 'notice_date' => $date, 'original_date' => null, 'title' => $title, 'body' => $body, 'note' => null, 'change_reason' => null,
             'seen' => false, 'retired_by_kobo' => false, 'created_at' => now('UTC')->format('Y-m-d H:i:s'),
         ]);
     }
 
     /** One notice per recipient account of the group; returns how many were stored. */
-    public function broadcast(int $city, int $source, ?object $project, string $group, string $kind, string $date, string $title, string $body, ?int $sender, ?int $payKey = null): int
+    public function broadcast(int $city, int $source, ?object $project, string $group, string $kind, string $date, string $title, string $body, ?int $sender, ?int $payKey = null, ?int $installmentId = null): int
     {
         $accounts = $this->recipients($city, $group);
         foreach ($accounts as $account) {
-            $this->add($city, $source, $project, $kind, $date, $title, $body, $account, $sender, $payKey);
+            $this->add($city, $source, $project, $kind, $date, $title, $body, $account, $sender, $payKey, $installmentId);
         }
 
         return $accounts->count();
@@ -108,6 +108,11 @@ final class NoticeService
     /** Marks seen every notice of one payment (all financial recipients clear together). */
     public function setSeenForPayment(object $row, int $seen): int
     {
-        return DB::table('web_notices')->where('city_id', $row->city_id)->where('kind', self::PAYMENT)->where('pay_key', $row->pay_key)->update(['seen' => $seen]);
+        $query = DB::table('web_notices')->where('city_id', $row->city_id)->where('kind', self::PAYMENT);
+        ($row->loan_installment_id ?? null) !== null
+            ? $query->where('loan_installment_id', $row->loan_installment_id)
+            : $query->where('legacy_pay_key', $row->legacy_pay_key ?? $row->pay_key ?? 0);
+
+        return $query->update(['seen' => $seen]);
     }
 }

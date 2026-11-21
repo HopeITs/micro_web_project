@@ -28,10 +28,10 @@ final class LoanMath
         ];
     }
 
-    /** Amount in the other currency: amount ÷ rate for SP with a non-zero rate, otherwise amount × rate. */
+    /** Amount in the other currency: amount ÷ rate for Syrian pounds (SYP, the desktop's SP) with a non-zero rate, otherwise amount × rate. */
     public static function opposite(string $currency, string $amount, string $rate): string
     {
-        if ($currency === 'SP' && ! Money::isZero($rate)) {
+        if (in_array($currency, ['SYP', 'SP'], true) && ! Money::isZero($rate)) {
             return Money::round(bcdiv($amount, $rate, 12), 2);
         }
 

@@ -24,6 +24,10 @@
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'assessments.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('checklists.show', ['locale' => app()->getLocale(), 'project' => $project->id])">Checklist</x-hc.button>
             @endif
+            @php($finance = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'finance.view') && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
+            @if($finance)
+                <x-hc.button icon="wallet" variant="secondary" :href="route('finance.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('finance.open') }}</x-hc.button>
+            @endif
             @php($annex = app(\App\Services\Applications\ProjectAnnexService::class)->kind($project))
             @if($annex)
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('applications.annex', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('annexes.'.$annex) }}</x-hc.button>
@@ -77,6 +81,7 @@
                 @else
                     <p class="muted">{{ __('hc.no_loan') }}</p>
                 @endif
+                @if($finance)<p style="margin:12px 0 0"><a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('finance.show', ['locale' => app()->getLocale(), 'project' => $project->id]) }}"><x-hc.icon name="wallet" :size="16"/>{{ __('finance.links.finance') }}</a></p>@endif
             </x-hc.section>
         </div>
         @if($tracks)<div class="hc-grid">

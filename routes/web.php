@@ -7,6 +7,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ManifestController;
@@ -57,6 +58,11 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // M4.7 checklist and assessment (ChecklistService rechecks assessments.view / assessments.manage).
             Route::get('/applications/{project}/checklist', [ChecklistController::class, 'show'])->whereNumber('project')->name('checklists.show');
             Route::get('/applications/{project}/checklist/print', [ChecklistController::class, 'print'])->whereNumber('project')->name('checklists.print');
+
+            // M4.9 finance (FinanceService / PaymentScheduleService recheck applications.view + finance.view, finance.manage, finance.export per city).
+            Route::get('/applications/{project}/finance', [FinanceController::class, 'show'])->whereNumber('project')->name('finance.show');
+            Route::get('/payments', [FinanceController::class, 'payments'])->name('finance.payments');
+            Route::get('/payments/export', [FinanceController::class, 'export'])->middleware('throttle:10,1')->name('finance.payments.export');
 
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');

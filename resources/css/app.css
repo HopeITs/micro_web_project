@@ -413,6 +413,8 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-fin-form .wide { grid-column: 1 / -1; }
 @media (max-width: 560px) { .hc-fin-form { grid-template-columns: 1fr; } }
 .hc-fin-rows .hc-input { min-width: 0; width: 100%; }
+.hc-fin-rows input[inputmode=decimal] { min-width: 9rem; }
+.hc-fin-rows input[type=date] { min-width: 9.5rem; }
 .hc-fin-tiles { margin-block-end: 16px; }
 .hc-fin-overdue td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 [dir="rtl"] .hc-fin-overdue td:first-child { box-shadow: inset -3px 0 0 var(--danger); }

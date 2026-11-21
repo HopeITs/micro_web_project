@@ -44,7 +44,7 @@ final class PaymentScheduleService
         $permitted = $audit ? $this->opened($account) : $this->permitted($account, false);
         $ids = $this->selected($filters, $permitted);
         [$query, $dateColumn] = $this->filtered($ids, $filters);
-        $totals = (clone $query)->reorder()->selectRaw('l.currency as currency, COUNT(*) as installments, SUM(i.amount) as total')->groupBy('l.currency')->orderBy('l.currency')->get()
+        $totals = (clone $query)->reorder()->select(DB::raw('l.currency as currency, COUNT(*) as installments, SUM(i.amount) as total'))->groupBy('l.currency')->orderBy('l.currency')->get()
             ->map(fn ($row) => (object) ['currency' => $row->currency, 'installments' => (int) $row->installments, 'total' => Money::canonical($row->total) ?? '0']);
         $rows = $query->orderBy($dateColumn)->orderBy('i.id')->paginate(self::PER_PAGE);
         $names = $this->names($rows->getCollection()->pluck('project_id')->unique()->all());

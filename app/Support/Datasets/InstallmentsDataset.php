@@ -86,7 +86,7 @@ final class InstallmentsDataset extends Dataset
 
                 return $query->get(['id', 'name_ar', 'name_en'])->mapWithKeys(fn ($c) => [$c->id => $en() ? $c->name_en : $c->name_ar])->all();
             }),
-            new Field('state', 'hc.state', 'lookup', 'cs.project_state_id', groupable: true, options: $lookup(ProjectState::class)),
+            new Field('state', 'finance.state', 'lookup', 'cs.project_state_id', groupable: true, options: $lookup(ProjectState::class)),
             new Field('group', 'finance.payments.group', 'lookup', 'p.donor_group_id', groupable: true, options: $lookup(DonorGroup::class)),
             new Field('donor', 'finance.payments.columns.donor', 'lookup', 'p.donor_id', groupable: true, options: $lookup(Donor::class)),
             new Field('amount', 'finance.payments.columns.amount', 'money', 'loan_installments.amount', aggregatable: true),

@@ -70,6 +70,11 @@ final class SyntheticDataSeeder extends Seeder
                 DB::table('checklist_members')->insert(['city_id' => $c, 'name_ar' => $this->name(true), 'checklist_position_id' => $positions[$i % count($positions)] ?? null, 'sort_order' => $i + 1, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
             }
 
+            // Key persons (positions of type k): the checklist picks them from this list, as on the desktop.
+            foreach (DB::table('checklist_positions')->where('type', 'k')->orderBy('id')->limit(3)->pluck('id') as $i => $position) {
+                DB::table('checklist_members')->insert(['city_id' => $c, 'name_ar' => $this->name(true), 'checklist_position_id' => $position, 'sort_order' => 10 + $i, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
+            }
+
             for ($n = 0; $n < 40; $n++) {
                 $male = $n % 3 !== 1;
                 $last = self::LAST[mt_rand(0, 14)];

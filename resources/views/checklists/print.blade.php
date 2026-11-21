@@ -79,8 +79,8 @@
         <div class="sec">{{ $p('experience') }}</div>
         <div class="box"><b>{{ __('checklists.fields.needs_professional_test') }}:</b> {{ $flag('needs_professional_test') }} @if($h['professional_test_need_note'] !== '') — {{ $h['professional_test_need_note'] }}@endif</div>
         <div class="sub">{{ $p('pro_test') }} ({{ $flag('has_professional_test') }})</div>
-        <table class="grid"><thead><tr><th>{{ $p('test_date') }}</th><th>{{ $p('tester') }}</th><th>{{ $p('notes') }}</th><th>{{ $p('result') }}</th></tr></thead><tbody>
-        <tr><td>{{ $text('professional_test_date') }}</td><td>{{ $member($h['professional_tester_id']) }}</td><td>{{ $text('professional_test_note') }}</td><td>{{ $text('professional_test_result') }}</td></tr></tbody></table>
+        <table class="grid"><thead><tr><th>{{ $p('test_date') }}</th><th>{{ __('checklists.fields.professional_test_note') }}</th><th>{{ __('checklists.fields.professional_tester_id') }}</th><th>{{ $p('result') }}</th></tr></thead><tbody>
+        <tr><td>{{ $text('professional_test_date') }}</td><td>{{ $text('professional_test_note') }}</td><td>{{ $member($h['professional_tester_id']) }}</td><td>{{ ($v = $h['professional_test_result'] ?? '') === '' ? '—' : __('people.choices.professional_test_result.'.$v) }}</td></tr></tbody></table>
         <div class="sub">{{ $p('pro_train') }} ({{ $flag('has_professional_training') }})</div>
         <table class="grid"><thead><tr><th>{{ $p('trainer') }}</th><th>{{ $p('place') }}</th><th>{{ $p('period') }}</th><th>{{ $p('result') }}</th></tr></thead><tbody>
         <tr><td>{{ $text('professional_trainer') }}</td><td>{{ $text('professional_training_place') }}</td><td>{{ $text('professional_training_start') }} → {{ $text('professional_training_end') }}</td><td>{{ $text('professional_training_result') }}</td></tr></tbody></table>

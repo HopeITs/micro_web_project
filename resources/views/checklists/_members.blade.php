@@ -11,14 +11,14 @@
     @if($rows !== [])
     <div class="hc-table-wrap"><table class="hc-table stack">
         <thead><tr>
-            <th>{{ __('checklists.member') }}</th>
+            <th>{{ $location === 'k' ? __('checklists.position') : __('checklists.member') }}</th>
             @if($location === 'k')<th>{{ __('checklists.name_notes') }}</th><th>{{ __('checklists.role_notes') }}</th>@else<th>{{ __('checklists.opinion') }}</th>@endif
-            <th>{{ $location === 'k' ? __('checklists.fields.notes') : __('checklists.reason') }}</th><th></th>
+            <th>{{ $location === 'k' ? __('checklists.opinion_k') : __('checklists.reason') }}</th><th></th>
         </tr></thead>
         <tbody>
         @foreach($rows as $i => $row)
             <tr wire:key="m-{{ $location }}-{{ $row['id'] ?? 'n' }}-{{ $i }}">
-                <td data-label="{{ __('checklists.member') }}" style="min-width:200px">
+                <td data-label="{{ $location === 'k' ? __('checklists.position') : __('checklists.member') }}" style="min-width:200px">
                     @include('people._input', ['model' => "form.members.$location.$i.checklist_member_id", 'id' => "m-$location-$i", 'field' => 'member', 'spec' => ['kind' => 'lookup'], 'options' => $memberOptions[$location]])
                     @error("form.members.$location.$i.checklist_member_id")<p class="hc-error">{{ $message }}</p>@enderror
                 </td>
@@ -32,12 +32,18 @@
                         </div>
                     </td>
                 @endif
-                <td data-label="{{ $location === 'k' ? __('checklists.fields.notes') : __('checklists.reason') }}" style="min-width:180px"><input class="hc-input" wire:model="form.members.{{ $location }}.{{ $i }}.notes" aria-label="{{ __('checklists.fields.notes') }}"></td>
+                <td data-label="{{ $location === 'k' ? __('checklists.opinion_k') : __('checklists.reason') }}" style="min-width:180px"><input class="hc-input" wire:model="form.members.{{ $location }}.{{ $i }}.notes" aria-label="{{ $location === 'k' ? __('checklists.opinion_k') : __('checklists.reason') }}"></td>
                 <td><button type="button" class="hc-icon-btn" wire:click="removeMember('{{ $location }}', {{ $i }})" aria-label="{{ __('applications.remove_row') }}"><x-hc.icon name="x" :size="16"/></button></td>
             </tr>
         @endforeach
         </tbody>
     </table></div>
     @endif
-    <div style="margin-block-start:8px"><x-hc.button size="sm" variant="secondary" icon="plus" wire:click="addMember('{{ $location }}')">{{ __('checklists.add_member') }}</x-hc.button></div>
+    @if(count($memberOptions[$location]) === 0)
+        {{-- Desktop: key persons are picked from the city list (AddNewChecklistMember); an empty list leaves nothing to pick. --}}
+        <p class="hc-hint" style="margin-block-start:8px">{{ $location === 'k' ? __('checklists.no_key_people') : __('checklists.no_members') }}</p>
+    @endif
+    <div style="margin-block-start:8px;display:flex;flex-wrap:wrap;gap:8px"><x-hc.button size="sm" variant="secondary" icon="plus" wire:click="addMember('{{ $location }}')">{{ __('checklists.add_member') }}</x-hc.button>
+        @if($manageMembers)<x-hc.button size="sm" variant="ghost" icon="clipboard" :href="route('lookups.show', ['locale' => app()->getLocale(), 'list' => 'checklist_members'])" target="_blank">{{ __('checklists.manage_list') }}</x-hc.button>@endif
+    </div>
 </x-hc.section>

@@ -32,7 +32,7 @@ return [
         'educations' => 'التحصيل العلمي', 'work_experiences' => 'الخبرات العملية', 'courses' => 'الدورات', 'losses' => 'الخسائر', 'illnesses' => 'الحالات الصحية',
         'assets' => 'الأملاك', 'aid_sources' => 'مساعدات سابقة من جهات', 'aid_received' => 'المساعدات التي يتلقاها', 'goals' => 'أهداف القرض', 'power_sources' => 'مصادر الطاقة في المنزل',
     ],
-    'choices' => ['status' => ['yes' => 'العمل الحالي', 'no' => 'عمل سابق']],
+    'choices' => ['professional_test_result' => ['1' => 'بحاجة لتدريب مهني', '0' => 'جيد', '-1' => 'لا ينطبق'], 'status' => ['yes' => 'العمل الحالي', 'no' => 'عمل سابق']],
     'family' => 'العائلة', 'no_family' => 'لا يوجد أفراد.', 'add_member' => 'إضافة فرد', 'member_new' => 'شخص جديد', 'member_existing' => 'شخص مسجل',
     'pick_person' => 'ابحث عن الشخص في المدينة', 'pick_placeholder' => 'اكتب حرفين على الأقل من الاسم أو الرقم الوطني', 'remove_member' => 'إخراج من العائلة',
     'confirm_remove_member' => 'إخراج هذا الفرد من العائلة؟ يبقى سجله الشخصي.',

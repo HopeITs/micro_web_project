@@ -32,7 +32,7 @@ return [
         'educations' => 'Education', 'work_experiences' => 'Work experience', 'courses' => 'Courses', 'losses' => 'Losses', 'illnesses' => 'Health conditions',
         'assets' => 'Property', 'aid_sources' => 'Past aid from organisations', 'aid_received' => 'Aid received now', 'goals' => 'Loan goals', 'power_sources' => 'Home power sources',
     ],
-    'choices' => ['status' => ['yes' => 'Current job', 'no' => 'Previous job']],
+    'choices' => ['professional_test_result' => ['1' => 'Needs vocational training', '0' => 'Good', '-1' => 'Not applicable'], 'status' => ['yes' => 'Current job', 'no' => 'Previous job']],
     'family' => 'Family', 'no_family' => 'No members.', 'add_member' => 'Add a member', 'member_new' => 'New person', 'member_existing' => 'Registered person',
     'pick_person' => 'Find the person in the city', 'pick_placeholder' => 'At least two letters of the name or national number', 'remove_member' => 'Remove from family',
     'confirm_remove_member' => 'Remove this member from the family? Their own record stays.',

@@ -91,6 +91,7 @@ class ChecklistForm extends Component
             'project' => $project, 'editable' => $service->canManage(auth()->user(), $project),
             'memberOptions' => ['k' => $service->members($city, 'k', $keep('k')), 't' => $service->members($city, 't', [...$keep('t'), ...$headerKeep]), 'c' => $service->members($city, 'c', $keep('c'))],
             'allMembers' => $service->members($city, null, $headerKeep), 'opinions' => $service->opinions(), 'criteria' => $service->criteria(), 'senders' => $service->senders($city),
+            'manageMembers' => app(\App\Services\Lookups\LookupAdminService::class)->canEdit(auth()->user(), 'checklist_members', $city),
             'person' => $this->form['person_id'] ? DB::table('people')->where('id', $this->form['person_id'])->first() : null,
         ]);
     }

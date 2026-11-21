@@ -46,9 +46,10 @@ final class ChecklistService
             'professional_test_need_note' => ['kind' => 'textarea', 'when' => 'needs_professional_test'],
             'has_professional_test' => ['kind' => 'bool'],
             'professional_test_date' => ['kind' => 'date', 'when' => 'has_professional_test'],
-            'professional_tester_id' => ['kind' => 'member', 'members' => null, 'when' => 'has_professional_test', 'needed' => true],
-            'professional_test_note' => ['kind' => 'textarea', 'when' => 'has_professional_test', 'needed' => true],
-            'professional_test_result' => ['kind' => 'textarea', 'when' => 'has_professional_test'],
+            // Desktop: the examiner is typed (ProTest_Note), the supervisor is picked from the team list (ProTest_User_ID).
+            'professional_test_note' => ['kind' => 'text', 'max' => 255, 'when' => 'has_professional_test', 'needed' => true],
+            'professional_tester_id' => ['kind' => 'member', 'members' => 't', 'when' => 'has_professional_test', 'needed' => true],
+            'professional_test_result' => ['kind' => 'choice', 'options' => ['1', '0', '-1'], 'when' => 'has_professional_test'],
             'has_professional_training' => ['kind' => 'bool'],
             'professional_trainer' => ['kind' => 'text', 'max' => 255, 'when' => 'has_professional_training', 'needed' => true],
             'professional_training_place' => ['kind' => 'text', 'max' => 255, 'when' => 'has_professional_training', 'needed' => true],

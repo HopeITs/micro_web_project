@@ -109,7 +109,7 @@
                         @endforeach
                     </div>
                 @endif
-                <x-hc.button variant="ghost" size="sm" wire:click="closeFilter" style="margin-inline-start:auto">{{ __('hc.filter_done') }}</x-hc.button>
+                <x-hc.button variant="secondary" size="sm" icon="check" class="hc-filter-editor-done" wire:click="closeFilter">{{ __('hc.filter_done') }}</x-hc.button>
             </div>
 
             @if(isset($editor['options']))
@@ -122,7 +122,7 @@
                             <label class="hc-filter-option" wire:key="fopt-{{ $editor['key'] }}-{{ $option['value'] }}" data-label="{{ mb_strtolower($option['label']) }}" x-show="q === '' || $el.dataset.label.includes(q.toLowerCase())">
                                 <input type="checkbox" @checked($option['selected']) wire:click="toggleFilterValue({{ $k }}, {{ \Illuminate\Support\Js::from($option['value']) }})">
                                 <span>{{ $option['label'] }}</span>
-                                <span class="muted num">({{ number_format($option['count']) }})</span>
+                                <span class="muted num">{{ number_format($option['count']) }}</span>
                             </label>
                         @empty
                             <p class="muted">{{ __('hc.filter_no_values') }}</p>

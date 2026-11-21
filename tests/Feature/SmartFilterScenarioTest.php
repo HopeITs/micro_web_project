@@ -162,7 +162,7 @@ class SmartFilterScenarioTest extends TestCase
         $this->assertSame($state[$financed] ?? 0, $list->viewData('projects')->total());
 
         // The open editor shows each value with its count.
-        $list->call('openFilter', 'state')->assertSee('('.($state[$financed] ?? 0).')');
+        $list->call('openFilter', 'state')->assertSeeHtml('<span class="muted num">'.number_format($state[$financed] ?? 0).'</span>');
 
         // Names are never counted.
         $this->assertSame([], $list->instance()->facetCounts('beneficiary'));

@@ -424,8 +424,10 @@ h3 { font-size: 1rem; font-weight: 700; }
 [dir="rtl"] .hc-fin-overdue td:first-child { box-shadow: inset -3px 0 0 var(--danger); }
 
 /* Smart filter bar (x-hc.filter-bar, smart-search plan 2026-11) */
-.hc-filter-bar { padding: 10px 20px; border-block-end: 1px solid var(--line); display: grid; gap: 10px; }
+.hc-filter-bar { container-type: inline-size; padding: 12px 20px; border-block-end: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
 .hc-filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hc-views-row + .hc-filter-row { padding-inline-start: 16px; border-inline-start: 1px solid var(--line); }
+@container (max-width: 700px) { .hc-views-row + .hc-filter-row { padding-inline-start: 0; border-inline-start: 0; } }
 .hc-filter-add { position: relative; }
 .hc-filter-add .hc-chip { border-style: dashed; }
 .hc-filter-menu { inset-inline-end: auto; inset-inline-start: 0; max-height: 320px; overflow-y: auto; }
@@ -436,12 +438,26 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-filter-chip-field { font-weight: 700; }
 .hc-filter-chip-x { display: inline-flex; padding: 6px 8px; border-radius: 999px; }
 .hc-filter-chip-x:hover { background: color-mix(in srgb, var(--brand) 15%, transparent); }
-.hc-filter-editor { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
-.hc-filter-editor-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.hc-filter-ops { display: flex; flex-wrap: wrap; gap: 6px; }
-.hc-filter-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 12px; max-height: 260px; overflow-y: auto; }
-.hc-filter-option { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
-.hc-filter-option .num { margin-inline-start: auto; }
+/* Editor of one filter: a white card under the chips. Head = name, operator switch, done; then the values as tiles. */
+.hc-filter-editor { flex-basis: 100%; min-width: 0; display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / .06); }
+.hc-filter-editor-head { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding-block-end: 12px; border-block-end: 1px solid var(--line); }
+.hc-filter-editor-head > strong { font-size: .95rem; }
+.hc-filter-editor-done { margin-inline-start: auto; }
+.hc-filter-ops { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.hc-filter-ops .hc-chip { min-height: 30px; padding: 2px 12px; border: 0; background: transparent; color: var(--muted); font-weight: 600; }
+.hc-filter-ops .hc-chip:hover { color: var(--ink); }
+.hc-filter-ops .hc-chip.is-active, .hc-filter-ops .hc-chip[aria-pressed="true"] { background: var(--surface); color: var(--brand); font-weight: 700; box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
+.hc-filter-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 240px)); gap: 8px; max-height: 280px; overflow-y: auto; padding: 2px; }
+.hc-filter-option { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; min-width: 0; }
+.hc-filter-option:hover { border-color: var(--line-strong); }
+.hc-filter-option:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.hc-filter-option > span:not(.num) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-filter-option .num { padding: 0 8px; border-radius: 999px; background: var(--surface-2); font-size: .78rem; }
+@container (max-width: 480px) {
+    .hc-filter-ops { order: 1; flex-basis: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border-radius: var(--radius-sm); }
+    .hc-filter-ops .hc-chip { justify-content: center; padding-inline: 4px; border-radius: calc(var(--radius-sm) - 2px); white-space: nowrap; }
+}
+@media (pointer: coarse) { .hc-filter-ops .hc-chip { min-height: 40px; } }
 .hc-filter-range { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .hc-filter-range .hc-field { flex: 1 1 160px; display: grid; gap: 4px; }
 /* Saved views ("My views") above the filter chips. */

@@ -44,6 +44,7 @@ return [
         'attachments_uploaded' => 'رفع مرفق', 'attachments_deleted' => 'حذف مرفق', 'attachments_view' => 'فتح مرفق',
         'projects_exported' => 'تصدير قائمة المشاريع',
         'people_exported' => 'تصدير قائمة الأشخاص',
+        'installments_exported' => 'تصدير جدول الدفعات',
     ],
     'verbs' => [
         'view' => 'فتح', 'list' => 'عرض قائمة', 'listed' => 'عرض قائمة', 'board' => 'فتح لوحة', 'search' => 'بحث في', 'statistics' => 'إحصاءات',

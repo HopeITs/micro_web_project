@@ -25,8 +25,6 @@ use Illuminate\Support\Facades\DB;
  */
 final class PaymentScheduleService
 {
-    public const PER_PAGE = 50;
-
     /** due: unpaid due by the end of this month (the default); overdue; month: unpaid due from today to the month end; paid_month; unpaid; paid. */
     public const VIEWS = ['due', 'overdue', 'month', 'paid_month', 'unpaid', 'paid'];
 
@@ -39,36 +37,26 @@ final class PaymentScheduleService
     }
 
     /**
+     * What the page shows around the table: totals per currency, the tile counts, the permitted cities and groups, and the list query
+     * (every filter and the view applied, no select or order: the page chooses its columns) with the date column it is ordered by by default.
+     *
      * @param  array{view?: string, cities?: list<int>, year?: ?int, month?: ?int, group?: ?int, currency?: ?string}  $filters
-     * @return array{rows: LengthAwarePaginator, totals: Collection, tiles: array<string, int>, cities: Collection, groups: Collection, canExport: bool}
+     * @return array{query: EloquentBuilder, dateColumn: string, totals: Collection, tiles: array<string, int>, cityOptions: Collection, groups: Collection, canExport: bool}
      */
-    public function schedule(WebAccount $account, array $filters, bool $audit = true): array
+    public function overview(WebAccount $account, array $filters, bool $audit = true): array
     {
         $permitted = $audit ? $this->opened($account) : $this->permitted($account, false);
         $ids = $this->selected($filters, $permitted);
-        [$query, $dateColumn] = $this->filtered($ids, $filters);
-        $totals = (clone $query)->reorder()->select(DB::raw('l.currency as currency, COUNT(*) as installments, SUM(loan_installments.amount) as total'))->groupBy('l.currency')->orderBy('l.currency')->get()
+        $query = $this->listBuilder($ids, $filters);
+        $totals = (clone $query)->reorder()->toBase()->select(DB::raw('l.currency as currency, COUNT(*) as installments, SUM(loan_installments.amount) as total'))->groupBy('l.currency')->orderBy('l.currency')->get()
             ->map(fn ($row) => (object) ['currency' => $row->currency, 'installments' => (int) $row->installments, 'total' => Money::canonical($row->total) ?? '0']);
-        $rows = $query->orderBy($dateColumn)->orderBy('loan_installments.id')->paginate(self::PER_PAGE);
-        $names = $this->names($rows->getCollection()->pluck('project_id')->unique()->all());
-        $rows->setCollection($rows->getCollection()->map(function ($row) use ($names) {
-            $row->amount = Money::canonical($row->amount) ?? '0';
-            $row->beneficiary = $names[$row->project_id] ?? '';
-            $row->number = ProjectNumberAllocator::display($row->city_code, (int) $row->project_number);
-            $row->due_on = Fields::day($row->due_on);
-            $row->received_on = Fields::day($row->received_on);
-            $row->overdue = ! $row->is_paid && $row->due_on !== '' && $row->due_on < now()->toDateString();
-
-            return $row;
-        }));
 
         return [
-            'rows' => $rows, 'totals' => $totals, 'tiles' => $this->tiles($ids, $filters), 'cityOptions' => $permitted,
+            'query' => $query, 'dateColumn' => $this->dateColumn($filters), 'totals' => $totals, 'tiles' => $this->tiles($ids, $filters), 'cityOptions' => $permitted,
             'groups' => DB::table('donor_groups')->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en']),
             'canExport' => $permitted->contains(fn ($city) => $this->access->check($account, (int) $city->id, 'finance.export')),
         ];
     }
-
     /** The page was opened: refused without finance in any city, else audited once. Returns the permitted cities. */
     public function opened(WebAccount $account): Collection
     {
@@ -144,16 +132,23 @@ final class PaymentScheduleService
         return $this->selected($filters, $this->permitted($account, false));
     }
 
-    /** @return array{0: Builder, 1: string} */
-    private function filtered(array $cityIds, array $filters): array
+    /** The date column the list is ordered by: the received date of the paid views, else the due date. */
+    private function dateColumn(array $filters): string
+    {
+        $view = in_array($filters['view'] ?? 'due', self::VIEWS, true) ? ($filters['view'] ?? 'due') : 'due';
+
+        return in_array($view, ['paid', 'paid_month'], true) ? 'loan_installments.received_on' : 'loan_installments.due_on';
+    }
+
+    /** The instalments of the cities with the view, year and month applied (no select, no order). */
+    private function listBuilder(array $cityIds, array $filters): EloquentBuilder
     {
         $view = in_array($filters['view'] ?? 'due', self::VIEWS, true) ? ($filters['view'] ?? 'due') : 'due';
         $query = $this->base($cityIds, $filters);
         if ($view === 'due' && self::narrowed($filters)) {
             $view = 'all';
         }
-        $paid = in_array($view, ['paid', 'paid_month'], true);
-        $dateColumn = $paid ? 'loan_installments.received_on' : 'loan_installments.due_on';
+        $dateColumn = $this->dateColumn($filters);
         $this->view($query, $view);
         if (! empty($filters['year'])) {
             $year = (int) $filters['year'];
@@ -164,12 +159,30 @@ final class PaymentScheduleService
             $expression = DB::connection()->getDriverName() === 'sqlite' ? "CAST(strftime('%m', {$dateColumn}) AS INTEGER)" : "MONTH({$dateColumn})";
             $query->whereRaw($expression.' = ?', [(int) $filters['month']]);
         }
+
+        return $query;
+    }
+
+    /**
+     * The list query of the page for its export token (view, year, month and the bar's filters applied, limited to the account's
+     * finance cities, no select or order) and the date column of the default order.
+     *
+     * @return array{0: EloquentBuilder, 1: string}
+     */
+    public function exportList(WebAccount $account, array $filters): array
+    {
+        return [$this->listBuilder($this->cityIdsFor($account, $filters), $filters), $this->dateColumn($filters)];
+    }
+
+    /** @return array{0: Builder, 1: string} */
+    private function filtered(array $cityIds, array $filters): array
+    {
+        $query = $this->listBuilder($cityIds, $filters);
         $query->select(['loan_installments.id', 'loan_installments.amount', 'loan_installments.due_on', 'loan_installments.is_paid', 'loan_installments.received_on', 'l.currency', 'p.id as project_id', 'p.project_number', 'p.city_id', 'c.code as city_code',
             'c.name_ar as city_ar', 'c.name_en as city_en', 'g.name_ar as group_ar', 'g.name_en as group_en']);
 
-        return [$query->toBase(), $dateColumn];
+        return [$query->toBase(), $this->dateColumn($filters)];
     }
-
     private function view(EloquentBuilder $query, string $view): void
     {
         $today = now()->toDateString();

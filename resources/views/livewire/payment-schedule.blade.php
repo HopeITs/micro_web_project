@@ -73,13 +73,13 @@
                 </div>
             @endif
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('hc.results', ['count' => number_format($rows->total())]) }}</span>
-            @if($canExport)
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('finance.payments.export', ['locale' => $locale] + $filters + $exportFilters + ['format' => 'xlsx'])">{{ __('finance.payments.export_xlsx') }}</x-hc.button>
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('finance.payments.export', ['locale' => $locale] + $filters + $exportFilters + ['format' => 'csv'])">{{ __('finance.payments.export_csv') }}</x-hc.button>
-            @endif
             @if($tab !== 'due' || $this->cities !== [] || $year !== '' || $month !== '' || $group !== '' || $currency !== '' || $search !== '' || $filterBar['chips'] !== [])
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('finance.payments.clear') }}</x-hc.button>
             @endif
+        </div>
+
+        <div class="hc-toolbar" style="align-items:center;padding-block-start:0">
+            <x-hc.column-picker :picker="$columnPicker"/>
         </div>
 
         @if($totals->isNotEmpty())
@@ -98,19 +98,38 @@
             @else
             <table class="hc-table stack">
                 <thead><tr>
-                    <th>{{ __('finance.payments.columns.number') }}</th><th>{{ __('finance.payments.columns.beneficiary') }}</th><th>{{ __('finance.payments.columns.group') }}</th>
-                    <th class="num">{{ __('finance.payments.columns.amount') }}</th><th>{{ __('finance.payments.columns.due') }}</th><th>{{ __('finance.payments.columns.status') }}</th><th>{{ __('finance.payments.columns.received') }}</th><th></th>
+                    @foreach($table['columns'] as $col)
+                        @php($dir = $col['dir'])
+                        <th scope="col" @class(['num' => $col['field']->numeric()]) aria-sort="{{ $dir === 'asc' ? 'ascending' : ($dir === 'desc' ? 'descending' : 'none') }}" wire:key="th-{{ $col['key'] }}">
+                            @if($col['sortable'])
+                                <button type="button" class="hc-sort @if($dir) is-sorted @endif" wire:click="sortBy('{{ $col['key'] }}', $event.shiftKey)" title="{{ __('hc.sort_hint') }}">
+                                    <span>{{ $col['label'] }}</span>
+                                    <span class="hc-sort-ind" aria-hidden="true">{{ $dir === 'asc' ? '▲' : ($dir === 'desc' ? '▼' : '↕') }}</span>
+                                    @if($col['priority'])<sup class="hc-sort-pri">{{ $col['priority'] }}</sup>@endif
+                                    @if($dir)<span class="sr-only">({{ __('hc.sort_'.$dir) }})</span>@endif
+                                </button>
+                            @else
+                                {{ $col['label'] }}
+                            @endif
+                        </th>
+                    @endforeach
+                    <th></th>
                 </tr></thead>
                 <tbody>
                 @foreach($rows as $r)
-                    <tr wire:key="inst-{{ $r->id }}" @class(['hc-fin-overdue' => $r->overdue])>
-                        <td data-label="{{ __('finance.payments.columns.number') }}"><span class="ltr num">{{ $r->number }}</span> <span class="muted">· {{ $name($r->city_ar, $r->city_en) }}</span></td>
-                        <td data-label="{{ __('finance.payments.columns.beneficiary') }}">{{ $r->beneficiary ?: '—' }}</td>
-                        <td data-label="{{ __('finance.payments.columns.group') }}">{{ $r->group_ar ? $name($r->group_ar, $r->group_en) : '—' }}</td>
-                        <td data-label="{{ __('finance.payments.columns.amount') }}" class="num">{{ $money($r->amount) }} <span class="muted">{{ $r->currency }}</span></td>
-                        <td data-label="{{ __('finance.payments.columns.due') }}" class="num">{{ $r->due_on ?: '—' }}</td>
-                        <td data-label="{{ __('finance.payments.columns.status') }}">@if($r->is_paid)<x-hc.badge tone="ok">{{ __('finance.installments.paid') }}</x-hc.badge>@elseif($r->overdue)<x-hc.badge tone="danger">{{ __('finance.installments.overdue') }}</x-hc.badge>@else<x-hc.badge tone="warn">{{ __('finance.installments.not_paid') }}</x-hc.badge>@endif</td>
-                        <td data-label="{{ __('finance.payments.columns.received') }}" class="num">{{ $r->is_paid ? ($r->received_on ?: '—') : '—' }}</td>
+                    <tr wire:key="inst-{{ $r->id }}" @class(['hc-fin-overdue' => ! $r->row_paid && $r->row_due !== null && substr((string) $r->row_due, 0, 10) < now()->toDateString()])>
+                        @foreach($table['columns'] as $col)
+                            @php($cell = $col['field']->cell($r))
+                            <td data-label="{{ $col['label'] }}" @class(['num' => $col['field']->numeric()])>
+                                @if($cell['text'] === '')
+                                    {{ __('hc.not_set') }}
+                                @elseif($cell['badge'])
+                                    <x-hc.badge :tone="$cell['tone']" :icon="$cell['icon']">{{ $cell['text'] }}</x-hc.badge>
+                                @else
+                                    <span @class([$cell['class'], 'ltr' => $cell['ltr']]) @if($cell['ltr']) dir="ltr" @endif>{{ $cell['text'] }}</span>
+                                @endif
+                            </td>
+                        @endforeach
                         <td class="full"><a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('finance.show', ['locale' => $locale, 'project' => $r->project_id]) }}"><x-hc.icon name="wallet" :size="16"/>{{ __('finance.payments.open') }}</a></td>
                     </tr>
                 @endforeach
@@ -119,13 +138,20 @@
             @endif
         </div>
 
-        @if($rows->lastPage() > 1)
+        @if($rows->total() > $table['per_page_choices'][0] || $rows->lastPage() > 1)
         <div class="hc-pagination">
             <span>{{ __('hc.page', ['page' => $rows->currentPage(), 'pages' => $rows->lastPage()]) }}</span>
-            <div style="display:flex;gap:8px">
-                @if(! $rows->onFirstPage())<x-hc.button variant="secondary" size="sm" wire:click="previousPage">{{ __('hc.previous') }}</x-hc.button>@endif
-                @if($rows->hasMorePages())<x-hc.button variant="secondary" size="sm" wire:click="nextPage">{{ __('hc.next') }}</x-hc.button>@endif
-            </div>
+            <label class="hc-per-page"><span>{{ __('hc.per_page') }}</span>
+                <select class="hc-select" wire:model.live="perPage">
+                    @foreach($table['per_page_choices'] as $n)<option value="{{ $n }}">{{ $n }}</option>@endforeach
+                </select>
+            </label>
+            @if($rows->lastPage() > 1)
+            <nav aria-label="pagination">
+                <x-hc.button variant="secondary" size="sm" wire:click="previousPage" :disabled="$rows->onFirstPage()">{{ __('hc.previous') }}</x-hc.button>
+                <x-hc.button variant="secondary" size="sm" wire:click="nextPage" :disabled="! $rows->hasMorePages()">{{ __('hc.next') }}</x-hc.button>
+            </nav>
+            @endif
         </div>
         @endif
     </x-hc.card>

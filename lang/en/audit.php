@@ -44,6 +44,7 @@ return [
         'attachments_uploaded' => 'Uploaded an attachment', 'attachments_deleted' => 'Deleted an attachment', 'attachments_view' => 'Opened an attachment',
         'projects_exported' => 'Exported the projects list',
         'people_exported' => 'Exported the people list',
+        'installments_exported' => 'Exported the payment schedule',
     ],
     'verbs' => [
         'view' => 'Opened', 'list' => 'Listed', 'listed' => 'Listed', 'board' => 'Opened the board', 'search' => 'Searched', 'statistics' => 'Opened statistics',

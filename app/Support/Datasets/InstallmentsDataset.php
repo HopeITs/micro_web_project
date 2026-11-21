@@ -3,6 +3,7 @@
 namespace App\Support\Datasets;
 
 use App\Models\City;
+use App\Models\Donor;
 use App\Models\DonorGroup;
 use App\Models\LoanInstallment;
 use App\Models\ProjectState;
@@ -55,11 +56,26 @@ final class InstallmentsDataset extends Dataset
         // Derived exactly as the page shows it: paid, else overdue when due before today, else not yet paid.
         $status = "CASE WHEN loan_installments.is_paid = 1 THEN 'paid' WHEN loan_installments.due_on < '{$today}' THEN 'overdue' ELSE 'unpaid' END";
 
+        $mysql = DB::connection()->getDriverName() !== 'sqlite';
+        $daysLate = $mysql ? "DATEDIFF('{$today}', loan_installments.due_on)" : "CAST(julianday('{$today}') - julianday(loan_installments.due_on) AS INTEGER)";
+        $overdue = "CASE WHEN loan_installments.is_paid = 0 AND loan_installments.due_on < '{$today}' THEN {$daysLate} END";
+        // The instalment's position in its loan: earlier due dates first, ties by id.
+        $position = '(SELECT COUNT(*) FROM loan_installments li2 WHERE li2.loan_id = loan_installments.loan_id AND li2.deleted_at IS NULL'
+            .' AND (li2.due_on < loan_installments.due_on OR (li2.due_on = loan_installments.due_on AND li2.id <= loan_installments.id)))';
+
         return [
-            new Field('number', 'hc.number', 'number', 'p.project_number', groupable: false),
+            new Field('number', 'hc.number', 'number', 'p.project_number', groupable: false,
+                with: ['row_city_code' => 'c.code'],
+                cell: fn (object $row) => [
+                    'text' => ProjectNumberAllocator::display((string) $row->row_city_code, (int) $row->col_number),
+                    'export' => ProjectNumberAllocator::display((string) $row->row_city_code, (int) $row->col_number), 'ltr' => true, 'class' => 'hc-pnum',
+                ]),
             new Field('beneficiary', 'hc.beneficiary', 'text', 'pe.first_name', sortable: false, sensitive: true,
-                searchColumns: ['pe.first_name', 'pe.father_name', 'pe.last_name']),
+                searchColumns: ['pe.first_name', 'pe.father_name', 'pe.last_name'],
+                with: ['row_father_name' => 'pe.father_name', 'row_last_name' => 'pe.last_name'],
+                cell: fn (object $row) => ['text' => $row->col_beneficiary === null ? '' : trim(trim($row->col_beneficiary.' '.($row->row_last_name ?? '')).' ابن/ة '.($row->row_father_name ?? ''))]),
             new Field('national_number', 'hc.national_number', 'text', 'pe.national_number', sortable: false, sensitive: true),
+            new Field('mobile', 'hc.beneficiary_mobile', 'text', 'pe.mobile', sortable: false, sensitive: true, cell: fn () => ['ltr' => true]),
             new Field('name', 'hc.project', 'text', 'p.name'),
             new Field('city', 'hc.city', 'lookup', 'loan_installments.city_id', groupable: true, options: function () use ($en) {
                 $context = app(CityContext::class);
@@ -72,15 +88,39 @@ final class InstallmentsDataset extends Dataset
             }),
             new Field('state', 'hc.state', 'lookup', 'cs.project_state_id', groupable: true, options: $lookup(ProjectState::class)),
             new Field('group', 'finance.payments.group', 'lookup', 'p.donor_group_id', groupable: true, options: $lookup(DonorGroup::class)),
-            new Field('status', 'finance.payments.columns.status', 'enum', $status, sortable: false, groupable: true,
-                options: fn () => ['paid' => __('finance.installments.paid'), 'overdue' => __('finance.installments.overdue'), 'unpaid' => __('finance.installments.not_paid')]),
-            new Field('due_on', 'finance.payments.columns.due', 'date', 'loan_installments.due_on', groupable: true),
-            new Field('received_on', 'finance.payments.columns.received', 'date', 'loan_installments.received_on'),
+            new Field('donor', 'finance.payments.columns.donor', 'lookup', 'p.donor_id', groupable: true, options: $lookup(Donor::class)),
             new Field('amount', 'finance.payments.columns.amount', 'money', 'loan_installments.amount', aggregatable: true),
-            new Field('paid_amount', 'hc.paid_amount', 'money', 'CASE WHEN loan_installments.is_paid = 1 THEN loan_installments.amount ELSE 0 END', sortable: false, aggregatable: true),
             new Field('currency', 'finance.payments.currency', 'enum', 'l.currency', groupable: true,
                 options: fn () => array_combine(FinanceService::CURRENCIES, FinanceService::CURRENCIES)),
+            new Field('due_on', 'finance.payments.columns.due', 'date', 'loan_installments.due_on', groupable: true),
+            new Field('status', 'finance.payments.columns.status', 'enum', $status, sortable: false, groupable: true,
+                options: fn () => ['paid' => __('finance.installments.paid'), 'overdue' => __('finance.installments.overdue'), 'unpaid' => __('finance.installments.not_paid')],
+                cell: fn (object $row) => ['badge' => true, 'tone' => ['paid' => 'ok', 'overdue' => 'danger'][$row->col_status] ?? 'warn']),
+            new Field('received_on', 'finance.payments.columns.received', 'date', 'loan_installments.received_on',
+                cell: fn (object $row) => $row->row_paid ? [] : ['text' => '', 'export' => null]),
+            new Field('paid_amount', 'hc.paid_amount', 'money', 'CASE WHEN loan_installments.is_paid = 1 THEN loan_installments.amount ELSE 0 END', sortable: false, aggregatable: true),
+            new Field('loan_amount', 'finance.payments.columns.loan_amount', 'money', 'l.amount', aggregatable: true),
+            new Field('installment_no', 'finance.payments.columns.installment_no', 'number', $position, filterable: false),
+            new Field('days_overdue', 'finance.payments.columns.days_overdue', 'number', $overdue),
         ];
+    }
+
+    /** Payments are money data: exporting needs finance.export (not reports.export) in the city. */
+    public function exportCapability(): string
+    {
+        return 'finance.export';
+    }
+
+    /** The project and paid flag travel with every row: the finance link and the overdue highlight need them. */
+    protected function rowSelect(): array
+    {
+        return [...parent::rowSelect(), 'p.id as project_id', 'loan_installments.is_paid as row_paid', 'loan_installments.due_on as row_due'];
+    }
+
+    /** @return list<string> the columns of today's table, in order */
+    public function defaultColumns(): array
+    {
+        return ['number', 'beneficiary', 'group', 'amount', 'currency', 'due_on', 'status', 'received_on'];
     }
 
     /**

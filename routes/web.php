@@ -64,6 +64,18 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/payments', [FinanceController::class, 'payments'])->name('finance.payments');
             Route::get('/payments/export', [FinanceController::class, 'export'])->middleware('throttle:10,1')->name('finance.payments.export');
 
+            // M4.12 visits (VisitService / MonitoringVisitService / VisitScheduleService / VisitResultsService / VisitorStatisticsService recheck the capabilities per city).
+            Route::get('/applications/{project}/visits', [\App\Http\Controllers\VisitController::class, 'hub'])->whereNumber('project')->name('visits.hub');
+            Route::get('/applications/{project}/visits/{kind}', [\App\Http\Controllers\VisitController::class, 'show'])->whereNumber('project')->where('kind', '[OVR]-(op|cl)')->name('visits.show');
+            Route::get('/applications/{project}/me-visits/new/{person}', [\App\Http\Controllers\VisitController::class, 'meCreate'])->whereNumber('project')->whereNumber('person')->name('visits.me.create');
+            Route::get('/applications/{project}/me-visits/{visit}', [\App\Http\Controllers\VisitController::class, 'meShow'])->whereNumber('project')->whereNumber('visit')->name('visits.me.show');
+            Route::get('/visits/schedule', [\App\Http\Controllers\VisitController::class, 'schedule'])->name('visits.schedule');
+            Route::get('/visits/schedule/export', [\App\Http\Controllers\VisitController::class, 'scheduleExport'])->middleware('throttle:10,1')->name('visits.schedule.export');
+            Route::get('/visits/results', [\App\Http\Controllers\VisitController::class, 'results'])->name('visits.results');
+            Route::get('/visits/results/export', [\App\Http\Controllers\VisitController::class, 'resultsExport'])->middleware('throttle:10,1')->name('visits.results.export');
+            Route::get('/visits/statistics', [\App\Http\Controllers\VisitController::class, 'statistics'])->name('visits.statistics');
+            Route::get('/visits/statistics/export', [\App\Http\Controllers\VisitController::class, 'statisticsExport'])->middleware('throttle:10,1')->name('visits.statistics.export');
+
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');
             Route::get('/people/create', [PeopleController::class, 'create'])->name('people.create');

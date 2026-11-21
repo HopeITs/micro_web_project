@@ -14,6 +14,7 @@ return [
     'changed' => 'تغيّر (القيمة لا تُعرض)', 'changes_summary' => '{1} تغيّر حقل واحد|{2} تغيّر حقلان|[3,10] تغيّرت :count حقول|[11,*] تغيّر :count حقلاً', 'cut' => 'مختصر',
     'fields' => ['email' => 'البريد الإلكتروني', 'state' => 'الحالة', 'state_reason' => 'سبب الحالة', 'state_note' => 'ملاحظة الحالة', 'donor' => 'الجهة الممولة', 'tasks_opened' => 'مهام فُتحت', 'task' => 'المهمة',
         'donor_group' => 'المجموعة', 'currency' => 'العملة', 'exchange_rate' => 'سعر الصرف', 'amount' => 'المبلغ', 'taken_on' => 'تاريخ القرض', 'returned_amount' => 'المبلغ المسترد', 'installment_amount' => 'مبلغ القسط', 'installments_count' => 'عدد الأقساط', 'rate' => 'نسبة الاسترداد', 'receipt_number' => 'رقم الإيصال', 'note' => 'ملاحظات', 'loan' => 'القرض', 'installment' => 'القسط', 'installments' => 'الأقساط', 'visit_notices' => 'إشعارات الزيارات', 'notices_removed' => 'إشعارات حُذفت',
+        'visit' => 'الزيارة', 'visit_date' => 'تاريخ الزيارة', 'vehicle_number' => 'رقم اللوحة', 'street' => 'منطقة المشروع', 'address_after_fund' => 'العنوان التفصيلي', 'indicators' => 'المؤشرات', 'office_comments' => 'ملاحظات المستفيد', 'answer' => 'إجابة', 'office' => 'تقييم المكتب', 'visitors' => 'الزوار', 'notices_seen' => 'إشعارات قُرئت', 'notices_unseen' => 'إشعارات أعيدت غير مقروءة', 'visit_number' => 'رقم الزيارة', 'profit' => 'الربح الصافي', 'answer_1' => 'إجابة نصية', 'notes' => 'ملاحظات المستفيد', 'result' => 'النتيجة', 'notice' => 'الإشعار', 'notice_date' => 'تاريخ الإشعار', 'change_reason' => 'سبب التغيير',
         'attachment' => ['original_name' => 'اسم الملف', 'type' => 'نوع المرفق', 'category' => 'فئة المرفق']],
     'col' => [
         'number' => 'الرقم', 'desktop_number' => 'رقم البرنامج', 'time' => 'الوقت', 'account' => 'الحساب', 'user' => 'المستخدم', 'city' => 'المدينة',
@@ -45,7 +46,7 @@ return [
         'view' => 'فتح', 'list' => 'عرض قائمة', 'listed' => 'عرض قائمة', 'board' => 'فتح لوحة', 'search' => 'بحث في', 'statistics' => 'إحصاءات',
         'created' => 'إضافة', 'updated' => 'تعديل', 'saved' => 'حفظ', 'deleted' => 'حذف', 'restored' => 'استعادة', 'hidden' => 'إخفاء', 'shown' => 'إظهار',
         'exported' => 'تصدير', 'printed' => 'طباعة', 'toggled' => 'تغيير', 'seen' => 'قراءة', 'sent' => 'إرسال', 'noted' => 'ملاحظة على', 'rescheduled' => 'إعادة جدولة',
-        'schedule' => 'فتح جدول', 'donor_assigned' => 'تحديد مانح', 'group_created' => 'إنشاء مجموعة', 'loan_saved' => 'حفظ القرض', 'payments_saved' => 'حفظ الدفعات',
+        'schedule' => 'فتح جدول', 'results' => 'فتح نتائج', 'donor_assigned' => 'تحديد مانح', 'group_created' => 'إنشاء مجموعة', 'loan_saved' => 'حفظ القرض', 'payments_saved' => 'حفظ الدفعات',
         'download_started' => 'بدء تنزيل', 'download_succeeded' => 'تنزيل', 'download_failed' => 'فشل تنزيل', 'download_denied' => 'تنزيل مرفوض',
     ],
     'nouns' => [

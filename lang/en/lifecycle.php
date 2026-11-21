@@ -42,7 +42,7 @@ return [
         'instalments' => 'Follow the instalments until the last one is paid.',
         'today' => 'since today',
         'since' => '{1} for 1 day|[2,*] for :days days',
-        'actions' => ['open_form' => 'Open the form', 'open_checklist' => 'Open the checklist', 'see_tasks' => 'Tasks', 'change_state' => 'Change state'],
+        'actions' => ['open_form' => 'Open the form', 'open_checklist' => 'Open the checklist', 'see_tasks' => 'Tasks', 'change_state' => 'Change state', 'open_visits' => 'Open the visits'],
     ],
     'checklist' => [
         'title' => 'Assessment checklist', 'scope' => 'The checklist belongs to the beneficiary and is shared by all of their projects. Member rows are added or edited here; deleting a checklist is not available.',

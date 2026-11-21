@@ -39,14 +39,14 @@ final class NextStep
             LifecycleService::WAITING, LifecycleService::UNDER_REVIEW => match (true) {
                 ! $this->hasChecklist($id) => $this->step('checklist', ['data-entry'],
                     $this->access->check($account, $city, 'assessments.view') ? route('checklists.show', ['locale' => $locale, 'project' => $id]) : null, 'open_checklist'),
-                ($task = $open('a')) !== null => $this->taskStep($task, $city, $toTasks),
+                ($task = $open('a')) !== null => $this->taskStep($task, $city, $toTasks, $account, $id),
                 default => $this->step('decide', ['administrator'], $toState, 'change_state'),
             },
             LifecycleService::DELAYED => $this->step('delayed', ['administrator'], $toState, 'change_state'),
             LifecycleService::ACCEPTED => DB::table('loans')->where('project_id', $id)->whereNull('deleted_at')->exists()
-                ? (($task = $open('f')) !== null ? $this->taskStep($task, $city, $toTasks) : null)
+                ? (($task = $open('f')) !== null ? $this->taskStep($task, $city, $toTasks, $account, $id) : null)
                 : $this->step('loan', ['financial'], null, null),
-            LifecycleService::FINANCED => ($task = $open('f')) !== null ? $this->taskStep($task, $city, $toTasks) : $this->step('instalments', ['financial'], null, null),
+            LifecycleService::FINANCED => ($task = $open('f')) !== null ? $this->taskStep($task, $city, $toTasks, $account, $id) : $this->step('instalments', ['financial'], null, null),
             default => null,
         };
         if ($step === null) {
@@ -67,13 +67,19 @@ final class NextStep
             'href' => $href, 'action' => $href !== null && $action !== null ? __('lifecycle.next.actions.'.$action) : null, 'since' => null];
     }
 
-    private function taskStep(object $task, int $city, ?string $href): array
+    private function taskStep(object $task, int $city, ?string $href, ?WebAccount $account = null, ?int $projectId = null): array
     {
         $name = app()->getLocale() === 'en' && $task->name_en ? $task->name_en : $task->name_ar;
         $roles = DB::table('account_city_tasks as t')->join('account_city_roles as r', fn ($j) => $j->on('r.account_id', '=', 't.account_id')->on('r.city_id', '=', 't.city_id'))
             ->join('web_accounts as a', 'a.id', '=', 't.account_id')
             ->where('t.city_id', $city)->where('t.task_definition_id', $task->task_definition_id)->whereNull('t.revoked_at')->whereNull('r.revoked_at')->whereNull('a.disabled_at')
             ->distinct()->pluck('r.role')->all();
+
+        // M4.12: a visit task (Opening Visit, M1…, Clearance) leads to the project's visits page for those who record visits.
+        if ($account !== null && $projectId !== null && in_array($task->name_ar, \App\Services\Field\VisitKinds::TASKS, true)
+            && ($this->access->check($account, $city, 'visits.manage') || $this->access->check($account, $city, 'me_visits.manage'))) {
+            return $this->step('task', $roles === [] ? ['administrator'] : $roles, route('visits.hub', ['locale' => app()->getLocale(), 'project' => $projectId]), 'open_visits', ['task' => $name]);
+        }
 
         return $this->step('task', $roles === [] ? ['administrator'] : $roles, $href, 'see_tasks', ['task' => $name]);
     }

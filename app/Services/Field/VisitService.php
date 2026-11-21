@@ -5,418 +5,495 @@ declare(strict_types=1);
 namespace App\Services\Field;
 
 use App\Models\WebAccount;
-use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
 use App\Services\Lifecycle\LifecycleService;
-use App\Services\Operational\OperationalTables;
 use App\Services\Staff\ProjectNotices;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
- * Opening and closing visits of a project (the four visit forms, `Classes/Visit.cs`, `Classes/Office_Monitoring.cs`).
- * A visit is created once per kind, edited in place and never deleted. Only changed fields are validated and written, so legacy values survive.
- * The visitors (`visit_user`, historical source users) are not recorded by the web; the acting account's username is stored as the creator.
+ * Opening, closing and rehabilitation closing visits of a project (M4.12, desktop `VOpening_*`, `VClosing_Form`, `VClosing_Rehab_Form`,
+ * `Visit.cs`, `Office_Monitoring.cs`, `VisitRehab.cs`) on the unified schema: `visits`, `visit_answers`, `visit_visitors`, with the project's
+ * place (`projects.street_id`, `address_after_fund`), its tasks, its shared visit notices and its state through LifecycleService.
+ *
+ * Reading needs `applications.view` + `visits.view` in the project's city (another city: 404); writing `visits.manage`; deleting
+ * `visits.delete`. One opening and one closing per project; rehabilitation grant projects only get the rehabilitation closing; vehicle
+ * projects the vehicle forms. Owner decisions (21 Nov 2026): at least one visitor (2); the closing visit moves a Financed project to
+ * Finished on its first save only (3); deletion is soft, unticks the task and makes the visit's notice unseen again, a Finished state is
+ * kept (4); visits written by Kobo are read-only (5); the date is required, not in the future and not before the loan (6).
  */
 final class VisitService
 {
-    use RetiresRecords;
+    public function __construct(private VisitSupport $support, private AccountAuditTrail $audit, private LifecycleService $lifecycle, private ProjectNotices $projectNotices) {}
 
-    public const OFFICE_SLOTS = 6;
+    // ---------------------------------------------------------------- reading
 
-    public const QUESTION_SLOTS = 7;
-
-    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private OperationalTables $tables, private LifecycleService $lifecycle, private ProjectNotices $projectNotices) {}
-
-    private function authorize(WebAccount $account, int $city, bool $write = false, ?string $extra = null): void
+    /**
+     * Read model of the project's visits page: opening / closing / rehabilitation cards (`visits.view`) and the M&E visits per person
+     * (`me_visits.view`), with the add buttons the account may use. Needs either capability; `$opened` audits the page visit once.
+     */
+    public function hub(WebAccount $account, int $projectId, bool $opened = false): array
     {
-        foreach (['applications.view', 'visits.view', ...($write ? ['visits.manage'] : []), ...($extra === null ? [] : [$extra])] as $capability) {
-            if (! $this->access->check($account, $city, $capability)) {
-                $this->audit->record($account->id, 'access.denied', 'denied');
-                abort(403);
-            }
+        $project = $this->lifecycle->project($account, $projectId);
+        $city = (int) $project->city_id;
+        $canVisits = $this->support->can($account, $city, 'visits.view');
+        $canMe = $this->support->can($account, $city, 'me_visits.view');
+        if (! $canVisits && ! $canMe) {
+            $this->support->require($account, $city, 'visits.view');
         }
-    }
-
-    private function project(int $id): object
-    {
-        $row = $this->tables->query('microproject')->where('p.id', $id)->first();
-        abort_if($row === null, 404);
-
-        return $row;
-    }
-
-    private function fail(string $field, string $key): never
-    {
-        throw ValidationException::withMessages([$field => __('field.errors.'.$key)]);
-    }
-
-    private function linked(object $project, string $key, string $table): ?object
-    {
-        $ref = $this->tables->relation('microproject', $key);
-
-        return $project->{$ref['state_column']} === 'resolved'
-            ? $this->tables->find($table, (int) $project->{$ref['resolved_column']}, (int) $project->city_id, (int) $project->source_id) : null;
-    }
-
-    /** @return array{rehab: bool, vehicle: bool} */
-    public function classify(object $project): array
-    {
-        $type = (string) ($this->linked($project, 'MP_Type_ID', 'microprojecttype')->c_Name ?? '');
-        $fund = (string) ($this->linked($project, 'MP_FundType_ID', 'fundtype')->c_Name ?? '');
-        $sub = $this->linked($project, 'SubCategory_ID', 'subcategory');
-        $code = $sub !== null ? $sub->c_ID : ($project->c_SubCategory_ID ?? null);
+        $class = $this->support->classify($project);
+        $current = $this->support->current($projectId);
+        $visits = $canVisits ? $this->visits($projectId) : collect();
+        $me = app(MonitoringVisitService::class);
+        if ($opened) {
+            $this->audit->record($account->id, $canVisits ? 'visits.view' : 'me_visits.view', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+        }
 
         return [
-            'rehab' => str_contains($type, 'ترميم') && str_contains($fund, 'منحة'),
-            'vehicle' => in_array((int) $code, [1, 2], true),
+            'project' => $project, 'header' => $this->support->header($project), 'class' => $class, 'current' => $current, 'funded' => $this->support->funded($current),
+            'canVisits' => $canVisits, 'canMe' => $canMe, 'cards' => $this->cards($visits), 'addable' => $canVisits ? $this->addable($account, $project, $visits, $class, $current) : [],
+            'people' => $canMe ? $me->people($project) : collect(), 'meCreatable' => $canMe && $me->creatable($account, $project, $class),
         ];
     }
 
-    private function visits(object $project, bool $deleted = false): Collection
+    /** The project's visits of every phase (not deleted), oldest first. */
+    public function visits(int $projectId): Collection
     {
-        $ref = $this->tables->relation('visit', 'MicroProject_ID');
-
-        return $this->tables->query('visit', $deleted)->where('p.city_id', $project->city_id)->where('p.source_id', $project->source_id)
-            ->where('p.'.$ref['resolved_column'], $project->id)->where('p.'.$ref['state_column'], 'resolved')->orderBy('p.id')->get();
+        return DB::table('visits')->where('project_id', $projectId)->whereNull('deleted_at')->orderBy('id')->get();
     }
 
-    private function officeRows(Collection $visits): Collection
+    private function answers(array $visitIds): Collection
     {
-        if ($visits->isEmpty()) {
-            return collect();
-        }
-        $ref = $this->tables->relation('office_monitoring', 'Visit_ID');
-
-        return $this->tables->query('office_monitoring')->whereIn('p.'.$ref['resolved_column'], $visits->pluck('id')->all())
-            ->where('p.'.$ref['state_column'], 'resolved')->orderBy('p.id')->get()->keyBy(fn ($row) => (int) $row->{$ref['resolved_column']});
+        return DB::table('visit_answers')->whereIn('visit_id', $visitIds ?: [0])->whereNull('deleted_at')->orderBy('id')->get();
     }
 
-    private function version(Collection $visits, Collection $offices, object $project): string
+    private function visitorRows(array $visitIds): Collection
     {
-        $strip = fn (Collection $rows) => $rows->map(fn ($row) => collect((array) $row)->except(['city_name_en', 'city_name_ar'])->all())->values()->all();
-        $place = $this->tables->relation('microproject', 'MP_Street_ID');
-
-        return hash('sha256', json_encode([$strip($visits), $strip($offices), [$project->{$place['resolved_column']}, $project->c_MP_AddressAfterFund ?? null]], JSON_THROW_ON_ERROR));
+        return DB::table('visit_visitors')->whereIn('visit_id', $visitIds ?: [0])->whereNull('deleted_at')->orderBy('id')->get(['id', 'visit_id', 'account_id']);
     }
 
-    private function ofKind(Collection $visits, string $kind): ?object
+    /** A fingerprint of what the page showed: the project's visits, their answers and visitors, and the project's place. */
+    public function version(object $project, Collection $visits): string
     {
-        return $visits->first(fn ($visit) => ($visit->c_Kind ?? null) === $kind);
+        $ids = $visits->pluck('id')->all();
+        $plain = fn (Collection $rows) => $rows->map(fn ($r) => collect((array) $r)->map(fn ($v) => $v === null ? null : (string) $v)->all())->values()->all();
+
+        return hash('sha256', json_encode([$plain($visits), $plain($this->answers($ids)), $plain($this->visitorRows($ids)), $project->street_id, $project->address_after_fund], JSON_THROW_ON_ERROR));
     }
 
-    /** Whether the project already has a visit of the phase (`Kind` contains `op` or `cl`), as the desktop's chooser disables the button. */
-    private function phaseTaken(Collection $visits, string $phase): bool
+    /** The visit of a phase (`Kind` contains op / cl, as the desktop's `Has_Visit`), the first when old data holds two. */
+    private function ofPhase(Collection $visits, string $phase): ?object
     {
         $needle = $phase === 'opening' ? 'op' : 'cl';
 
-        return $visits->contains(fn ($visit) => str_contains((string) ($visit->c_Kind ?? ''), $needle));
+        return $visits->first(fn ($v) => str_contains((string) $v->kind, $needle));
     }
 
-    /** The project's visit hub: recorded visits and which kinds can still be recorded. */
-    public function hub(WebAccount $account, int $projectId): array
+    /** Which kinds the account may still add to the project (an empty list when it may not write or the project is not funded). */
+    public function addable(WebAccount $account, object $project, Collection $visits, array $class, ?object $current): array
     {
-        $project = $this->project($projectId);
-        $city = (int) $project->city_id;
-        $this->authorize($account, $city);
-        $visits = $this->visits($project);
-        $class = $this->classify($project);
-        $canManage = $this->access->check($account, $city, 'visits.manage');
-        $available = [];
-        if ($canManage && ! $class['rehab']) {
-            foreach (['opening', 'closing'] as $phase) {
-                if (! $this->phaseTaken($visits, $phase)) {
-                    $available[] = VisitKinds::kindFor($phase, $class['vehicle']);
-                }
+        if (! $this->support->can($account, (int) $project->city_id, 'visits.manage') || ! $this->support->funded($current)) {
+            return [];
+        }
+        $out = [];
+        foreach (['opening', 'closing'] as $phase) {
+            $kind = VisitKinds::kindFor($phase, $class['vehicle'], $class['rehab']);
+            if ($kind !== null && $this->ofPhase($visits, $phase) === null) {
+                $out[] = $kind;
             }
         }
-        $this->audit->record($account->id, 'visits.view', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
 
-        $rehabVisit = $class['rehab'] ? $visits->first(fn ($visit) => ((string) $visit->c_Kind) === RehabVisitService::KIND) : null;
-
-        $canRestore = $this->mayRestore($account, $city, 'visits.delete');
-
-        return ['canRestore' => $canRestore, 'deleted' => $canRestore ? $this->visits($project, true) : collect(), 'rehabVisit' => $rehabVisit, 'canRehab' => $class['rehab'] && $canManage, 'project' => $project, 'version' => $this->version($visits, $this->officeRows($visits), $project), 'visits' => $visits, 'rehab' => $class['rehab'], 'vehicle' => $class['vehicle'], 'available' => $available, 'canManage' => $canManage];
+        return $out;
     }
 
-    /** Read model of one visit questionnaire (an existing visit of the kind, or an empty form when the kind can be recorded). */
+    /** Cards of the visits page: each visit with its date, visitors (accounts or Kobo names) and the Kobo mark. */
+    public function cards(Collection $visits): Collection
+    {
+        $ids = $visits->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $kobo = $this->support->koboVisits($ids);
+        $koboNames = $this->support->koboVisitorNames('visits', array_keys($kobo));
+        $rows = $this->visitorRows($ids);
+        $names = $this->support->names($rows->pluck('account_id')->all());
+
+        return $visits->map(fn ($v) => (object) [
+            'id' => (int) $v->id, 'kind' => (string) $v->kind, 'phase' => VisitKinds::phase((string) $v->kind), 'date' => Fields::day($v->visit_date), 'kobo' => isset($kobo[(int) $v->id]),
+            'visitors' => isset($kobo[(int) $v->id]) && $rows->where('visit_id', $v->id)->isEmpty() ? ($koboNames[(int) $v->id] ?? [])
+                : $rows->where('visit_id', $v->id)->map(fn ($r) => $names[(int) $r->account_id] ?? '#'.$r->account_id)->values()->all(),
+            'created_by' => (string) ($v->created_by_name ?? ''),
+        ]);
+    }
+
+    /** Read model of one questionnaire: the stored visit of the kind's phase, or an empty form when the kind may be added. */
     public function form(WebAccount $account, int $projectId, string $kind): array
     {
-        $definition = VisitKinds::definition($kind);
-        $project = $this->project($projectId);
+        VisitKinds::has($kind) || abort(404);
+        $project = $this->support->project($account, $projectId, 'visits.view');
         $city = (int) $project->city_id;
-        $this->authorize($account, $city);
-        $visits = $this->visits($project);
-        $offices = $this->officeRows($visits);
-        $visit = $this->ofKind($visits, $kind);
-        $class = $this->classify($project);
-        $canManage = $this->access->check($account, $city, 'visits.manage');
-        $creatable = $visit === null && $canManage && ! $class['rehab'] && VisitKinds::kindFor($definition['phase'], $class['vehicle']) === $kind && ! $this->phaseTaken($visits, $definition['phase']);
-        abort_if($visit === null && ! $creatable, 404);
-        $street = $this->tables->relation('microproject', 'MP_Street_ID');
-        $this->audit->record($account->id, 'visits.view', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+        $visits = $this->visits($projectId);
+        $class = $this->support->classify($project);
+        $phase = VisitKinds::phase($kind);
+        $visit = $visits->first(fn ($v) => $v->kind === $kind) ?? null;
+        if ($visit === null) {
+            in_array($kind, $this->addable($account, $project, $visits, $class, $this->support->current($projectId)), true) || abort(404);
+        }
+        $answers = $visit === null ? collect() : $this->answers([(int) $visit->id]);
+        $chosen = $visit === null ? [] : $this->visitorRows([(int) $visit->id])->pluck('account_id')->map(fn ($id) => (int) $id)->all();
+        $kobo = $visit !== null && $this->support->koboVisits([(int) $visit->id]) !== [];
+        $canManage = $this->support->can($account, $city, 'visits.manage');
+        $definition = $kind === VisitKinds::REHAB ? null : VisitKinds::definition($kind);
 
         return [
-            'project' => $project, 'kind' => $kind, 'definition' => $definition, 'wording' => VisitKinds::wording($kind), 'visit' => $visit,
-            'office' => $visit === null ? null : $offices->get((int) $visit->id), 'canManage' => $canManage, 'canDelete' => $visit !== null && $this->mayRetire($account, $city, 'visits.delete', $visit), 'version' => $this->version($visits, $offices, $project),
-            'streets' => $definition['place'] ? $this->tables->catalog('street', $city, (int) $project->source_id)->sortBy('c_Name', SORT_STRING)->values() : collect(),
-            'streetId' => $project->{$street['state_column']} === 'resolved' ? (int) $project->{$street['resolved_column']} : null,
-            'placeNote' => (string) ($project->c_MP_AddressAfterFund ?? ''),
+            'project' => $project, 'header' => $this->support->header($project), 'kind' => $kind, 'phase' => $phase, 'definition' => $definition, 'visit' => $visit,
+            'questions' => $this->wording($kind), 'answers' => $this->keyed($answers), 'visitors' => $chosen,
+            'visitorOptions' => $this->support->visitorOptions($city, $chosen), 'kobo' => $kobo,
+            'koboVisitors' => $kobo ? ($this->support->koboVisitorNames('visits', [(int) $visit->id])[(int) $visit->id] ?? []) : [],
+            'canManage' => $canManage && ! $kobo, 'canDelete' => $visit !== null && ! $kobo && $this->support->can($account, $city, 'visits.delete'),
+            'version' => $this->version($project, $visits),
+            'streets' => ($definition['place'] ?? false) ? DB::table('streets')->where('city_id', $city)->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $project->street_id ?? 0))
+                ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']) : collect(),
         ];
     }
 
+    /** Question wording by slot from `visit_questions` (type and number); closing slot 6 is question 7, question 8 the indicators. */
+    private function wording(string $kind): array
+    {
+        if ($kind === VisitKinds::REHAB) {
+            return [];
+        }
+        $definition = VisitKinds::definition($kind);
+        $rows = DB::table('visit_questions')->where('type', $definition['wording'])->get(['number', 'name_ar', 'name_en'])->keyBy(fn ($r) => (int) $r->number);
+        $out = [];
+        foreach (array_keys($definition['questions']) as $slot) {
+            $row = $rows->get(VisitKinds::questionNumber($kind, $slot));
+            $out[$slot] = $row === null ? __('visits.question', ['n' => VisitKinds::questionNumber($kind, $slot)]) : (app()->getLocale() === 'en' && $row->name_en ? $row->name_en : $row->name_ar);
+        }
+        if ($definition['phase'] === 'closing') {
+            $row = $rows->get(8);
+            $out['indicators'] = $row === null ? __('visits.closing.q8') : (app()->getLocale() === 'en' && $row->name_en ? $row->name_en : $row->name_ar);
+        }
+
+        return $out;
+    }
+
+    /** @return array<string, array<int, object>> form => slot => answer row */
+    private function keyed(Collection $answers): array
+    {
+        $out = [];
+        foreach ($answers as $row) {
+            $out[$row->form][(int) $row->question_number] ??= $row;
+        }
+
+        return $out;
+    }
+
+    // ---------------------------------------------------------------- writing
+
     /**
-     * Records or edits the visit of a kind. $input: date, vehicle, street_id, place_note, indicators, q{n}_value, q{n}_text,
-     * office{n}_value, office{n}_text, other_comments.
+     * Records or edits the visit of a kind. $input: date, vehicle, street_id, place_note, indicators, office_comments,
+     * q[slot][value|text], office[slot][value|text], visitors (account ids). Returns the visit id.
      */
     public function save(WebAccount $account, int $projectId, string $kind, array $input, string $version): int
     {
-        $definition = VisitKinds::definition($kind);
+        VisitKinds::has($kind) || abort(404);
+        $project = $this->support->project($account, $projectId, 'visits.view');
+        $this->support->require($account, (int) $project->city_id, 'visits.manage');
 
-        return DB::transaction(function () use ($account, $projectId, $kind, $definition, $input, $version) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            $project = $this->project($projectId);
+        return DB::transaction(function () use ($account, $projectId, $kind, $input, $version) {
+            $project = $this->support->lock($projectId);
             $city = (int) $project->city_id;
-            $source = (int) $project->source_id;
-            $this->authorize($account, $city, true);
-            $visits = $this->visits($project);
-            $offices = $this->officeRows($visits);
-            abort_unless(hash_equals($this->version($visits, $offices, $project), $version), 409, 'Visits changed. Reload before saving.');
-            $visit = $this->ofKind($visits, $kind);
-            $office = $visit === null ? null : $offices->get((int) $visit->id);
-            $actor = mb_substr((string) $account->username, 0, 50);
-
+            $visits = $this->visits($projectId);
+            hash_equals($this->version($project, $visits), $version) || $this->support->fail('version', 'stale');
+            $visit = $visits->first(fn ($v) => $v->kind === $kind);
+            $current = $this->support->current($projectId);
             if ($visit === null) {
-                $class = $this->classify($project);
-                $class['rehab'] && $this->fail('visit', 'rehab');
-                (VisitKinds::kindFor($definition['phase'], $class['vehicle']) === $kind) || $this->fail('visit', 'kind');
-                $this->phaseTaken($visits, $definition['phase']) && $this->fail('visit', 'exists');
-            }
-            $payload = $this->visitPayload($definition, $visit, $input);
-            $officePayload = $this->officePayload($definition, $office, $input, $office === null && $visit === null);
-
-            if ($visit === null) {
-                $visitId = $this->tables->insert('visit', $city, $source, $payload + ['c_Kind' => $kind, 'c_Type' => '', 'c_Created_By' => $actor] + $this->tables->link('visit', 'MicroProject_ID', $projectId));
-                $this->tables->insert('office_monitoring', $city, $source, $officePayload + $this->tables->link('office_monitoring', 'Visit_ID', $visitId));
-                $this->completeTask($project, $definition['task'], 1);
-                if ($definition['phase'] === 'opening') {
-                    $this->projectNotices->visitDone($project, 'Visit Opening-'.substr($kind, 0, 1)); // the opening notice is done
+                $class = $this->support->classify($project);
+                $this->support->funded($current) || $this->support->fail('visit', 'not_funded');
+                $phase = VisitKinds::phase($kind);
+                if ($class['rehab'] && $kind !== VisitKinds::REHAB) {
+                    $this->support->fail('visit', $phase === 'opening' ? 'rehab_opening' : 'rehab_only');
                 }
+                VisitKinds::kindFor($phase, $class['vehicle'], $class['rehab']) === $kind || $this->support->fail('visit', 'kind');
+                $this->ofPhase($visits, $phase) === null || $this->support->fail('visit', $phase === 'opening' ? 'opening_exists' : 'closing_exists');
+            } elseif ($this->support->koboVisits([(int) $visit->id]) !== []) {
+                $this->support->fail('visit', 'kobo');
+            }
+            $stored = $visit === null ? [] : $this->keyed($this->answers([(int) $visit->id]));
+            $keptVisitors = $visit === null ? [] : $this->visitorRows([(int) $visit->id])->pluck('account_id')->map(fn ($id) => (int) $id)->all();
+            $date = $this->support->date($input['date'] ?? null, $projectId);
+            $visitors = $this->support->visitors($city, (array) ($input['visitors'] ?? []), VisitKinds::MAX_VISITORS, $keptVisitors);
+            [$columns, $answers] = $kind === VisitKinds::REHAB ? $this->rehabPayload($input, $stored) : $this->payload(VisitKinds::definition($kind), $input, $stored);
+            $columns['visit_date'] = $date;
+            $actor = mb_substr((string) $account->username, 0, 100);
+            $now = now();
+            $details = [];
+
+            if ($visit === null) {
+                $visitId = (int) DB::table('visits')->insertGetId($columns + ['city_id' => $city, 'project_id' => $projectId, 'kind' => $kind, 'type' => null,
+                    'created_by_name' => $actor, 'created_at' => $now, 'updated_at' => $now]);
+                $details = AccountAuditTrail::changes([], $columns) ?? [];
             } else {
                 $visitId = (int) $visit->id;
-                if ($payload !== []) {
-                    DB::table('op_visit')->where('id', $visitId)->update($payload + ['c_Edited_By' => $actor]);
-                }
-                if ($office !== null && $officePayload !== []) {
-                    DB::table('op_office_monitoring')->where('id', $office->id)->update($officePayload);
-                } elseif ($office === null) {
-                    $fresh = $this->officePayload($definition, null, $input, true);
-                    if ($this->enteredOffice($fresh)) {
-                        $this->tables->insert('office_monitoring', $city, $source, $fresh + $this->tables->link('office_monitoring', 'Visit_ID', $visitId));
-                    }
-                }
+                $before = collect((array) $visit)->only(array_keys($columns))->map(fn ($v, $k) => $k === 'visit_date' ? Fields::day($v) : $v)->all();
+                $details = AccountAuditTrail::changes($before, $columns) ?? [];
             }
-            if ($definition['place']) {
-                $this->updatePlace($project, $input);
+            $details = [...$details, ...$this->writeAnswers($city, $visitId, $kind, $answers, $stored)];
+            $details = [...$details, ...$this->writeVisitors($city, $visitId, $visitors, $keptVisitors)];
+            if (($kind === 'O-op') && $this->place($project, $input, $details)) {
+                $project = DB::table('projects')->where('id', $projectId)->first();
             }
-            if ($definition['finishes']) {
-                $this->lifecycle->enterNamed($project, LifecycleService::FINISHED);
-                $this->projectNotices->clearProject($project); // a closing visit clears every notice of the project
+            if ($visit === null) {
+                $details = [...$details, ...$this->created($account, $project, $kind, $current)];
+            } elseif ($details === []) {
+                return $visitId;
+            } else {
+                DB::table('visits')->where('id', $visitId)->update($columns + ['edited_by_name' => $actor, 'updated_at' => $now]);
             }
-            $this->audit->record($account->id, 'visits.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+            $details = [['field' => 'visit', 'before' => null, 'after' => __('visits.kinds.'.$kind, [], 'ar')], ...$details];
+            $this->audit->record($account->id, 'visits.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId, details: $details);
 
             return $visitId;
         });
     }
 
-    /** Deletes a visit created in the web with its office-monitoring row and resets the phase task, as the desktop did. */
-    public function delete(WebAccount $account, int $projectId, string $kind, string $version): void
+    /** Effects of a new visit: the task, the notices and (closing) the state. Returns audit details. */
+    private function created(WebAccount $account, object $project, string $kind, ?object $current): array
     {
-        $definition = VisitKinds::definition($kind);
-        DB::transaction(function () use ($account, $projectId, $kind, $definition, $version) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            $project = $this->project($projectId);
-            $city = (int) $project->city_id;
-            $this->authorize($account, $city, false, 'visits.delete');
-            $visits = $this->visits($project);
-            $offices = $this->officeRows($visits);
-            abort_unless(hash_equals($this->version($visits, $offices, $project), $version), 409, 'Visits changed. Reload before deleting.');
-            $visit = $this->ofKind($visits, $kind);
-            abort_if($visit === null, 404);
-            $office = $offices->get((int) $visit->id);
-            $this->retire($account, $city, 'visit', $visit, function () use ($office) {
-                if ($office !== null) {
-                    $this->tables->isWeb($office) || $this->fail('delete', 'imported');
-                    $this->tables->deleteWeb('office_monitoring', $office);
-                }
-            });
-            $this->completeTask($project, $definition['task'], 0);
-            $this->audit->record($account->id, 'visits.deleted', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
-        });
+        $details = [];
+        $letter = VisitKinds::letter($kind);
+        if (VisitKinds::phase($kind) === 'opening') {
+            if ($this->support->task($project, VisitKinds::OPENING_TASK, true)) {
+                $details[] = ['field' => 'task', 'before' => null, 'after' => VisitKinds::OPENING_TASK];
+            }
+            $seen = $this->support->notices($project, ['Visit Opening-'.$letter, 'Visit Opening-'.$letter.' (Solar)'], 1);
+        } else {
+            if ($this->support->task($project, VisitKinds::CLOSING_TASK, true)) {
+                $details[] = ['field' => 'task', 'before' => null, 'after' => VisitKinds::CLOSING_TASK];
+            }
+            $seen = $this->support->clearProject($project);
+            // Owner decision 3: only a Financed project moves to Finished, and only on this first save.
+            if ($current?->state_en === LifecycleService::FINANCED && $this->lifecycle->enterNamed($project, LifecycleService::FINISHED)) {
+                $details[] = ['field' => 'state', 'before' => $current->state_ar, 'after' => $this->support->stateName(LifecycleService::FINISHED)];
+                $state = DB::table('project_states')->where('name_en', LifecycleService::FINISHED)->first();
+                $state !== null && $this->projectNotices->stateChanged($project, $state, $account->id);
+            }
+        }
+        if ($seen > 0) {
+            $details[] = ['field' => 'notices_seen', 'before' => null, 'after' => $seen];
+        }
+
+        return $details;
     }
 
-    /** Makes a hidden imported visit (of any kind) visible again. */
-    public function restore(WebAccount $account, int $projectId, int $visitId): void
+    /** A stored choice: blank is unanswered (-1); otherwise it must belong to the domain, except an unchanged stored value. */
+    private function choice(mixed $raw, ?array $domain, ?int $stored, string $field, bool $required = false): int
     {
-        DB::transaction(function () use ($account, $projectId, $visitId) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            $project = $this->project($projectId);
-            $city = (int) $project->city_id;
-            $this->authorize($account, $city, false, 'visits.delete');
-            $this->requireImportedDelete($account, $city);
-            abort_if($this->visits($project, true)->firstWhere('id', $visitId) === null, 404);
-            $this->tables->unhide('visit', $visitId);
-            $this->audit->record($account->id, 'visits.restored', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
-        });
-    }
-
-    /** A stored choice value: '' or missing is unanswered (-1); anything else must belong to the question's domain. */
-    private function choice(array $input, string $key, ?array $domain, ?int $stored = null): int
-    {
-        $raw = $input[$key] ?? null;
         if ($domain === null || Fields::blank($raw)) {
+            $required && $this->support->fail($field, 'choice_required');
+
             return VisitKinds::UNSET;
         }
-        $value = is_string($raw) || is_int($raw) ? (string) $raw : '';
+        $value = is_int($raw) || is_string($raw) ? trim((string) $raw) : '';
         if ($stored !== null && $value === (string) $stored) {
-            return $stored; // an unchanged legacy value is kept even when it is outside today's choices
+            return $stored;
         }
         if (preg_match('/\A-?\d+\z/', $value) !== 1 || ! array_key_exists((int) $value, $domain)) {
-            $this->fail($key, 'choice');
+            $this->support->fail($field, 'choice');
         }
 
         return (int) $value;
     }
 
-    private function text(array $input, string $key, bool $present): string
+    private function text(mixed $raw, string $field, int $max = 65535): string
     {
-        $value = $present ? Fields::text($input[$key] ?? '') : '';
-        mb_strlen($value) <= 65535 || $this->fail($key, 'long');
+        $value = trim(Fields::text($raw));
+        mb_strlen($value) <= $max || $this->support->fail($field, 'long');
 
         return $value;
     }
 
-    private function visitPayload(array $definition, ?object $visit, array $input): array
+    /** @return array{0: array<string, mixed>, 1: array<string, array<int, array{text: ?string, value: ?int}>>} visit columns and answers by form/slot */
+    private function payload(array $definition, array $input, array $stored): array
     {
-        $create = $visit === null;
-        $payload = [];
-        $set = function (string $column, mixed $new, mixed $stored, ?callable $validate = null) use ($create, &$payload) {
-            if ($create || $new !== $stored) {
-                if ($validate !== null) {
-                    $validate();
-                }
-                $payload[$column] = $new;
-            }
-        };
-
-        $date = trim(Fields::text($input['date'] ?? ''));
-        if ($create && $date === '') {
-            $date = now()->toDateString();
-        }
-        $set('c_Date', $date, Fields::day($visit->c_Date ?? null), fn () => Fields::isDate($date) || $this->fail('date', 'date'));
-
+        $columns = ['indicators' => $this->text($input['indicators'] ?? '', 'indicators') ?: null];
         if ($definition['vehicle']) {
-            $vehicle = Fields::text($input['vehicle'] ?? '');
-            $set('c_VehicleNumber', $vehicle, (string) ($visit->c_VehicleNumber ?? ''), function () use ($vehicle) {
-                $vehicle !== '' || $this->fail('vehicle', 'vehicle');
-                mb_strlen($vehicle) <= 50 || $this->fail('vehicle', 'vehicle_long');
-            });
-        } elseif ($create) {
-            $payload['c_VehicleNumber'] = '';
+            $plate = $this->text($input['vehicle'] ?? '', 'vehicle', 30);
+            $plate !== '' || $this->support->fail('vehicle', 'vehicle');
+            $columns['vehicle_number'] = $plate;
         }
-        $set('c_Indicators', Fields::text($input['indicators'] ?? ''), (string) ($visit->c_Indicators ?? ''), fn () => $this->text($input, 'indicators', true));
-
-        for ($n = 1; $n <= self::QUESTION_SLOTS; $n++) {
-            $defined = array_key_exists($n, $definition['questions']);
-            if (! $defined && ! $create) {
-                continue; // an unused slot keeps whatever a legacy row holds
-            }
-            $domain = $defined ? $definition['questions'][$n] : null;
-            $text = $this->text($input, 'q'.$n.'_text', $defined);
-            $value = $this->choice($defined ? $input : [], 'q'.$n.'_value', $domain, $visit === null ? null : (int) ($visit->{'c_Ans'.$n.'_Value'} ?? VisitKinds::UNSET));
-            $set('c_Ans'.$n, $text, (string) ($visit->{'c_Ans'.$n} ?? ''));
-            $set('c_Ans'.$n.'_Value', $value, (int) ($visit->{'c_Ans'.$n.'_Value'} ?? VisitKinds::UNSET));
+        if ($definition['comments']) {
+            $columns['office_comments'] = $this->text($input['office_comments'] ?? '', 'office_comments') ?: null;
+        }
+        $answers = ['visit' => [], 'office_monitoring' => []];
+        foreach ($definition['questions'] as $slot => $domain) {
+            $old = $stored['visit'][$slot] ?? null;
+            $answers['visit'][$slot] = [
+                'text' => $this->text($input['q'][$slot]['text'] ?? '', 'q.'.$slot.'.text') ?: null,
+                'value' => $this->choice($input['q'][$slot]['value'] ?? null, $domain, $old?->answer_value === null ? null : (int) $old->answer_value, 'q.'.$slot.'.value'),
+            ];
+        }
+        for ($slot = 1; $slot <= $definition['office']; $slot++) {
+            $old = $stored['office_monitoring'][$slot] ?? null;
+            $answers['office_monitoring'][$slot] = [
+                'text' => $this->text($input['office'][$slot]['text'] ?? '', 'office.'.$slot.'.text') ?: null,
+                'value' => $this->choice($input['office'][$slot]['value'] ?? null, VisitKinds::RATING, $old?->answer_value === null ? null : (int) $old->answer_value, 'office.'.$slot.'.value'),
+            ];
         }
 
-        return $payload;
+        return [$columns, $answers];
     }
 
-    /** @param bool $always write every slot (a new office row); otherwise only changed, defined slots */
-    private function officePayload(array $definition, ?object $office, array $input, bool $always): array
+    /** The rehabilitation closing: every choice is required ("N/A" is a choice), each with a note. */
+    private function rehabPayload(array $input, array $stored): array
     {
-        $payload = [];
-        for ($n = 1; $n <= self::OFFICE_SLOTS; $n++) {
-            $defined = $n <= $definition['office'];
-            if (! $defined && ! $always) {
+        $answers = ['rehab' => []];
+        $missing = false;
+        foreach (VisitKinds::REHAB_QUESTIONS as $slot => $domain) {
+            $raw = $input['q'][$slot]['value'] ?? null;
+            if (Fields::blank($raw)) {
+                $missing = true;
+
                 continue;
             }
-            $text = $this->text($input, 'office'.$n.'_text', $defined);
-            $value = $this->choice($defined ? $input : [], 'office'.$n.'_value', $defined ? VisitKinds::RATING : null, $office === null ? null : (int) ($office->{'c_Ans'.$n.'_Value'} ?? VisitKinds::UNSET));
-            if ($always || $text !== (string) ($office->{'c_Ans'.$n} ?? '')) {
-                $payload['c_Ans'.$n] = $text;
-            }
-            if ($always || $value !== (int) ($office->{'c_Ans'.$n.'_Value'} ?? VisitKinds::UNSET)) {
-                $payload['c_Ans'.$n.'_Value'] = $value;
-            }
+            $old = $stored['rehab'][$slot] ?? null;
+            $answers['rehab'][$slot] = [
+                'text' => $this->text($input['q'][$slot]['text'] ?? '', 'q.'.$slot.'.text') ?: null,
+                'value' => $this->choice($raw, $domain, $old?->answer_value === null ? null : (int) $old->answer_value, 'q.'.$slot.'.value'),
+            ];
         }
-        if ($always || $definition['other_comments']) {
-            $other = $this->text($input, 'other_comments', $definition['other_comments']);
-            if ($always || $other !== (string) ($office->c_OtherComments ?? '')) {
-                $payload['c_OtherComments'] = $other;
-            }
-        }
+        $missing && $this->support->fail('answers', 'rehab_choices');
 
-        return $payload;
+        return [[], $answers];
     }
 
-    /** Whether a full office payload holds anything beyond blank text and unanswered ratings. */
-    private function enteredOffice(array $payload): bool
+    /**
+     * Writes the answers that changed: a slot with neither note nor choice has no row (as the transfer stored them). For rehabilitation,
+     * "not applicable" (-1) is a chosen answer and keeps its row. Returns audit details by question number.
+     */
+    private function writeAnswers(int $city, int $visitId, string $kind, array $answers, array $stored): array
     {
-        foreach ($payload as $column => $value) {
-            if (str_ends_with($column, '_Value') ? $value !== VisitKinds::UNSET : $value !== '') {
-                return true;
+        $details = [];
+        $now = now();
+        foreach ($answers as $form => $slots) {
+            foreach ($slots as $slot => $answer) {
+                $old = $stored[$form][$slot] ?? null;
+                $empty = $answer['text'] === null && $answer['value'] === VisitKinds::UNSET && $form !== 'rehab';
+                $oldValue = $old === null ? VisitKinds::UNSET : (int) ($old->answer_value ?? VisitKinds::UNSET);
+                $oldText = $old === null ? null : (($old->answer_text ?? '') === '' ? null : $old->answer_text);
+                if (($old !== null || $empty) && $oldValue === $answer['value'] && $oldText === $answer['text']) {
+                    continue;
+                }
+                if ($empty) {
+                    $old !== null && DB::table('visit_answers')->where('id', $old->id)->update(['deleted_at' => $now, 'updated_at' => $now]);
+                } elseif ($old === null) {
+                    DB::table('visit_answers')->insert(['city_id' => $city, 'visit_id' => $visitId, 'form' => $form, 'question_number' => $slot, 'answer_text' => $answer['text'],
+                        'answer_value' => $answer['value'], 'created_at' => $now, 'updated_at' => $now]);
+                } else {
+                    DB::table('visit_answers')->where('id', $old->id)->update(['answer_text' => $answer['text'], 'answer_value' => $answer['value'], 'updated_at' => $now]);
+                }
+                $details[] = ['field' => $form === 'office_monitoring' ? 'office' : 'answer',
+                    'before' => $old === null ? null : $this->describe($kind, $form, $slot, $oldValue, $oldText),
+                    'after' => $empty ? null : $this->describe($kind, $form, $slot, $answer['value'], $answer['text'])];
             }
         }
 
-        return false;
+        return $details;
     }
 
-    /** `Update_MP_Place`: the project's street and address after funding, written only when changed. */
-    private function updatePlace(object $project, array $input): void
+    /** "3) نعم · note" for the audit details, with the option's name. */
+    private function describe(string $kind, string $form, int $slot, int $value, ?string $text): string
     {
-        $ref = $this->tables->relation('microproject', 'MP_Street_ID');
-        $storedStreet = $project->{$ref['state_column']} === 'resolved' ? (int) $project->{$ref['resolved_column']} : null;
-        $streetInput = Fields::blank($input['street_id'] ?? null) ? null : (int) $input['street_id'];
-        $note = Fields::text($input['place_note'] ?? '');
+        $domain = match ($form) {
+            'rehab' => VisitKinds::REHAB_QUESTIONS[$slot] ?? [],
+            'office_monitoring' => VisitKinds::RATING,
+            default => VisitKinds::KINDS[$kind]['questions'][$slot] ?? [],
+        };
+        $choice = $value === VisitKinds::UNSET && ! isset($domain[-1]) ? null : (isset($domain[$value]) ? __('visits.choice.'.$domain[$value], [], 'ar') : (string) $value);
+        $number = $form === 'visit' ? VisitKinds::questionNumber($kind, $slot) : $slot;
+
+        return trim($number.') '.implode(' · ', array_filter([$choice, $text], fn ($v) => $v !== null && $v !== '')));
+    }
+
+    /** Replaces the visitors where they changed (removed rows are soft-deleted). Returns audit details. */
+    private function writeVisitors(int $city, int $visitId, array $visitors, array $kept): array
+    {
+        if ($visitors === $kept) {
+            return [];
+        }
+        $now = now();
+        $removed = array_values(array_diff($kept, $visitors));
+        $added = array_values(array_diff($visitors, $kept));
+        if ($removed !== []) {
+            DB::table('visit_visitors')->where('visit_id', $visitId)->whereIn('account_id', $removed)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+        }
+        foreach ($added as $id) {
+            DB::table('visit_visitors')->insert(['city_id' => $city, 'visit_id' => $visitId, 'account_id' => $id, 'created_at' => $now, 'updated_at' => $now]);
+        }
+        $names = $this->support->names([...$kept, ...$visitors]);
+        $list = fn (array $ids) => $ids === [] ? null : implode('، ', array_map(fn ($id) => $names[$id] ?? '#'.$id, $ids));
+
+        return $removed === [] && $added === [] ? [] : [['field' => 'visitors', 'before' => $list($kept), 'after' => $list($visitors)]];
+    }
+
+    /** `Update_MP_Place`: the project's street and detailed address (opening visit of other projects), written only when changed. */
+    private function place(object $project, array $input, array &$details): bool
+    {
+        $street = Fields::blank($input['street_id'] ?? null) ? null : filter_var($input['street_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $street === false && $this->support->fail('street_id', 'street');
+        if ($street !== null) {
+            DB::table('streets')->where('id', $street)->where('city_id', $project->city_id)->exists() || $this->support->fail('street_id', 'street');
+        }
+        $address = $this->text($input['place_note'] ?? '', 'place_note', 255);
+        $address = $address === '' ? null : $address;
         $payload = [];
-        if ($streetInput !== $storedStreet) {
-            if ($streetInput !== null) {
-                $this->tables->find('street', $streetInput, (int) $project->city_id, (int) $project->source_id) !== null || $this->fail('street_id', 'street');
-            }
-            $payload += $this->tables->link('microproject', 'MP_Street_ID', $streetInput);
+        if ($street !== ($project->street_id === null ? null : (int) $project->street_id)) {
+            $payload['street_id'] = $street;
+            $name = fn ($id) => $id === null ? null : DB::table('streets')->where('id', $id)->value('name_ar');
+            $details[] = ['field' => 'street', 'before' => $name($project->street_id), 'after' => $name($street)];
         }
-        if ($note !== (string) ($project->c_MP_AddressAfterFund ?? '')) {
-            mb_strlen($note) <= 255 || $this->fail('place_note', 'place_long');
-            $payload['c_MP_AddressAfterFund'] = $note;
+        if ($address !== (($project->address_after_fund ?? '') === '' ? null : $project->address_after_fund)) {
+            $payload['address_after_fund'] = $address;
+            $details[] = ['field' => 'address_after_fund', 'before' => $project->address_after_fund, 'after' => $address];
         }
-        if ($payload !== []) {
-            DB::table('op_microproject')->where('id', $project->id)->update($payload);
+        if ($payload === []) {
+            return false;
         }
+        DB::table('projects')->where('id', $project->id)->update($payload + ['updated_at' => now()]);
+
+        return true;
     }
 
-    /** `Update_Task_MicroProject`: marks the project's existing assignment of the numbered task, nothing when there is none. */
-    private function completeTask(object $project, int $legacyTaskId, int $state): void
+    /**
+     * Owner decision 4: soft-deletes the visit with its answers and visitors, unticks its task and makes its schedule notice unseen again.
+     * A Finished state set by a closing visit stays.
+     */
+    public function delete(WebAccount $account, int $projectId, string $kind, string $version): void
     {
-        $task = $this->tables->catalog('task', (int) $project->city_id, (int) $project->source_id)->first(fn ($row) => (int) ($row->c_T_ID ?? 0) === $legacyTaskId);
-        if ($task === null) {
-            return;
-        }
-        $projectRef = $this->tables->relation('task_microproject', 'MicroProject_ID');
-        $taskRef = $this->tables->relation('task_microproject', 'Task_ID');
-        DB::table('op_task_microproject')->where('city_id', $project->city_id)->where('source_id', $project->source_id)
-            ->where($projectRef['resolved_column'], $project->id)->where($taskRef['resolved_column'], $task->id)
-            ->update(['c_State' => $state, 'c_Date' => now()->format('Y-m-d H:i:s')]);
+        VisitKinds::has($kind) || abort(404);
+        $project = $this->support->project($account, $projectId, 'visits.view');
+        $this->support->require($account, (int) $project->city_id, 'visits.delete');
+        DB::transaction(function () use ($account, $projectId, $kind, $version) {
+            $project = $this->support->lock($projectId);
+            $visits = $this->visits($projectId);
+            hash_equals($this->version($project, $visits), $version) || $this->support->fail('version', 'stale');
+            $visit = $visits->first(fn ($v) => $v->kind === $kind);
+            $visit === null && abort(404);
+            $this->support->koboVisits([(int) $visit->id]) === [] || $this->support->fail('visit', 'kobo');
+            $now = now();
+            DB::table('visit_answers')->where('visit_id', $visit->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+            DB::table('visit_visitors')->where('visit_id', $visit->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
+            DB::table('visits')->where('id', $visit->id)->update(['deleted_at' => $now, 'updated_at' => $now]);
+            $letter = VisitKinds::letter($kind);
+            $opening = VisitKinds::phase($kind) === 'opening';
+            $details = [['field' => 'visit', 'before' => __('visits.kinds.'.$kind, [], 'ar').' · '.Fields::day($visit->visit_date), 'after' => null]];
+            if ($this->support->task($project, $opening ? VisitKinds::OPENING_TASK : VisitKinds::CLOSING_TASK, false)) {
+                $details[] = ['field' => 'task', 'before' => $opening ? VisitKinds::OPENING_TASK : VisitKinds::CLOSING_TASK, 'after' => null];
+            }
+            $unseen = $this->support->notices($project, $opening ? ['Visit Opening-'.$letter, 'Visit Opening-'.$letter.' (Solar)'] : ['Visit Closing-'.$letter], 0);
+            if ($unseen > 0) {
+                $details[] = ['field' => 'notices_unseen', 'before' => null, 'after' => $unseen];
+            }
+            $this->audit->record($account->id, 'visits.deleted', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId, details: $details);
+        });
     }
 }

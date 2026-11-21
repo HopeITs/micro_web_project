@@ -99,7 +99,7 @@ final class AuditLogService
         return (function () use ($query, $account) {
             foreach ($query->lazyByIdDesc(1000, 'e.id', 'id')->chunk(1000) as $chunk) {
                 foreach ($this->describe($account, collect($chunk->all())) as $row) {
-                    yield [$row['id'], $row['time'], $row['actor'], $row['city'], $row['label'], __('audit.kinds.'.$row['kind']), $row['subject'], $row['event'], $row['decision']];
+                    yield [$row['id'], $row['time'], $row['actor'], $row['city'], $row['label'], __('audit.kinds.'.$row['kind']), $row['subject'], self::changesText($row['changes']), $row['event'], $row['decision']];
                 }
             }
         })();
@@ -107,7 +107,7 @@ final class AuditLogService
 
     public static function webHeadings(): array
     {
-        return array_map(fn ($k) => __('audit.col.'.$k), ['number', 'time', 'account', 'city', 'action', 'kind', 'record', 'event', 'details']);
+        return array_map(fn ($k) => __('audit.col.'.$k), ['number', 'time', 'account', 'city', 'action', 'kind', 'record', 'changes', 'event', 'details']);
     }
 
     /** @param list<int> $ids */
@@ -119,7 +119,7 @@ final class AuditLogService
             ->leftJoin('web_accounts as actor', 'actor.id', '=', 'e.actor_account_id')
             ->leftJoin('web_accounts as subject', 'subject.id', '=', 'e.subject_account_id')
             ->leftJoin('cities as c', 'c.id', '=', 'e.city_id')
-            ->select(['e.id', 'e.occurred_at', 'e.event_type', 'e.outcome', 'e.city_id', 'e.subject_type', 'e.subject_id', 'e.subject_account_id', 'e.decision_locator',
+            ->select(['e.id', 'e.occurred_at', 'e.event_type', 'e.outcome', 'e.city_id', 'e.subject_type', 'e.subject_id', 'e.subject_account_id', 'e.decision_locator', 'e.details',
                 'actor.username as actor_name', 'subject.username as subject_name', 'c.code as city_code', 'c.name_en as city_en', 'c.name_ar as city_ar'])
             ->where(function (Builder $scope) use ($ids, $staff) {
                 $scope->whereIn('e.city_id', $ids)->orWhere(function (Builder $global) use ($staff) {
@@ -212,9 +212,47 @@ final class AuditLogService
                 'time' => CarbonImmutable::parse((string) $row->occurred_at, 'UTC')->setTimezone(self::TIMEZONE)->format('Y-m-d H:i:s'),
                 'actor' => $row->actor_name, 'city' => $row->city_code ? ($ar ? $row->city_ar : $row->city_en) : null,
                 'event' => $event, 'label' => self::label($event), 'kind' => self::kind($event, (string) $row->outcome), 'outcome' => (string) $row->outcome,
-                'subject' => $subject, 'url' => $url, 'decision' => $row->decision_locator,
+                'subject' => $subject, 'url' => $url, 'decision' => $row->decision_locator, 'changes' => self::changeLines($row->details ?? null),
             ];
         })->values()->all();
+    }
+
+    /**
+     * The v1.3 change details as display lines: the field in words, the value before and after, or "changed" for a hidden value.
+     *
+     * @return list<array{label: string, before: ?string, after: ?string, hidden: bool, cut: bool}>
+     */
+    public static function changeLines(mixed $details): array
+    {
+        $items = is_string($details) ? json_decode($details, true) : $details;
+        if (! is_array($items)) {
+            return [];
+        }
+
+        return array_values(array_map(fn (array $item) => [
+            'label' => self::fieldLabel((string) ($item['field'] ?? '')),
+            'before' => isset($item['before']) ? (string) $item['before'] : null, 'after' => isset($item['after']) ? (string) $item['after'] : null,
+            'hidden' => ($item['hidden'] ?? false) === true, 'cut' => ($item['cut'] ?? false) === true,
+        ], array_filter($items, 'is_array')));
+    }
+
+    /** One line per field for the export: "Mobile: 0933… → 0944…". */
+    public static function changesText(array $lines): string
+    {
+        return implode('; ', array_map(fn (array $l) => $l['label'].': '.($l['hidden'] ? __('audit.changed') : ($l['before'] ?? '—').' → '.($l['after'] ?? '—')), $lines));
+    }
+
+    /** The field in words from the forms' own labels (people, applications, lists), else the column name. */
+    public static function fieldLabel(string $field): string
+    {
+        foreach (['audit.fields.', 'people.fields.', 'applications.fields.', 'lookups.fields.'] as $prefix) {
+            $label = __($prefix.$field);
+            if (is_string($label) && $label !== $prefix.$field) {
+                return $label;
+            }
+        }
+
+        return $field;
     }
 
     /** @return array{0: string, 1: ?string} */

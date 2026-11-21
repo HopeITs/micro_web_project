@@ -11,9 +11,11 @@ return [
     'filter' => 'عرض', 'clear' => 'مسح',
     'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'export_hint' => 'يصدّر كل السطور المطابقة، لا هذه الصفحة فقط.',
     'none' => 'لا توجد أحداث مطابقة', 'read_only' => 'للقراءة فقط',
+    'changed' => 'تغيّر (القيمة لا تُعرض)', 'changes_summary' => '{1} تغيّر حقل واحد|{2} تغيّر حقلان|[3,10] تغيّرت :count حقول|[11,*] تغيّر :count حقلاً', 'cut' => 'مختصر',
+    'fields' => ['email' => 'البريد الإلكتروني'],
     'col' => [
         'number' => 'الرقم', 'desktop_number' => 'رقم البرنامج', 'time' => 'الوقت', 'account' => 'الحساب', 'user' => 'المستخدم', 'city' => 'المدينة',
-        'action' => 'الإجراء', 'kind' => 'النوع', 'record' => 'السجل', 'event' => 'رمز الحدث', 'details' => 'تفاصيل', 'table' => 'الشاشة / الجدول', 'description' => 'الوصف',
+        'action' => 'الإجراء', 'kind' => 'النوع', 'record' => 'السجل', 'changes' => 'ما الذي تغيّر', 'event' => 'رمز الحدث', 'details' => 'تفاصيل', 'table' => 'الشاشة / الجدول', 'description' => 'الوصف',
     ],
     'kinds' => ['change' => 'تعديل', 'view' => 'اطلاع', 'security' => 'دخول وأمان', 'denied' => 'مرفوض'],
     'outcomes' => ['denied' => 'مرفوض', 'failed' => 'فشل'],

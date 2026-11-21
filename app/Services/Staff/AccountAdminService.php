@@ -483,8 +483,10 @@ final class AccountAdminService
         if ($value !== null && DB::table('web_accounts')->where('email', $value)->where('id', '<>', $accountId)->exists()) {
             throw ValidationException::withMessages(['email' => __('admin.errors.email_taken')]);
         }
+        $old = DB::table('web_accounts')->where('id', $accountId)->value('email');
         DB::table('web_accounts')->where('id', $accountId)->update(['email' => $value, 'updated_at' => now('UTC')->format('Y-m-d H:i:s.u')]);
-        $this->audit->record($admin->id, 'accounts.email_set', 'succeeded', subjectAccount: $accountId, subjectType: 'account', subjectId: $accountId);
+        $this->audit->record($admin->id, 'accounts.email_set', 'succeeded', subjectAccount: $accountId, subjectType: 'account', subjectId: $accountId,
+            details: AccountAuditTrail::changes(['email' => $old], ['email' => $value]));
     }
 
     private function validUsername(string $username): bool

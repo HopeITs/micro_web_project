@@ -6,6 +6,7 @@ use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountAuditTrail;
 use App\Services\AccountProvisioner;
+use App\Services\People\PeopleService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -155,6 +156,57 @@ class AuditLogScenarioTest extends TestCase
         $desktop = $this->get('/en/admin/audit/desktop/export?format=csv')->assertOk()->streamedContent();
         $this->assertStringContainsString('Update Person', $desktop);
         $this->assertSame(3, DB::table('account_audit_events')->where('actor_account_id', $this->accountId('super.admin'))->where('event_type', 'reports.exported')->count());
+    }
+
+    public function test_change_details_follow_the_v13_rules(): void
+    {
+        $details = AccountAuditTrail::changes(
+            ['mobile' => '0933111222', 'password_hash' => 'old', 'national_number' => '0101', 'note' => 'x', 'updated_at' => '2026-01-01', 'is_active' => 1],
+            ['mobile' => '0944333444', 'password_hash' => 'new', 'national_number' => '0202', 'note' => str_repeat('ب', 250), 'updated_at' => '2026-11-21', 'is_active' => true],
+        );
+        $this->assertSame(['mobile', 'national_number', 'note'], array_column($details, 'field'));
+        $this->assertSame(['field' => 'mobile', 'before' => '0933111222', 'after' => '0944333444'], $details[0]);
+        $this->assertSame(['field' => 'national_number', 'hidden' => true], $details[1]);
+        $this->assertTrue($details[2]['cut']);
+        $this->assertSame(AccountAuditTrail::MAX_VALUE + 1, mb_strlen($details[2]['after']));
+        $this->assertNull(AccountAuditTrail::changes(['mobile' => '1'], ['mobile' => '1']));
+
+        $many = [];
+        for ($i = 0; $i < 80; $i++) {
+            $many[] = ['field' => 'f'.$i, 'before' => 'a', 'after' => 'b'];
+        }
+        $this->assertCount(AccountAuditTrail::MAX_FIELDS, AccountAuditTrail::sanitize($many));
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(AccountAuditTrail::class)->record($this->accountId('super.admin'), 'people.view', 'succeeded', $this->city('DAM'), null, 'person_entity', (int) $this->person('DAM')->id, details: [['field' => 'mobile', 'before' => '1', 'after' => '2']]);
+    }
+
+    public function test_administrator_sees_what_changed_on_a_person_and_an_email(): void
+    {
+        $person = $this->person('DAM');
+        $input = (array) $person;
+        $input['mobile'] = '0944000111';
+        $input['national_number'] = '09999999999';
+        // The form posts dates as Y-m-d; the test database returns them with a time.
+        $input['birth_date'] = $person->birth_date ? substr((string) $person->birth_date, 0, 10) : null;
+        app(PeopleService::class)->update(WebAccount::find($this->accountId('role.data-entry')), (int) $person->id, $input, true);
+        $event = DB::table('account_audit_events')->where('event_type', 'people.updated')->latest('id')->first();
+        $fields = collect(json_decode($event->details, true))->keyBy('field');
+        $this->assertSame('0944000111', $fields['mobile']['after']);
+        $this->assertSame(['field' => 'national_number', 'hidden' => true], $fields['national_number']);
+        $this->assertStringNotContainsString('09999999999', $event->details);
+
+        $this->signIn('super.admin');
+        $guest = $this->accountId('role.guest');
+        $this->post('/ar/admin/accounts/'.$guest.'/email', ['email' => 'guest.new@example.org'])->assertRedirect();
+        $this->get('/ar/admin/audit?kind=')->assertOk()
+            ->assertSee('تغيّر حقل واحد')->assertSee(__('people.fields.mobile', [], 'ar'))->assertSee('0944000111')
+            ->assertSee('تغيّر (القيمة لا تُعرض)')->assertDontSee('09999999999')
+            ->assertSee('البريد الإلكتروني')->assertSee('guest.new@example.org');
+        $csv = $this->get('/en/admin/audit/export?format=csv')->assertOk()->streamedContent();
+        $this->assertStringContainsString('→ 0944000111', $csv);
+        $this->assertStringContainsString('E-mail: — → guest.new@example.org', $csv);
+        $this->assertStringNotContainsString('09999999999', $csv);
     }
 
     public function test_the_log_is_read_only(): void

@@ -5,6 +5,15 @@
     $tone = ['change' => 'info', 'view' => null, 'security' => 'warn', 'denied' => 'danger'];
 @endphp
 <x-layouts.hc :title="__('audit.title')">
+    <style>
+        .audit-changes { margin-block-start: 4px; font-size: .875rem; }
+        .audit-changes summary { cursor: pointer; color: var(--info); min-height: 32px; display: list-item; }
+        .audit-changes dl { display: grid; grid-template-columns: minmax(6rem, max-content) 1fr; gap: 4px 12px; margin: 6px 0 0; }
+        .audit-changes dt { color: var(--muted); }
+        .audit-changes dd { margin: 0; overflow-wrap: anywhere; }
+        .audit-changes del { opacity: .75; }
+        .audit-changes ins { text-decoration: none; font-weight: 600; }
+    </style>
     <div class="hc-page-head">
         <div><p class="hc-eyebrow">{{ __('hc.group_tools') }}</p><h1>{{ __('audit.title') }}</h1><p>{{ __('audit.intro') }}</p></div>
         <x-hc.badge>{{ __('audit.read_only') }}</x-hc.badge>
@@ -50,7 +59,12 @@
                     <tr>
                         <td data-label="{{ __('audit.col.time') }}" class="num"><bdi class="ltr">{{ $row['time'] }}</bdi></td>
                         <td data-label="{{ __('audit.col.account') }}">@if($row['actor'])<bdi class="ltr">{{ $row['actor'] }}</bdi>@else<span class="muted">—</span>@endif</td>
-                        <td data-label="{{ __('audit.col.action') }}"><span title="{{ $row['event'] }}">{{ $row['label'] }}</span>@if($row['decision'] && $row['kind'] === 'security')<br><small class="muted ltr"><bdi>{{ $row['decision'] }}</bdi></small>@endif</td>
+                        <td data-label="{{ __('audit.col.action') }}"><span title="{{ $row['event'] }}">{{ $row['label'] }}</span>@if($row['decision'] && $row['kind'] === 'security')<br><small class="muted ltr"><bdi>{{ $row['decision'] }}</bdi></small>@endif
+                            @if($row['changes'] !== [])
+                                <details class="audit-changes"><summary>{{ trans_choice('audit.changes_summary', count($row['changes'])) }}</summary>
+                                    <dl>@foreach($row['changes'] as $c)<dt>{{ $c['label'] }}</dt><dd>@if($c['hidden'])<span class="muted">{{ __('audit.changed') }}</span>@else<del><bdi>{{ $c['before'] ?? '—' }}</bdi></del> <span aria-hidden="true">{{ $en ? '→' : '←' }}</span><ins><bdi>{{ $c['after'] ?? '—' }}</bdi></ins>@if($c['cut']) <small class="muted">({{ __('audit.cut') }})</small>@endif @endif</dd>@endforeach</dl>
+                                </details>
+                            @endif</td>
                         <td data-label="{{ __('audit.col.record') }}">@if($row['url'])<a class="row-link" href="{{ $row['url'] }}"><bdi>{{ $row['subject'] }}</bdi></a>@elseif($row['subject'])<bdi>{{ $row['subject'] }}</bdi>@else<span class="muted">—</span>@endif</td>
                         <td data-label="{{ __('audit.col.city') }}">{{ $row['city'] ?? '—' }}</td>
                         <td data-label="{{ __('audit.col.kind') }}"><x-hc.badge :tone="$tone[$row['kind']]">{{ __('audit.kinds.'.$row['kind']) }}@if($row['outcome'] === 'failed') · {{ __('audit.outcomes.failed') }}@endif</x-hc.badge></td>

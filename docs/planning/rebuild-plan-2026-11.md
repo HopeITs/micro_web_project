@@ -88,6 +88,7 @@
 | M4.12 | الزيارات: افتتاح وM&E وإغلاق وتأهيل، **مع الزوار**، الجدولة، النتائج، إحصاءات الزوار | `Visit Forms/*`، `Visits_Schedule_Form` | M4.9 | 🔧 `VisitController` وغيره (P5.5) |
 | M4.13 | الحالات الخاصة | `SpecialCase_Form` | M4.12 | ♻️ |
 | M4.14 | **مزامنة Kobo:** إعداد النماذج، الاستيراد المجدول (queue)، التعارضات، مراجعة المستفيدين، جدولة حسب الإنتاج، نتائج الزيارات بأعمدة وفلاتر | `KoboSync*`، `Classes/Kobo*` | M4.12، M0.5 | 🆕 |
+| M4.14b | **نماذج Kobo على الويب (قرار المالك 21 تشرين الثاني 2026):** بناء كل نماذج زيارات Kobo على الويب للإدخال والتعديل والحذف، ثم الاستغناء عن المزامنة. حتى ذلك الحين تبقى المزامنة للقراءة فقط وتظهر زيارات Kobo للقراءة | نماذج Kobo الحالية، `KoboSync*` | M4.12، M4.14 | 🆕 |
 | M4.15 | **اجتماعات المهن الموسّعة:** عدة مهن، استبيان، مسودة/نهائي، الأهلية، الاهتمامات، المحضر، المرفقات، تصدير Word، الإحصاءات | `ProfessionMeetings_Form`، `MeetingInterest_Form`، `MeetingStatistics_Form` | M4.12، M4.11 | 🔧 `ProfessionMeetingController` (توسعة كبيرة) |
 | M4.16 | لوحة المهام، الإشعارات، الرسائل | `TaskBoard_Form`، `Notification_Box`، `SendMessage_Box` | M4.8 | ♻️ |
 | M4.17 | البحث (22 نوعاً)، الإحصاءات، التقارير عبر المدن | `Search_Form`، `Statistics_Form`، `CityReportingService` | M4.9–M4.15 | 🔧 `Services/Reports/Search/*` |

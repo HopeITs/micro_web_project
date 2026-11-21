@@ -4,120 +4,115 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\Field\MonitoringVisitService;
 use App\Services\Field\VisitKinds;
+use App\Services\Field\VisitorStatisticsService;
+use App\Services\Field\VisitResultsService;
 use App\Services\Field\VisitScheduleService;
 use App\Services\Field\VisitService;
 use App\Services\Reports\TableExport;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * M4.12 visit pages: a project's visits (Livewire ProjectVisits), the opening / closing / rehabilitation questionnaire (VisitForm), the
+ * M&E visit (MeVisitForm), the schedule, the results report and the visitor statistics with their exports. The services recheck every
+ * capability per city; the page visit is audited here once.
+ */
 final class VisitController
 {
-    /** @return array<string, mixed> */
-    private function scheduleFilters(Request $request): array
+    private function code(object $project): string
     {
-        return $request->validate([
-            'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'year' => ['nullable', 'integer', 'between:2000,'.(now()->year + 5)],
-            'months' => ['sometimes', 'array', 'max:12'], 'months.*' => ['integer', 'between:1,12'], 'kind' => ['nullable', 'in:V,O'],
-            'number' => ['nullable', 'in:Opening,M1,M2,M3,M4,M5,Closing'], 'seen' => ['nullable', 'in:0,1'], 'format' => ['nullable', 'in:xlsx,csv'],
-        ]);
+        return (string) DB::table('cities')->where('id', $project->city_id)->value('code');
     }
 
-    /** Every visit of the schedule's current filters, as an Excel workbook or CSV (the schedule's own authorization applies). */
+    public function hub(Request $request, string $locale, int $project, VisitService $visits): View
+    {
+        $hub = $visits->hub($request->user(), $project, opened: true);
+
+        return view('visits.hub', ['project' => $hub['project'], 'code' => $this->code($hub['project'])]);
+    }
+
+    public function show(Request $request, string $locale, int $project, string $kind, VisitService $visits): View
+    {
+        VisitKinds::has($kind) || abort(404);
+        $form = $visits->form($request->user(), $project, $kind);
+        app(\App\Services\AccountAuditTrail::class)->record($request->user()->id, 'visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
+
+        return view('visits.form', ['project' => $form['project'], 'code' => $this->code($form['project']), 'kind' => $kind, 'exists' => $form['visit'] !== null]);
+    }
+
+    public function meCreate(Request $request, string $locale, int $project, int $person, MonitoringVisitService $me): View
+    {
+        $form = $me->form($request->user(), $project, $person, null);
+        app(\App\Services\AccountAuditTrail::class)->record($request->user()->id, 'me_visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
+
+        return view('visits.me', ['project' => $form['project'], 'code' => $this->code($form['project']), 'person' => $person, 'visit' => null, 'number' => $request->query('number')]);
+    }
+
+    public function meShow(Request $request, string $locale, int $project, int $visit, MonitoringVisitService $me): View
+    {
+        $form = $me->form($request->user(), $project, null, $visit);
+        app(\App\Services\AccountAuditTrail::class)->record($request->user()->id, 'me_visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
+
+        return view('visits.me', ['project' => $form['project'], 'code' => $this->code($form['project']), 'person' => (int) $form['person']->id, 'visit' => $visit, 'number' => null]);
+    }
+
+    public function schedule(Request $request, VisitScheduleService $schedule): View
+    {
+        $schedule->opened($request->user());
+
+        return view('visits.schedule');
+    }
+
     public function scheduleExport(Request $request, string $locale, VisitScheduleService $schedule, TableExport $export): StreamedResponse
     {
-        $filters = $this->scheduleFilters($request);
-        $rows = $schedule->exportRows($request->user(), $filters);
+        $filters = $request->validate([
+            'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'year' => ['nullable', 'integer', 'between:2000,2100'],
+            'months' => ['sometimes', 'array', 'max:12'], 'months.*' => ['integer', 'between:1,12'], 'kind' => ['nullable', Rule::in(['V', 'O'])],
+            'visit' => ['nullable', Rule::in(VisitScheduleService::VISITS)], 'street' => ['nullable', 'integer', 'min:1'], 'type' => ['nullable', 'integer', 'min:1'],
+            'hidden' => ['nullable', 'boolean'], 'q' => ['nullable', 'string', 'max:100'], 'format' => ['nullable', 'in:xlsx,csv'],
+        ]);
+        [$headings, $rows] = $schedule->export($request->user(), $filters);
 
-        return $export->stream(TableExport::format($filters['format'] ?? null), 'visit-schedule-'.now()->format('Ymd-His'), ['City', 'Project number', 'Project name', 'Beneficiary', 'Visit', 'Date', 'Seen', 'Visit status', 'Note'], $rows, [1], app()->isLocale('ar'));
+        return $export->stream(TableExport::format($filters['format'] ?? null), 'visit-schedule-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));
     }
 
-    public function schedule(Request $request, string $locale, VisitScheduleService $schedule): View
+    public function results(Request $request, VisitResultsService $results): View
     {
-        $filters = $this->scheduleFilters($request);
+        $results->opened($request->user());
 
-        return view('field.schedule', $schedule->schedule($request->user(), $filters) + ['filters' => $filters]);
+        return view('visits.results');
     }
 
-    public function hub(Request $request, string $locale, string $application, VisitService $visits): View
+    public function resultsExport(Request $request, string $locale, VisitResultsService $results, TableExport $export): StreamedResponse
     {
-        return view('field.visits', $visits->hub($request->user(), $this->id($application)) + ['applicationId' => $this->id($application)]);
+        $filters = VisitResultsService::clean($request->query());
+        [$headings, $rows] = $results->export($request->user(), $filters);
+
+        return $export->stream(TableExport::format($request->query('format')), 'visit-results-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));
     }
 
-    public function show(Request $request, string $locale, string $application, string $kind, VisitService $visits): View
+    public function statistics(Request $request, VisitorStatisticsService $statistics): View
     {
-        return view('field.visit', $visits->form($request->user(), $this->id($application), $kind) + ['applicationId' => $this->id($application)]);
+        $statistics->opened($request->user());
+
+        return view('visits.statistics');
     }
 
-    public function save(Request $request, string $locale, string $application, string $kind, VisitService $visits): RedirectResponse
+    public function statisticsExport(Request $request, string $locale, VisitorStatisticsService $statistics, TableExport $export): StreamedResponse
     {
-        $rules = [
-            'version' => ['required', 'string', 'size:64'], 'date' => ['nullable', 'string', 'max:10'], 'vehicle' => ['nullable', 'string', 'max:255'],
-            'street_id' => ['nullable', 'integer', 'min:1'], 'place_note' => ['nullable', 'string', 'max:255'], 'indicators' => ['nullable', 'string', 'max:65535'],
-            'other_comments' => ['nullable', 'string', 'max:65535'],
-        ];
-        for ($n = 1; $n <= VisitService::QUESTION_SLOTS; $n++) {
-            $rules['q'.$n.'_value'] = ['nullable', 'string', 'max:3'];
-            $rules['q'.$n.'_text'] = ['nullable', 'string', 'max:65535'];
+        try {
+            $filters = VisitorStatisticsService::clean($request->query());
+        } catch (ValidationException) {
+            abort(422);
         }
-        for ($n = 1; $n <= VisitService::OFFICE_SLOTS; $n++) {
-            $rules['office'.$n.'_value'] = ['nullable', 'string', 'max:3'];
-            $rules['office'.$n.'_text'] = ['nullable', 'string', 'max:65535'];
-        }
-        $data = $request->validate($rules);
-        abort_unless(VisitKinds::has($kind), 404);
-        $visits->save($request->user(), $this->id($application), $kind, $data, $data['version']);
+        [$headings, $rows] = $statistics->export($request->user(), $filters);
 
-        return redirect()->route('visits.show', ['locale' => $locale, 'application' => $application, 'kind' => $kind])->with('status', __('field.saved'));
-    }
-
-    public function delete(Request $request, string $locale, string $application, string $kind, VisitService $visits): RedirectResponse
-    {
-        $data = $request->validate(['version' => ['required', 'string', 'size:64']]);
-        abort_unless(VisitKinds::has($kind), 404);
-        $visits->delete($request->user(), $this->id($application), $kind, $data['version']);
-
-        return redirect()->route('visits.hub', ['locale' => $locale, 'application' => $application])->with('status', __('field.deleted'));
-    }
-
-    public function restore(Request $request, string $locale, string $application, string $visit, VisitService $visits): RedirectResponse
-    {
-        $visits->restore($request->user(), $this->id($application), $this->id($visit));
-
-        return redirect()->route('visits.hub', ['locale' => $locale, 'application' => $application])->with('status', __('field.restored'));
-    }
-
-    public function scheduleSeen(Request $request, string $locale, string $notice, VisitScheduleService $schedule): RedirectResponse
-    {
-        $data = $request->validate(['seen' => ['required', 'in:0,1']]);
-        $schedule->setSeen($request->user(), $this->id($notice), (int) $data['seen']);
-
-        return back()->with('status', __('field.saved'));
-    }
-
-    public function scheduleNote(Request $request, string $locale, string $notice, VisitScheduleService $schedule): RedirectResponse
-    {
-        $data = $request->validate(['note' => ['nullable', 'string', 'max:65535']]);
-        $schedule->setNote($request->user(), $this->id($notice), (string) ($data['note'] ?? ''));
-
-        return back()->with('status', __('field.saved'));
-    }
-
-    public function scheduleReschedule(Request $request, string $locale, string $notice, VisitScheduleService $schedule): RedirectResponse
-    {
-        $data = $request->validate(['date' => ['required', 'string', 'max:10'], 'reason' => ['required', 'string', 'max:1000'], 'shift' => ['nullable', 'in:1']]);
-        $count = $schedule->reschedule($request->user(), $this->id($notice), $data['date'], $data['reason'], ($data['shift'] ?? null) === '1');
-
-        return back()->with('status', __('field.schedule.rescheduled', ['count' => $count]));
-    }
-
-    private function id(string $value): int
-    {
-        $id = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        abort_if($id === false, 404);
-
-        return $id;
+        return $export->stream(TableExport::format($request->query('format')), 'visitor-statistics-'.now()->format('Ymd-His'), $headings, $rows, [1, 2, 3, 4, 5, 6, 7, 8], app()->isLocale('ar'));
     }
 }

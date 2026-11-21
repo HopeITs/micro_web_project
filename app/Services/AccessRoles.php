@@ -44,6 +44,8 @@ final class AccessRoles
         'monitoring' => [
             'projects.view', 'applications.view', 'visits.view', 'visits.manage', 'me_visits.view', 'me_visits.manage', 'special_cases.view', 'special_cases.manage',
             'profession_meetings.view', 'profession_meetings.manage', 'reports.export', ...self::TASKS,
+            // M4.12: the monitoring duty is chosen as a visitor (owner decision 1, 21 Nov 2026).
+            'visits.visitor',
         ],
         // May read, never export.
         'communication' => ['projects.view', 'applications.view', ...self::TASKS],

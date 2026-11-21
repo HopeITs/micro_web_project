@@ -16,6 +16,8 @@ final class AccountAccess
         'tasks.view', 'tasks.manage', 'tasks.manage_all', 'notifications.view', 'notifications.send', 'accounts.manage',
         // M4.2 (owner decision of 20 Nov 2026): maintaining the lists; held by the administrator and data-entry roles.
         'lookups.manage',
+        // M4.12 (owner decisions of 21 Nov 2026): who may be chosen as a visitor in a city, and the visitor statistics (administrator only).
+        'visits.visitor', 'visits.statistics',
         // Export rules (owner decision of 27 Oct 2026): money exports, every other data export, and the three attachment categories.
         'finance.export', 'reports.export', 'attachments.personal', 'attachments.legal', 'attachments.financial'];
 
@@ -23,10 +25,10 @@ final class AccountAccess
     public const EXPORT_CAPABILITIES = ['finance.export', 'reports.export', 'attachments.personal', 'attachments.legal', 'attachments.financial'];
 
     /** Capabilities added to roles after accounts were already assigned them; `staff:sync-export-roles` grants them to existing holders. */
-    public const ADDED_CAPABILITIES = [...self::EXPORT_CAPABILITIES, 'lookups.manage', 'tasks.manage', 'purchasing.view', 'purchasing.manage'];
+    public const ADDED_CAPABILITIES = [...self::EXPORT_CAPABILITIES, 'lookups.manage', 'tasks.manage', 'purchasing.view', 'purchasing.manage', 'visits.visitor', 'visits.statistics'];
 
     /** Capabilities taken away from a role (M4.10, owner decision of 21 Nov 2026); `staff:sync-export-roles` revokes them from existing holders unless another role of the account in that city still includes them. */
-    public const REMOVED_CAPABILITIES = ['financial' => ['executive_files.manage', 'purchasing.view', 'purchasing.manage']];
+    public const REMOVED_CAPABILITIES = ['financial' => ['executive_files.manage', 'purchasing.view', 'purchasing.manage', 'visits.visitor', 'visits.statistics']];
 
     /** Image category (as the desktop's `imagetype.Category` spells it) → the grant that opens it. */
     public const ATTACHMENT_CATEGORIES = ['ثبوتيات شخصية - Personal' => 'attachments.personal', 'أوراق قانونية - Legal' => 'attachments.legal', 'أوراق مالية - Financial' => 'attachments.financial'];

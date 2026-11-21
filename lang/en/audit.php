@@ -14,6 +14,7 @@ return [
     'changed' => 'changed (value not shown)', 'changes_summary' => '{1} :count field changed|[2,*] :count fields changed', 'cut' => 'shortened',
     'fields' => ['email' => 'E-mail', 'state' => 'State', 'state_reason' => 'State reason', 'state_note' => 'State note', 'donor' => 'Donor', 'tasks_opened' => 'Tasks opened', 'task' => 'Task',
         'donor_group' => 'Donor group', 'currency' => 'Currency', 'exchange_rate' => 'Exchange rate', 'amount' => 'Amount', 'taken_on' => 'Loan date', 'returned_amount' => 'Amount to return', 'installment_amount' => 'Instalment amount', 'installments_count' => 'Number of instalments', 'rate' => 'Repayment rate', 'receipt_number' => 'Receipt number', 'note' => 'Note', 'loan' => 'Loan', 'installment' => 'Instalment', 'installments' => 'Instalments', 'visit_notices' => 'Visit notices', 'notices_removed' => 'Notices removed',
+        'visit' => 'Visit', 'visit_date' => 'Visit date', 'vehicle_number' => 'Plate number', 'street' => 'Project area', 'address_after_fund' => 'Detailed address', 'indicators' => 'Indicators', 'office_comments' => 'Beneficiary comments', 'answer' => 'Answer', 'office' => 'Office rating', 'visitors' => 'Visitors', 'notices_seen' => 'Notices read', 'notices_unseen' => 'Notices unread again', 'visit_number' => 'Visit number', 'profit' => 'Net profit', 'answer_1' => 'Text answer', 'notes' => 'Beneficiary notes', 'result' => 'Result', 'notice' => 'Notice', 'notice_date' => 'Notice date', 'change_reason' => 'Reason for the change',
         'attachment' => ['original_name' => 'File name', 'type' => 'Attachment type', 'category' => 'Attachment category']],
     'col' => [
         'number' => 'No.', 'desktop_number' => 'Desktop no.', 'time' => 'Time', 'account' => 'Account', 'user' => 'User', 'city' => 'City',
@@ -45,7 +46,7 @@ return [
         'view' => 'Opened', 'list' => 'Listed', 'listed' => 'Listed', 'board' => 'Opened the board', 'search' => 'Searched', 'statistics' => 'Opened statistics',
         'created' => 'Added', 'updated' => 'Edited', 'saved' => 'Saved', 'deleted' => 'Deleted', 'restored' => 'Restored', 'hidden' => 'Hid', 'shown' => 'Showed',
         'exported' => 'Exported', 'printed' => 'Printed', 'toggled' => 'Changed', 'seen' => 'Read', 'sent' => 'Sent', 'noted' => 'Added a note to', 'rescheduled' => 'Rescheduled',
-        'schedule' => 'Opened the schedule', 'donor_assigned' => 'Assigned a donor to', 'group_created' => 'Created a group for', 'loan_saved' => 'Saved the loan of',
+        'schedule' => 'Opened the schedule', 'results' => 'Opened the results of', 'donor_assigned' => 'Assigned a donor to', 'group_created' => 'Created a group for', 'loan_saved' => 'Saved the loan of',
         'payments_saved' => 'Saved the payments of', 'download_started' => 'Started downloading', 'download_succeeded' => 'Downloaded', 'download_failed' => 'Download failed',
         'download_denied' => 'Download refused',
     ],

@@ -135,9 +135,14 @@ final class SyntheticDataSeeder extends Seeder
                         $due = $taken->copy()->addMonths($i);
                         DB::table('loan_installments')->insert(['city_id' => $c, 'loan_id' => $loan, 'amount' => round($amount / $count, 2), 'due_on' => $due, 'is_paid' => $i <= $paidUntil, 'received_on' => $i <= $paidUntil ? $due->copy()->addDays(mt_rand(0, 5)) : null, 'created_at' => $now, 'updated_at' => $now]);
                     }
-                    $visit = DB::table('visits')->insertGetId(['city_id' => $c, 'project_id' => $project, 'kind' => 'opening', 'type' => 'other', 'visit_date' => $taken->copy()->addDays(10), 'created_at' => $now, 'updated_at' => $now]);
+                    // Desktop visit codes (M4.12): O-op for other projects, V-op for the vehicle sub-categories; yes 1 / no 0 as the desktop stores them.
+                    $sub = DB::table('project_subcategories')->where('id', $career->project_subcategory_id)->first(['name_ar', 'name_en']);
+                    $vehicle = $sub !== null && (in_array($sub->name_ar, ['Taxi', 'Other Vehicles'], true) || in_array($sub->name_en, ['Taxi', 'Other Vehicles'], true));
+                    $visit = DB::table('visits')->insertGetId(['city_id' => $c, 'project_id' => $project, 'kind' => $vehicle ? 'V-op' : 'O-op', 'type' => null, 'visit_date' => $taken->copy()->addDays(10),
+                        'vehicle_number' => $vehicle ? 'T-'.$number : null, 'created_by_name' => 'seed', 'created_at' => $now, 'updated_at' => $now]);
                     for ($q = 1; $q <= 3; $q++) {
-                        DB::table('visit_answers')->insert(['city_id' => $c, 'visit_id' => $visit, 'form' => 'visit', 'question_number' => $q, 'answer_text' => 'إجابة تجريبية', 'answer_value' => mt_rand(1, 3), 'created_at' => $now, 'updated_at' => $now]);
+                        DB::table('visit_answers')->insert(['city_id' => $c, 'visit_id' => $visit, 'form' => 'visit', 'question_number' => $q, 'answer_text' => 'إجابة تجريبية',
+                            'answer_value' => $vehicle && $q === 3 ? mt_rand(1, 4) : mt_rand(0, 1), 'created_at' => $now, 'updated_at' => $now]);
                     }
                 }
             }

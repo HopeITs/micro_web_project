@@ -30,7 +30,10 @@ final class Navigation
             ['key' => 'attachments', 'icon' => 'file', 'route' => 'attachments.index', 'capability' => 'attachments.download'],
         ],
         'field' => [
-            ['key' => 'visits', 'icon' => 'map', 'capability' => 'visits.view', 'task' => 'M4.12'],
+            // M4.12: the schedule, with the results report and the visitor statistics (administrator) under it.
+            ['key' => 'visits', 'icon' => 'map', 'route' => 'visits.schedule', 'capability' => 'visits.view'],
+            ['key' => 'visit_results', 'icon' => 'chart', 'route' => 'visits.results', 'capability' => 'me_visits.view'],
+            ['key' => 'visitor_statistics', 'icon' => 'users', 'route' => 'visits.statistics', 'capability' => 'visits.statistics'],
             ['key' => 'kobo', 'icon' => 'sync', 'capability' => 'visits.manage', 'task' => 'M4.14'],
             ['key' => 'meetings', 'icon' => 'meeting', 'capability' => 'profession_meetings.view', 'task' => 'M4.15'],
         ],
@@ -62,7 +65,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'finance.payments' => ['finance.payments', 'finance.show'], default => $route
+                        'projects.index' => 'projects.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
                     }),
                 ];
             }

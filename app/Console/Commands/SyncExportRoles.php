@@ -31,7 +31,7 @@ final class SyncExportRoles extends Command
 
             return self::FAILURE;
         }
-        $counts = ['cashier roles merged' => 0, 'grants added' => 0, 'grants removed' => 0];
+        $counts = ['cashier roles merged' => 0, 'grants added' => 0, 'visitor grants added' => 0, 'grants removed' => 0];
         DB::beginTransaction();
         try {
             foreach (DB::table('account_city_roles')->where('role', 'cashier')->whereNull('revoked_at')->get() as $row) {
@@ -55,6 +55,17 @@ final class SyncExportRoles extends Command
                         $provisioner->grant($account, (int) $row->city_id, $capability, $decision);
                         $counts['grants added']++;
                     }
+                }
+            }
+            // M4.12 (owner decision 1, 21 Nov 2026): an account linked to a desktop user flagged visitor may be chosen as a visitor in that city.
+            $visitors = DB::table('account_legacy_links as l')->join('legacy_staff_users as u', 'u.id', '=', 'l.legacy_staff_user_id')
+                ->whereNull('l.revoked_at')->where('u.is_visitor', true)->whereNull('u.disabled_at')->orderBy('l.id')->get(['l.account_id', 'u.city_id']);
+            foreach ($visitors as $row) {
+                $account = WebAccount::find($row->account_id);
+                $held = DB::table('account_city_capabilities')->where('account_id', $row->account_id)->where('city_id', $row->city_id)->where('capability', 'visits.visitor')->exists();
+                if ($account !== null && ! $held) {
+                    $provisioner->grant($account, (int) $row->city_id, 'visits.visitor', $decision);
+                    $counts['visitor grants added']++;
                 }
             }
             // Capabilities taken away from a role (M4.10): revoked unless another active role of the account in that city still includes them.

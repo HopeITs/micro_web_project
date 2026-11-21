@@ -28,6 +28,10 @@
             @if($finance)
                 <x-hc.button icon="wallet" variant="secondary" :href="route('finance.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('finance.open') }}</x-hc.button>
             @endif
+            {{-- M4.12: the project's visits (visits.view or me_visits.view, with applications.view). --}}
+            @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view') && (app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'visits.view') || app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'me_visits.view')))
+                <x-hc.button icon="map" variant="secondary" :href="route('visits.hub', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('visits.open') }}</x-hc.button>
+            @endif
             @php($viewsApplication = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
             @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'executive_files.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('executive.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('executive.open') }}</x-hc.button>

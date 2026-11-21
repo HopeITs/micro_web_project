@@ -74,6 +74,16 @@ class ProjectLifecycle extends Component
         $this->notice = __('lifecycle.reason_saved');
     }
 
+    public function undoLast(): void
+    {
+        $this->resetErrorBag();
+        if (! $this->save(fn (LifecycleService $s) => $s->undo(auth()->user(), $this->projectId, $this->version), 'undo')) {
+            return;
+        }
+        session()->flash('status', __('lifecycle.undo.done'));
+        $this->redirectRoute('projects.show', ['locale' => app()->getLocale(), 'project' => $this->projectId]);
+    }
+
     private function save(callable $action, string $form): bool
     {
         $this->notice = '';
@@ -81,7 +91,7 @@ class ProjectLifecycle extends Component
             $action(app(LifecycleService::class));
         } catch (ValidationException $e) {
             foreach ($e->errors() as $field => $messages) {
-                $this->addError($field === 'version' ? 'version' : $form.'.'.$field, $messages[0]);
+                $this->addError(in_array($field, ['version', 'undo'], true) ? $field : $form.'.'.$field, $messages[0]);
             }
 
             return false;

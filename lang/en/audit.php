@@ -34,7 +34,7 @@ return [
         'accounts_role_assigned' => 'Role assigned', 'accounts_role_revoked' => 'Role removed', 'accounts_email_set' => 'E-mail changed',
         'accounts_disabled' => 'Account disabled', 'accounts_enabled' => 'Account enabled', 'accounts_tasks_saved' => 'Task responsibilities saved',
         'logs_listed' => 'Opened the audit log', 'reports_exported' => 'Exported a report', 'national_checked' => 'Checked a national number',
-        'lifecycle_transitioned' => 'Changed the project state', 'lifecycle_reason_updated' => 'Changed the state reason',
+        'lifecycle_transitioned' => 'Changed the project state', 'lifecycle_reason_updated' => 'Changed the state reason', 'lifecycle_undone' => 'Undid a project state change',
         'application_draft_saved' => 'Saved an application draft', 'application_draft_viewed' => 'Opened an application draft', 'application_draft_discarded' => 'Discarded an application draft',
     ],
     'verbs' => [

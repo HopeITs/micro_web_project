@@ -2,7 +2,7 @@
 
 return [
     'title' => 'Project state', 'current' => 'Current', 'none' => 'No state recorded', 'change' => 'Change state', 'new_state' => 'New state',
-    'rules' => 'The preliminary state is automatic. Waiting follows the full application, and Financed is set by finance.',
+    'rules' => 'Only the states that follow the current one on the application path are listed. Waiting after the preliminary form comes with the full form, Financed with the loan, and Canceled, Finished and Closed only after funding.',
     'reason' => 'Reason', 'note' => 'Note', 'edit_current' => 'Edit reason and note of the current state', 'history' => 'State history', 'state' => 'State', 'date' => 'Date',
     'saved' => 'Project state saved.', 'checklist_saved' => 'Checklist saved.', 'checklist_link' => 'Assessment checklist',
     'refusals' => [
@@ -11,8 +11,16 @@ return [
         'waiting_from_preliminary' => 'A preliminary project moves to Waiting when its full application is submitted.',
         'financed_from_accepted' => 'An accepted project becomes financed when finance records its loan.',
         'accept_capability' => 'Your account cannot accept projects in this city.',
+        'not_allowed' => 'The application cannot go from «:from» to «:to»: that state does not follow on the application path.',
+        'financed_by_finance' => 'A project becomes financed when finance records its loan.',
+        'reopen_preliminary' => 'A preliminary application returns to Waiting by filling in its full form.',
     ],
     // M4.8
+    'undo' => [
+        'button' => 'Undo the last change (back to «:state»)', 'confirm' => 'The project goes back to «:state», and the tasks and unread notices the change created are removed. Continue?',
+        'hint' => 'Only for your last change made today.', 'done' => 'The last state change was undone.',
+        'tasks_started' => 'Acceptance cannot be undone once its follow-up tasks have started.', 'not_possible' => 'There is no change to undo.',
+    ],
     'save' => 'Save', 'reason_saved' => 'State reason and note saved.',
     'donor' => 'Donor', 'donor_hint' => 'A project is accepted together with its donor.',
     'errors' => [

@@ -201,6 +201,85 @@ class LifecycleScenarioTest extends TestCase
         Livewire::test(ProjectNextStep::class, ['projectId' => $rejected->id])->assertDontSee(__('hc.next_step', [], 'ar'));
     }
 
+    /** @return list<string> the states the administrator is offered */
+    private function offered(int $projectId): array
+    {
+        $names = Livewire::test(ProjectLifecycle::class, ['projectId' => $projectId])->viewData('panel')['targets']->pluck('name_en')->all();
+        sort($names);
+
+        return $names;
+    }
+
+    public function test_only_the_next_states_on_the_path_are_offered(): void
+    {
+        $this->as('role.administrator');
+        $project = $this->project('On Hold');
+        $this->assertSame(['Rejected', 'Withdrew'], $this->offered($project->id));
+        // Canceled and Closed only follow funding, even when posted directly.
+        foreach (['Canceled', 'Closed', 'Finished', 'Accepted'] as $state) {
+            Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])->set('change.state_id', (string) $this->state($state))->call('changeState')
+                ->assertHasErrors(['change.state_id']);
+        }
+        $this->assertSame('On Hold', $this->current($project->id));
+
+        $this->assertSame(['Delayed', 'Rejected', 'Under Review', 'Withdrew'], $this->offered($this->project('Waiting')->id));
+        $this->assertSame(['Canceled', 'Closed', 'Finished'], $this->offered($this->project('Financed')->id));
+        $this->assertSame(['Closed'], $this->offered($this->project('Finished')->id));
+        $this->assertSame([], $this->offered($this->project('Canceled')->id));
+    }
+
+    public function test_a_rejected_full_application_can_be_reopened_but_a_preliminary_one_returns_through_its_form(): void
+    {
+        $this->as('role.administrator');
+        $project = $this->project('Rejected');
+        DB::table('projects')->where('id', $project->id)->update(['application_stage' => 'full']);
+        $this->assertSame(['Waiting'], $this->offered($project->id));
+        Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])->set('change.state_id', (string) $this->state('Waiting'))->call('changeState')->assertHasNoErrors();
+        $this->assertSame('Waiting', $this->current($project->id));
+
+        DB::table('projects')->where('id', $project->id)->update(['application_stage' => 'preliminary']);
+        $withdrawn = $this->project('Withdrew');
+        DB::table('projects')->where('id', $withdrawn->id)->update(['application_stage' => 'preliminary']);
+        $this->assertSame([], $this->offered($withdrawn->id));
+    }
+
+    public function test_the_last_change_can_be_undone_the_same_day(): void
+    {
+        $this->as('role.administrator');
+        $project = $this->project('Under Review');
+        // A state recorded by the application form (not a manager's change) offers no undo.
+        $this->assertNull(Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])->viewData('panel')['undo']);
+
+        $donor = (int) DB::table('donors')->orderBy('id')->value('id');
+        Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])
+            ->set('change.state_id', (string) $this->state('Accepted'))->set('change.donor_id', (string) $donor)->call('changeState')->assertHasNoErrors();
+        $this->assertGreaterThan(0, DB::table('web_notices')->where('project_id', $project->id)->where('kind', 'state')->count());
+
+        Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])->assertSee(__('lifecycle.undo.button', ['state' => 'قيد الدراسة'], 'ar'))
+            ->call('undoLast')->assertHasNoErrors()->assertRedirect();
+        $this->assertSame('Under Review', $this->current($project->id));
+        $this->assertNull(DB::table('projects')->where('id', $project->id)->value('donor_id'), 'The donor goes back to what it was.');
+        $this->assertSame(0, DB::table('project_tasks')->where('project_id', $project->id)->whereNull('deleted_at')->count());
+        $this->assertSame(0, DB::table('web_notices')->where('project_id', $project->id)->where('kind', 'state')->count());
+        $this->assertTrue(DB::table('account_audit_events')->where('event_type', 'lifecycle.undone')->where('subject_id', $project->id)->exists());
+        // Nothing more to undo: the earlier state was not a manager's change.
+        $this->assertNull(Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])->viewData('panel')['undo']);
+    }
+
+    public function test_acceptance_cannot_be_undone_once_follow_up_work_started(): void
+    {
+        $this->as('role.administrator');
+        $project = $this->project('Delayed');
+        Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])
+            ->set('change.state_id', (string) $this->state('Accepted'))->set('change.donor_id', (string) DB::table('donors')->value('id'))->call('changeState');
+        $second = DB::table('project_tasks as t')->join('task_definitions as d', 'd.id', '=', 't.task_definition_id')->where('t.project_id', $project->id)
+            ->where('d.type', 'f')->orderBy('d.sort_order')->skip(1)->value('t.id');
+        Livewire::test(ProjectTasks::class, ['projectId' => $project->id])->call('toggle', $second, true);
+        Livewire::test(ProjectLifecycle::class, ['projectId' => $project->id])->assertSee(__('lifecycle.undo.tasks_started', [], 'ar'))
+            ->call('undoLast')->assertHasErrors('undo');
+        $this->assertSame('Accepted', $this->current($project->id));
+    }
+
     public function test_full_application_opens_the_study_tasks_once(): void
     {
         $this->as('role.administrator');

@@ -14,6 +14,18 @@
         @else<span class="muted">{{ __('lifecycle.none') }}</span>@endif
     </p>
 
+    @if($panel['canManage'] && $panel['undo'])
+        @php($back = $name($panel['undo']['back_ar'], $panel['undo']['back_en']))
+        <div class="hc-undo" style="margin-block-end:12px">
+            @if($panel['undo']['blocked'])
+                <p class="muted" style="margin:0">{{ __('lifecycle.undo.'.$panel['undo']['blocked']) }}</p>
+            @else
+                <x-hc.button variant="secondary" size="sm" icon="arrow" wire:click="undoLast" wire:confirm="{{ __('lifecycle.undo.confirm', ['state' => $back]) }}" wire:loading.attr="disabled" wire:target="undoLast">{{ __('lifecycle.undo.button', ['state' => $back]) }}</x-hc.button>
+                <p class="hc-hint" style="margin:6px 0 0">{{ __('lifecycle.undo.hint') }}</p>
+            @endif
+            @error('undo')<p class="hc-error" role="alert">{{ $message }}</p>@enderror
+        </div>
+    @endif
     @if($panel['canManage'])
         <x-hc.section :title="__('lifecycle.change')" :open="$errors->has('change.*')">
             <form wire:submit="changeState" class="hc-grid" style="gap:12px" x-data="{ state: $wire.entangle('change.state_id') }">

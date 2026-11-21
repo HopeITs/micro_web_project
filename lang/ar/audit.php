@@ -34,7 +34,7 @@ return [
         'accounts_role_assigned' => 'تعيين دور', 'accounts_role_revoked' => 'سحب دور', 'accounts_email_set' => 'تغيير البريد',
         'accounts_disabled' => 'تعطيل حساب', 'accounts_enabled' => 'تفعيل حساب', 'accounts_tasks_saved' => 'حفظ مسؤوليات المهام',
         'logs_listed' => 'فتح سجل الأحداث', 'reports_exported' => 'تصدير تقرير', 'national_checked' => 'فحص رقم وطني',
-        'lifecycle_transitioned' => 'تغيير حالة المشروع', 'lifecycle_reason_updated' => 'تعديل سبب الحالة',
+        'lifecycle_transitioned' => 'تغيير حالة المشروع', 'lifecycle_reason_updated' => 'تعديل سبب الحالة', 'lifecycle_undone' => 'تراجع عن تغيير حالة المشروع',
         'application_draft_saved' => 'حفظ مسودة طلب', 'application_draft_viewed' => 'فتح مسودة طلب', 'application_draft_discarded' => 'حذف مسودة طلب',
     ],
     'verbs' => [

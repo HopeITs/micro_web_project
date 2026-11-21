@@ -51,6 +51,8 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/', HomeController::class)->name('home');
             Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('/projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
+            // Smart-search phase 2: Excel/CSV of the list as shown; the single-use token carries the search server-side (DatasetExport rechecks reports.export per city).
+            Route::get('/projects/export/{token}', \App\Http\Controllers\ProjectExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('projects.export');
             Route::view('/design', 'design')->name('design');
 
             // M4.5 application form (ApplicationService rechecks applications.manage + people.manage per city).

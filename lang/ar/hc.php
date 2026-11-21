@@ -76,4 +76,11 @@ return [
     'project_type' => 'نوع المشروع', 'fund_type' => 'نوع التمويل', 'beneficiary_sex' => 'جنس المستفيد', 'sex_male' => 'ذكر', 'sex_female' => 'أنثى',
     'person_sex' => 'الجنس', 'age' => 'العمر', 'birth_date' => 'تاريخ الميلاد', 'marital_status' => 'الحالة الاجتماعية', 'education_level' => 'المستوى التعليمي', 'registered_on' => 'تاريخ التسجيل',
     'paid_amount' => 'المبلغ المدفوع', 'filter_preset_next_30_days' => 'الـ 30 يوماً القادمة', 'pay_view_relaxed' => 'مع وجود بحث أو فلاتر يعرض الجدول كل الدفعات (مدفوعة وغير مدفوعة).',
+    // البحث الذكي، المرحلة 2: الأعمدة والفرز وعدد الصفوف والتصدير.
+    'state_changed_on' => 'تاريخ آخر تغيير حالة', 'beneficiary_mobile' => 'موبايل المستفيد', 'loan_amount' => 'مبلغ القرض', 'overdue_installments' => 'الأقساط المتأخرة',
+    'columns' => 'الأعمدة', 'columns_title' => 'الأعمدة الظاهرة', 'columns_hint' => 'علّم العمود لإظهاره، واسحبه (أو استخدم الأسهم) لتغيير ترتيبه.', 'columns_reset' => 'الأعمدة الافتراضية',
+    'columns_invalid' => 'عمود غير معروف.', 'columns_sensitive' => 'بيانات شخصية', 'column_move_up' => 'نقل :name للأعلى', 'column_move_down' => 'نقل :name للأسفل', 'column_drag' => 'اسحب :name',
+    'sort_hint' => 'اضغط للفرز، وShift مع الضغط يضيف فرزاً ثانياً.', 'sort_asc' => 'تصاعدي', 'sort_desc' => 'تنازلي',
+    'per_page' => 'عدد الصفوف', 'export' => 'تصدير', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV',
+    'export_hint' => 'يصدّر كل الصفوف المطابقة بالأعمدة الظاهرة وبترتيبها، مع الفلاتر والبحث والفرز.',
 ];

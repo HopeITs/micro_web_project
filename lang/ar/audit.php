@@ -42,6 +42,7 @@ return [
         'finance_list' => 'فتح جدول الدفعات', 'finance_view' => 'فتح مالية مشروع', 'finance_donor_assigned' => 'تعديل الجهة الممولة', 'finance_loan_saved' => 'حفظ القرض', 'finance_payments_saved' => 'حفظ الأقساط', 'finance_loan_deleted' => 'حذف القرض', 'finance_installment_deleted' => 'حذف قسط',
         'application_draft_saved' => 'حفظ مسودة طلب', 'application_draft_viewed' => 'فتح مسودة طلب', 'application_draft_discarded' => 'حذف مسودة طلب',
         'attachments_uploaded' => 'رفع مرفق', 'attachments_deleted' => 'حذف مرفق', 'attachments_view' => 'فتح مرفق',
+        'projects_exported' => 'تصدير قائمة المشاريع',
     ],
     'verbs' => [
         'view' => 'فتح', 'list' => 'عرض قائمة', 'listed' => 'عرض قائمة', 'board' => 'فتح لوحة', 'search' => 'بحث في', 'statistics' => 'إحصاءات',

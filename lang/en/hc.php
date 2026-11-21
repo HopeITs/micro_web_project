@@ -71,4 +71,11 @@ return [
     'project_type' => 'Project type', 'fund_type' => 'Fund type', 'beneficiary_sex' => 'Beneficiary sex', 'sex_male' => 'Male', 'sex_female' => 'Female',
     'person_sex' => 'Sex', 'age' => 'Age', 'birth_date' => 'Birth date', 'marital_status' => 'Marital status', 'education_level' => 'Education level', 'registered_on' => 'Registered on',
     'paid_amount' => 'Paid amount', 'filter_preset_next_30_days' => 'Next 30 days', 'pay_view_relaxed' => 'With a search or filters the list shows every instalment (paid and unpaid).',
+    // Smart search phase 2: columns, sort, rows per page and export.
+    'state_changed_on' => 'Last state change', 'beneficiary_mobile' => 'Beneficiary mobile', 'loan_amount' => 'Loan amount', 'overdue_installments' => 'Overdue instalments',
+    'columns' => 'Columns', 'columns_title' => 'Shown columns', 'columns_hint' => 'Tick to show, drag (or use the arrows) to reorder.', 'columns_reset' => 'Default columns',
+    'columns_invalid' => 'Unknown column.', 'columns_sensitive' => 'Personal data', 'column_move_up' => 'Move :name up', 'column_move_down' => 'Move :name down', 'column_drag' => 'Drag :name',
+    'sort_hint' => 'Click to sort; Shift+click adds a second sort.', 'sort_asc' => 'ascending', 'sort_desc' => 'descending',
+    'per_page' => 'Rows per page', 'export' => 'Export', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV',
+    'export_hint' => 'Exports every matching row with the shown columns in this order, the filters, the search and the sort.',
 ];

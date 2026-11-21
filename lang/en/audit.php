@@ -42,6 +42,7 @@ return [
         'finance_list' => 'Opened the payment schedule', 'finance_view' => 'Opened a project finance page', 'finance_donor_assigned' => 'Changed the donor', 'finance_loan_saved' => 'Saved the loan', 'finance_payments_saved' => 'Saved the instalments', 'finance_loan_deleted' => 'Deleted the loan', 'finance_installment_deleted' => 'Deleted an instalment',
         'application_draft_saved' => 'Saved an application draft', 'application_draft_viewed' => 'Opened an application draft', 'application_draft_discarded' => 'Discarded an application draft',
         'attachments_uploaded' => 'Uploaded an attachment', 'attachments_deleted' => 'Deleted an attachment', 'attachments_view' => 'Opened an attachment',
+        'projects_exported' => 'Exported the projects list',
     ],
     'verbs' => [
         'view' => 'Opened', 'list' => 'Listed', 'listed' => 'Listed', 'board' => 'Opened the board', 'search' => 'Searched', 'statistics' => 'Opened statistics',

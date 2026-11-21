@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasDatasetColumns;
 use App\Livewire\Concerns\HasSmartFilters;
 use App\Models\City;
 use App\Support\CityContext;
@@ -19,10 +20,12 @@ use Livewire\WithPagination;
  * comma or a new line), the smart filter bar (ProjectsDataset fields, multi-select with counts, ranges and
  * relative dates), city chips and count tiles per stage of the application path (F3). The search term can hold
  * a beneficiary's name or national number, so it stays out of the URL (UX plan F3, same rule as the people list);
- * the URL keeps only filter ids, codes, numbers and dates.
+ * the URL keeps only filter ids, codes, numbers and dates. Columns, header sort, rows per page and the Excel/CSV
+ * export come from HasDatasetColumns (smart-search phase 2); the export gets the search through a server-side token.
  */
 class ProjectsIndex extends Component
 {
+    use HasDatasetColumns;
     use HasSmartFilters {
         savableViewFilters as smartSavableViewFilters;
         loadViewFilters as smartLoadViewFilters;
@@ -53,7 +56,7 @@ class ProjectsIndex extends Component
     /** Saved views: the city chips are stored as a `city` filter (ids only); the search box and the path tile are not stored. */
     protected function filtersCameFromUrl(): bool
     {
-        return $this->filters !== [] || $this->cities !== [] || $this->path !== '';
+        return $this->filters !== [] || $this->cities !== [] || $this->path !== '' || $this->tableColumns !== '' || $this->tableSort !== '';
     }
 
     protected function savableViewFilters(): array
@@ -127,13 +130,14 @@ class ProjectsIndex extends Component
         return $this->applySmartFilters($query, $exceptField);
     }
 
-    private function query(): Builder
+    protected function exportRoute(): string
     {
-        return $this->filteredQuery()
-            ->select('projects.id', 'projects.project_number', 'projects.name', 'projects.application_stage', 'projects.requested_amount', 'projects.request_date',
-                'c.code as city_code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'p.first_name', 'p.father_name', 'p.last_name',
-                'st.name_ar as state_ar', 'st.name_en as state_en')
-            ->orderByDesc('projects.request_date')->orderBy('c.code')->orderByDesc('projects.project_number');
+        return 'projects.export';
+    }
+
+    protected function exportStateProperties(): array
+    {
+        return ['search', 'cities', 'path', 'filters', 'textFilters'];
     }
 
     /** @return array<string, int> group => projects matching every other filter */
@@ -149,10 +153,12 @@ class ProjectsIndex extends Component
         $permitted = app(CityContext::class)->cityIds();
 
         return view('livewire.projects-index', [
-            'projects' => $this->query()->paginate(15),
+            'projects' => $this->tableQuery()->toBase()->paginate($this->perPage()),
             'pathCounts' => $this->pathCounts(),
             'cityOptions' => City::whereIn('id', $permitted)->orderBy('id')->get(['id', 'code', 'name_ar', 'name_en']),
             'filterBar' => $this->filterBar(),
+            'table' => $this->dataTable(),
+            'columnPicker' => $this->columnPicker(),
         ]);
     }
 }

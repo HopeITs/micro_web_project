@@ -10,7 +10,7 @@
 
     <x-hc.card :flush="true">
         @include('admin._audit-tabs', ['exportRoute' => 'admin.audit.desktop.export', 'query' => $query])
-        <form class="hc-toolbar" method="GET" action="{{ route('admin.audit.desktop', ['locale' => $locale]) }}">
+        <form class="audit-filters" method="GET" action="{{ route('admin.audit.desktop', ['locale' => $locale]) }}"><div class="audit-grid">
             <div class="hc-field">
                 <label class="hc-label" for="city">{{ __('audit.city') }}</label>
                 <select id="city" name="city" class="hc-select"><option value="">{{ __('audit.all_cities') }}</option>
@@ -26,11 +26,11 @@
             </div>
             <div class="hc-field"><label class="hc-label" for="user">{{ __('audit.user') }}</label><input id="user" name="user" type="search" class="hc-input" maxlength="100" value="{{ $filters['user'] ?? '' }}" autocomplete="off"></div>
             <div class="hc-field grow"><label class="hc-label" for="q">{{ __('audit.q') }}</label><input id="q" name="q" type="search" class="hc-input" maxlength="100" value="{{ $filters['q'] ?? '' }}" autocomplete="off"></div>
-            <div class="hc-field" style="flex:0 0 auto;flex-direction:row;gap:8px;align-items:flex-end">
+            <div class="audit-actions">
                 <x-hc.button type="submit" variant="secondary" icon="search">{{ __('audit.filter') }}</x-hc.button>
                 @if($query !== [])<x-hc.button variant="ghost" :href="route('admin.audit.desktop', ['locale' => $locale])">{{ __('audit.clear') }}</x-hc.button>@endif
             </div>
-        </form>
+        </div></form>
         <div class="hc-toolbar" style="padding-block:0 12px"><span class="muted" aria-live="polite">{{ __('hc.results', ['count' => number_format($rows->total())]) }}</span></div>
 
         <div class="hc-table-wrap">

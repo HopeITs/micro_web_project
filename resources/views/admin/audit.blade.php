@@ -20,7 +20,7 @@
 
     <x-hc.card :flush="true">
         @include('admin._audit-tabs', ['exportRoute' => 'admin.audit.export', 'query' => $query])
-        <form class="hc-toolbar" method="GET" action="{{ route('admin.audit', ['locale' => $locale]) }}">
+        <form class="audit-filters" method="GET" action="{{ route('admin.audit', ['locale' => $locale]) }}"><div class="audit-grid">
             <div class="hc-field">
                 <label class="hc-label" for="city">{{ __('audit.city') }}</label>
                 <select id="city" name="city" class="hc-select"><option value="">{{ __('audit.all_cities') }}</option>
@@ -39,11 +39,11 @@
                     @foreach(array_keys(\App\Services\Staff\AuditLogService::AREAS) as $a)<option value="{{ $a }}" @selected(($filters['area'] ?? '') === $a)>{{ __('audit.areas.'.$a) }}</option>@endforeach</select>
             </div>
             <div class="hc-field grow"><label class="hc-label" for="actor">{{ __('audit.actor') }}</label><input id="actor" name="actor" type="search" class="hc-input" maxlength="100" value="{{ $filters['actor'] ?? '' }}" autocomplete="off"></div>
-            <div class="hc-field" style="flex:0 0 auto;flex-direction:row;gap:8px;align-items:flex-end">
+            <div class="audit-actions">
                 <x-hc.button type="submit" variant="secondary" icon="search">{{ __('audit.filter') }}</x-hc.button>
                 @if($query !== [])<x-hc.button variant="ghost" :href="route('admin.audit', ['locale' => $locale])">{{ __('audit.clear') }}</x-hc.button>@endif
             </div>
-        </form>
+        </div></form>
         <div class="hc-toolbar" style="padding-block:0 12px"><span class="muted" aria-live="polite">{{ __('hc.results', ['count' => number_format($rows->total())]) }} · {{ __('audit.scope_note') }}</span></div>
 
         <div class="hc-table-wrap">

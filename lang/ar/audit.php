@@ -43,6 +43,7 @@ return [
         'application_draft_saved' => 'حفظ مسودة طلب', 'application_draft_viewed' => 'فتح مسودة طلب', 'application_draft_discarded' => 'حذف مسودة طلب',
         'attachments_uploaded' => 'رفع مرفق', 'attachments_deleted' => 'حذف مرفق', 'attachments_view' => 'فتح مرفق',
         'projects_exported' => 'تصدير قائمة المشاريع',
+        'people_exported' => 'تصدير قائمة الأشخاص',
     ],
     'verbs' => [
         'view' => 'فتح', 'list' => 'عرض قائمة', 'listed' => 'عرض قائمة', 'board' => 'فتح لوحة', 'search' => 'بحث في', 'statistics' => 'إحصاءات',

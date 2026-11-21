@@ -43,6 +43,7 @@ return [
         'application_draft_saved' => 'Saved an application draft', 'application_draft_viewed' => 'Opened an application draft', 'application_draft_discarded' => 'Discarded an application draft',
         'attachments_uploaded' => 'Uploaded an attachment', 'attachments_deleted' => 'Deleted an attachment', 'attachments_view' => 'Opened an attachment',
         'projects_exported' => 'Exported the projects list',
+        'people_exported' => 'Exported the people list',
     ],
     'verbs' => [
         'view' => 'Opened', 'list' => 'Listed', 'listed' => 'Listed', 'board' => 'Opened the board', 'search' => 'Searched', 'statistics' => 'Opened statistics',

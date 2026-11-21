@@ -4,6 +4,7 @@ return [
     'title' => 'People and families', 'intro' => 'Everyone in your cities: applicants and their family members. Search by name, national number, mobile or family book number.',
     'search_placeholder' => 'Name, national number, mobile or family book number', 'projects_filter' => 'Projects', 'with_projects' => 'With projects', 'without_projects' => 'Without projects',
     'no_results_hint' => 'Try part of the name or the last digits of the national number.',
+    'family_size' => 'Family size', 'latest_project' => 'Latest project number', 'latest_state' => 'Latest project state',
     'name' => 'Name', 'birth_year' => 'Birth year', 'family_number' => 'Family book number', 'projects' => 'Projects', 'person' => 'Person', 'role' => 'Role in the application',
     'new' => 'New person', 'new_intro' => 'Fields follow the paper form. While you type, you are warned about anyone with the same national number, the same full name or the same family book number.',
     'edit_title' => 'Edit details', 'back' => 'All people', 'back_person' => 'Back to the person',

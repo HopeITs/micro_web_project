@@ -92,6 +92,8 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');
             Route::get('/people/create', [PeopleController::class, 'create'])->name('people.create');
             Route::get('/national-check', [PeopleController::class, 'national'])->name('people.national');
+            // Smart-search phase 2: Excel/CSV of the people list as shown (single-use token; DatasetExport rechecks reports.export per city).
+            Route::get('/people/export/{token}', \App\Http\Controllers\PeopleExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('people.export');
             Route::get('/people/{person}', [PeopleController::class, 'show'])->whereNumber('person')->name('people.show');
             Route::get('/people/{person}/edit', [PeopleController::class, 'edit'])->whereNumber('person')->name('people.edit');
 

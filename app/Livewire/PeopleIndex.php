@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasDatasetColumns;
 use App\Livewire\Concerns\HasSmartFilters;
 use App\Services\People\PeopleService;
 use App\Support\Datasets\Dataset;
@@ -20,6 +21,7 @@ use Livewire\WithPagination;
  */
 class PeopleIndex extends Component
 {
+    use HasDatasetColumns;
     use HasSmartFilters {
         savableViewFilters as smartSavableViewFilters;
         loadViewFilters as smartLoadViewFilters;
@@ -53,7 +55,7 @@ class PeopleIndex extends Component
     /** Saved views: the city chips are stored as a `city` filter (ids only); the search box is not stored. */
     protected function filtersCameFromUrl(): bool
     {
-        return $this->filters !== [] || $this->cities !== [];
+        return $this->filters !== [] || $this->cities !== [] || $this->tableColumns !== '' || $this->tableSort !== '';
     }
 
     protected function savableViewFilters(): array
@@ -102,12 +104,24 @@ class PeopleIndex extends Component
         return $this->applySmartFilters($query, $exceptField);
     }
 
+    protected function exportRoute(): string
+    {
+        return 'people.export';
+    }
+
+    protected function exportStateProperties(): array
+    {
+        return ['search', 'cities', 'filters', 'textFilters'];
+    }
+
     public function render(PeopleService $people): View
     {
         $account = auth()->user();
 
         return view('livewire.people-index', [
-            'people' => $people->listPage($this->filteredQuery()),
+            'people' => $this->tableQuery()->toBase()->paginate($this->perPage()),
+            'table' => $this->dataTable(),
+            'columnPicker' => $this->columnPicker(),
             'cityOptions' => $people->cities($account),
             'canCreate' => $people->cityIds($account, 'people.manage') !== [],
             'filterBar' => $this->filterBar(),

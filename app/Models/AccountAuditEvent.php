@@ -25,6 +25,7 @@ class AccountAuditEvent extends Model
             'subject_account_id' => 'integer',
             'city_id' => 'integer',
             'subject_id' => 'integer',
+            'details' => 'array',
             'occurred_at' => 'datetime',
         ];
     }

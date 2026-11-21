@@ -36,3 +36,17 @@
 - **Checked before approval:** the desktop code links `Level_ID` to `educationlevel` (Search_Form.cs:2312) and fills the tester list from the visitor members (CheckList_Form.cs:305).
 - **Approved SHA-256:** `7cbd347ebd5f3db58796724c01ab9339b263a1e1e300d7be4287fdde2098266a`, covering [unified-schema-v1.2.json](unified-schema-v1.2.json) (137 tables, 1,485 columns). v1 and v1.1 are unchanged.
 - **What this allows:** M2/M3 implement v1.2 without asking again.
+
+## Addendum v1.3 — change details in the audit log (M4.19)
+
+- **Approved by the user:** 21 November 2026, with the word "موافق", after reviewing [m1-schema-review-v1.3.html](m1-schema-review-v1.3.html).
+- **What it changes:** one optional column, `account_audit_events.details` (JSON).
+  - Change events only (add, edit, save, delete, state change): the fields that changed, each with its value before and after.
+  - Up to 60 fields; each value up to 200 characters (a longer value is cut and marked).
+  - Views and sign-ins carry no details.
+- **Never stored:** passwords and their hashes, tokens, one-time passwords, encrypted draft contents, attachment contents.
+  - The national number is recorded as "changed" only, without its values.
+- **Readers:** the same as the audit log (holders of `accounts.manage` in the event's city).
+  - The log stays append-only.
+- **Approved SHA-256:** `2d9b4f9d15287ac5c3f7c049ccc252245e3639446d258f7a8cd2a379dc5c6baf`, covering [unified-schema-v1.3.json](unified-schema-v1.3.json) (137 tables, 1,486 columns). Earlier versions are unchanged.
+- **What this allows:** the migrations and models move to v1.3, and each module may record its change details, without asking again.

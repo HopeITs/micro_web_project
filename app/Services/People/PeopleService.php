@@ -395,7 +395,7 @@ final class PeopleService
             $this->guardDuplicates($account, $city, $values, $id, null, $confirmed);
         }
         DB::table('people')->where('id', $id)->update($values + ['updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id);
+        $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id, details: AccountAuditTrail::changes($person, $values));
     }
 
     private function guardDuplicates(WebAccount $account, int $city, array $values, ?int $except, ?string $familyNumber, bool $confirmed): void

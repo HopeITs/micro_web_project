@@ -172,7 +172,8 @@ final class LookupAdminService
         $row = $this->row($account, $key, $id);
         $values = $this->validated($key, $list['city'] ? (int) $row->city_id : null, $input, $id);
         DB::table($list['table'])->where('id', $id)->update($values + ['updated_at' => now()]);
-        $this->audit->record($account->id, 'lookups.updated', 'succeeded', $list['city'] ? (int) $row->city_id : null, subjectType: 'lookup_value', subjectId: $id, decision: 'lookup:'.$key);
+        $this->audit->record($account->id, 'lookups.updated', 'succeeded', $list['city'] ? (int) $row->city_id : null, subjectType: 'lookup_value', subjectId: $id, decision: 'lookup:'.$key,
+            details: AccountAuditTrail::changes($row, $values));
     }
 
     public function setActive(WebAccount $account, string $key, int $id, bool $active): void

@@ -27,7 +27,7 @@ final class Navigation
         'finance' => [
             // M4.9: loans are recorded from each project's finance page; the schedule lists every instalment.
             ['key' => 'payments', 'icon' => 'calendar', 'route' => 'finance.payments', 'capability' => 'finance.view'],
-            ['key' => 'attachments', 'icon' => 'file', 'capability' => 'attachments.download', 'task' => 'M4.11'],
+            ['key' => 'attachments', 'icon' => 'file', 'route' => 'attachments.index', 'capability' => 'attachments.download'],
         ],
         'field' => [
             ['key' => 'visits', 'icon' => 'map', 'capability' => 'visits.view', 'task' => 'M4.12'],

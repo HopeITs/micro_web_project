@@ -34,6 +34,7 @@ final class AccountAuditTrail
         'account.provisioned' => ['account'], 'legacy.linked' => ['legacy_link'], 'legacy.revoked' => ['legacy_link'],
         'attachments.download.started' => ['attachment_record'], 'attachments.download.succeeded' => ['attachment_record'],
         'attachments.download.failed' => ['attachment_record'], 'attachments.download.denied' => [],
+        'attachments.uploaded' => ['application_entity', 'person_entity'], 'attachments.deleted' => ['application_entity', 'person_entity'], 'attachments.view' => ['application_entity', 'person_entity'],
         'legacy.restored' => ['legacy_link'], 'capability.granted' => ['capability_grant'], 'capability.revoked' => ['capability_grant'],
         'national.checked' => [], 'lookups.created' => ['lookup_value'], 'lookups.updated' => ['lookup_value'], 'lookups.hidden' => ['lookup_value'], 'lookups.shown' => ['lookup_value'], 'lookups.deleted' => ['lookup_value'], 'lookups.exported' => [],
     ];

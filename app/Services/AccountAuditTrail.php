@@ -16,7 +16,7 @@ final class AccountAuditTrail
         'finance.loan_saved' => ['application_entity'], 'finance.payments_saved' => ['application_entity'], 'finance.loan_deleted' => ['application_entity'], 'finance.installment_deleted' => ['application_entity'],
         'executive_files.view' => ['application_entity'], 'executive_files.saved' => ['application_entity'], 'executive_files.deleted' => ['application_entity'],
         'purchasing.view' => ['application_entity'], 'purchasing.saved' => ['application_entity'], 'purchasing.deleted' => ['application_entity'],
-        'special_cases.view' => ['application_entity'], 'special_cases.saved' => ['application_entity'],
+        'special_cases.list' => [], 'special_cases.view' => ['application_entity'], 'special_cases.saved' => ['application_entity'],
         'visits.schedule' => [], 'visits.results' => [], 'visits.statistics' => [], 'visits.view' => ['application_entity'], 'visits.saved' => ['application_entity'],
         'special_cases.deleted' => ['application_entity'], 'visits.deleted' => ['application_entity'],
         'me_visits.view' => ['application_entity'], 'me_visits.saved' => ['application_entity'], 'me_visits.deleted' => ['application_entity'],

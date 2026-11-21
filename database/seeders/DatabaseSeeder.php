@@ -7,8 +7,8 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * Local/synthetic seeding only (M2.3): cities, reference lists, invented sample data and one test account
- * per role. Real data comes from the M3 transfer tool, never from seeders.
+ * Local/synthetic seeding only (M2.3): cities, reference lists, invented sample data, one test account
+ * per role and (M4.13) special cases recorded by them. Real data comes from the M3 transfer tool, never from seeders.
  */
 final class DatabaseSeeder extends Seeder
 {
@@ -19,5 +19,6 @@ final class DatabaseSeeder extends Seeder
         $this->call(SyntheticDataSeeder::class);
         $this->call(SyntheticStaffSeeder::class);
         $this->call(RoleAccountsSeeder::class);
+        $this->call(SyntheticSpecialCasesSeeder::class);
     }
 }

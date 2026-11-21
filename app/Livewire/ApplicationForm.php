@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Services\Applications\ApplicationFields;
 use App\Services\Applications\ApplicationService;
+use App\Services\Applications\ProjectScores;
 use App\Services\Drafts\ApplicationDraftStore;
 use App\Services\People\PeopleService;
 use App\Services\People\PersonFields;
@@ -410,6 +411,7 @@ class ApplicationForm extends Component
             'holders' => $this->form['person_id'] ? collect() : $people->familyHolders($city, (string) $this->form['family_number']),
             'picks' => $this->form['person_id'] === null && $this->projectId === null ? $people->pick($account, $city, $this->personSearch) : collect(),
             'suggested' => $this->projectId === null ? app(ProjectNumberAllocator::class)->suggest($city) : null,
+            'scoreCriteria' => app(ProjectScores::class)->criteria(),
         ]);
     }
 }

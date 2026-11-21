@@ -83,6 +83,26 @@
                 @endif
                 @if($finance)<p style="margin:12px 0 0"><a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('finance.show', ['locale' => app()->getLocale(), 'project' => $project->id]) }}"><x-hc.icon name="wallet" :size="16"/>{{ __('finance.links.finance') }}</a></p>@endif
             </x-hc.section>
+            @if($tracks)
+                @php($scoreService = app(\App\Services\Applications\ProjectScores::class))
+                @php($scores = $scoreService->load($project->id))
+                @if($project->application_stage === 'full' || collect($scores)->contains(fn ($s) => $s['value'] !== '' || $s['notes'] !== ''))
+                <x-hc.section :title="__('applications.sections.scores')" step="4">
+                    @if(collect($scores)->contains(fn ($s) => $s['value'] !== '' || $s['notes'] !== ''))
+                    <div class="hc-table-wrap"><table class="hc-table">
+                        <thead><tr><th>{{ __('applications.scores.criterion') }}</th><th>{{ __('applications.scores.answer') }}</th><th>{{ __('applications.scores.notes') }}</th></tr></thead>
+                        <tbody>@foreach($scoreService->criteria() as $c)
+                            @php($s = $scores[$c->id] ?? ['value' => '', 'notes' => ''])
+                            <tr><td>{{ $c->label }}</td><td>{{ $s['value'] === '' ? '—' : ($c->options->firstWhere('value', (int) $s['value'])->label ?? $s['value']) }}</td><td>{{ $s['notes'] ?: '' }}</td></tr>
+                        @endforeach</tbody>
+                    </table></div>
+                    <p style="margin:12px 0 0;font-weight:600">{{ __('applications.scores.total', ['total' => \App\Services\Applications\ProjectScores::total($scores)]) }}</p>
+                    @else
+                    <p class="muted">{{ __('applications.scores.empty') }}</p>
+                    @endif
+                </x-hc.section>
+                @endif
+            @endif
         </div>
         @if($tracks)<div class="hc-grid">
             <livewire:project-lifecycle :project-id="$project->id" />

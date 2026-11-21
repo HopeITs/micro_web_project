@@ -175,6 +175,33 @@
                 @endforeach
             </x-hc.section>
         @endforeach
+
+        {{-- 4. Project analysis: the 10 manual scores of the full form (desktop Application_Form "تحليل المشروع") --}}
+        @php($scores = $form['scores'] ?? [])
+        @if($scoreCriteria->isNotEmpty() && ($stage === 'full' || collect($scores)->contains(fn ($s) => ($s['value'] ?? '') !== '' || ($s['notes'] ?? '') !== '')))
+            @php($step++)
+            <x-hc.section :title="__('applications.sections.scores')" :step="$step">
+                <p class="hc-hint" style="margin-block:0 12px">{{ __('applications.scores.hint') }}</p>
+                <div class="hc-table-wrap"><table class="hc-table stack">
+                    <thead><tr><th>{{ __('applications.scores.criterion') }}</th><th>{{ __('applications.scores.answer') }}</th><th>{{ __('applications.scores.notes') }}</th></tr></thead>
+                    <tbody>
+                    @foreach($scoreCriteria as $c)
+                        <tr wire:key="sc-{{ $c->id }}">
+                            <th scope="row" data-label="{{ __('applications.scores.criterion') }}" style="font-weight:600">{{ $c->label }}</th>
+                            <td data-label="{{ __('applications.scores.answer') }}" style="min-width:240px">
+                                <div class="hc-choice" role="radiogroup" aria-label="{{ $c->label }}">
+                                    @foreach($c->options as $o)<label><input type="radio" value="{{ $o->value }}" wire:model.live="form.scores.{{ $c->id }}.value">{{ $o->label }}</label>@endforeach
+                                </div>
+                                @error('form.scores.'.$c->id.'.value')<p class="hc-error">{{ $message }}</p>@enderror
+                            </td>
+                            <td data-label="{{ __('applications.scores.notes') }}" style="min-width:180px"><input class="hc-input" wire:model="form.scores.{{ $c->id }}.notes" aria-label="{{ __('applications.scores.notes') }} · {{ $c->label }}" maxlength="2000"></td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table></div>
+                <p style="margin-block:12px 0;font-weight:600">{{ __('applications.scores.total', ['total' => \App\Services\Applications\ProjectScores::total($scores)]) }}</p>
+            </x-hc.section>
+        @endif
     </div>
 
     <x-hc.action-bar>

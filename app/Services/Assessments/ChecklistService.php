@@ -8,14 +8,17 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Applications\ApplicationService;
+use App\Services\Applications\ProjectScores;
 use App\Services\People\PeopleService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * The assessment checklist and scores of an application (M4.7, desktop CheckList_Form and the score block of Application_Form), on the
- * unified schema. The checklist belongs to the project's beneficiary; the scores to the project. Reading needs `assessments.view`,
+ * The assessment checklist of an application (M4.7, desktop CheckList_Form), on the unified schema. The checklist belongs to the
+ * project's beneficiary; its need assessment is computed from the application data and never stored ({@see NeedAssessment}). The
+ * 10 manual project scores belong to the application form ({@see ProjectScores}), as on the desktop.
+ * Reading needs `assessments.view`,
  * writing, deleting and printing `assessments.manage` (the desktop showed Save/Delete/Print to administrators and data entry only).
  * Each yes/no question opens its own details (`when`); answering No clears them on save, as the desktop emptied them.
  */
@@ -153,21 +156,15 @@ final class ChecklistService
             ->map(fn ($o) => (object) ['id' => (int) $o->id, 'label' => app()->getLocale() === 'en' && $o->name_en ? $o->name_en : $o->name_ar]);
     }
 
-    /** The 10 assessment criteria with their options (value 1, 0 or -1 = N/A). */
-    public function criteria(): Collection
+    /** The computed need assessment of the project's beneficiary (null without one); nothing is stored. */
+    public function need(int $projectId): ?array
     {
-        $en = app()->getLocale() === 'en';
-        $options = DB::table('score_options')->where('is_active', true)->orderBy('sort_order')->orderByDesc('value')->get()->groupBy('score_criterion_id');
-
-        return DB::table('score_criteria')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get()->map(fn ($c) => (object) [
-            'id' => (int) $c->id, 'label' => $en && $c->name_en ? $c->name_en : $c->name_ar,
-            'options' => ($options->get($c->id) ?? collect())->map(fn ($o) => (object) ['value' => (int) $o->value, 'label' => $en && $o->name_en ? $o->name_en : $o->name_ar])->values(),
-        ]);
+        return app(NeedAssessment::class)->compute($projectId, $this->beneficiary($projectId)?->id);
     }
 
     // ---------------------------------------------------------------- state
 
-    /** The form state of a project's checklist and scores. */
+    /** The form state of a project's checklist. */
     public function load(WebAccount $account, int $projectId): array
     {
         $project = $this->project($account, $projectId);
@@ -193,17 +190,11 @@ final class ChecklistService
                 ];
             }
         }
-        $scores = [];
-        $saved = DB::table('project_scores')->where('project_id', $projectId)->whereNull('deleted_at')->get()->keyBy('score_criterion_id');
-        foreach ($this->criteria() as $c) {
-            $row = $saved->get($c->id);
-            $scores[$c->id] = ['value' => $row && $row->value !== null ? (string) $row->value : '', 'notes' => (string) ($row->notes ?? '')];
-        }
-        if ($header !== null || $saved->isNotEmpty()) {
+        if ($header !== null) {
             $this->audit->record($account->id, 'assessments.view', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId);
         }
 
-        return ['header' => $values, 'members' => $members, 'removed' => [], 'scores' => $scores, 'exists' => $header !== null, 'person_id' => $person ? (int) $person->id : null];
+        return ['header' => $values, 'members' => $members, 'removed' => [], 'exists' => $header !== null, 'person_id' => $person ? (int) $person->id : null];
     }
 
     // ---------------------------------------------------------------- saving
@@ -217,26 +208,14 @@ final class ChecklistService
         $errors = [];
         $header = $this->validateHeader($state['header'] ?? [], $city, (array) ($current ?? []), $errors);
         $rows = $this->validateMembers($state['members'] ?? [], $city, (int) $person->id, $errors);
-        $scores = $this->validateScores($state['scores'] ?? [], $errors);
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
-        DB::transaction(function () use ($account, $project, $city, $person, $current, $header, $rows, $scores, $state) {
+        DB::transaction(function () use ($account, $project, $city, $person, $current, $header, $rows, $state) {
             $now = now();
-            // v1.3 change details: header fields, member rows per list, and each score by its criterion and option names.
+            // v1.3 change details: header fields and member rows per list.
             $details = AccountAuditTrail::changes((array) ($current ?? []), $header) ?? [];
             $memberCounts = [];
-            $oldScores = DB::table('project_scores')->where('project_id', $project->id)->whereNull('deleted_at')->get()->keyBy('score_criterion_id');
-            $criteria = $this->criteria()->keyBy('id');
-            $scoreText = fn (int $criterion, ?int $value, ?string $notes) => trim(($value === null ? '' : ($criteria[$criterion]->options->firstWhere('value', $value)->label ?? (string) $value)).($notes ? ' · '.$notes : '')) ?: null;
-            foreach ($criteria as $id => $c) {
-                $old = $oldScores->get($id);
-                $before = $old ? $scoreText($id, $old->value === null ? null : (int) $old->value, $old->notes) : null;
-                $after = isset($scores[$id]) ? $scoreText($id, $scores[$id]['value'], $scores[$id]['notes']) : null;
-                if ($before !== $after) {
-                    $details[] = ['field' => 'score.c'.$id, 'before' => $before, 'after' => $after];
-                }
-            }
             if ($current === null) {
                 DB::table('checklists')->insert($header + ['city_id' => $city, 'person_id' => $person->id, 'project_id' => $project->id, 'created_at' => $now, 'updated_at' => $now]);
             } else {
@@ -270,17 +249,12 @@ final class ChecklistService
                     $details[] = ['field' => 'members.'.$location, 'before' => null, 'after' => '+'.$c[0].' ~'.$c[1].' -'.$c[2]];
                 }
             }
-            // Scores replace the project's previous ones (the desktop deleted and re-inserted them).
-            DB::table('project_scores')->where('project_id', $project->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
-            foreach ($scores as $criterion => $score) {
-                DB::table('project_scores')->insert(['city_id' => $city, 'project_id' => $project->id, 'score_criterion_id' => $criterion, 'value' => $score['value'], 'notes' => $score['notes'], 'created_at' => $now, 'updated_at' => $now]);
-            }
             $this->audit->record($account->id, 'assessments.saved', 'succeeded', $city, subjectType: 'application_entity', subjectId: (int) $project->id,
                 details: $details === [] ? null : $details);
         });
     }
 
-    /** Deletes the beneficiary's checklist, its member opinions and the project's scores (the desktop Delete button). */
+    /** Deletes the beneficiary's checklist and its member opinions (the desktop Delete button); the project's scores stay with the application. */
     public function delete(WebAccount $account, int $projectId): void
     {
         $project = $this->writable($account, $projectId);
@@ -294,7 +268,6 @@ final class ChecklistService
                 }
                 DB::table('checklist_member_opinions')->where('person_id', $person->id)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
             }
-            DB::table('project_scores')->where('project_id', $projectId)->whereNull('deleted_at')->update(['deleted_at' => $now, 'updated_at' => $now]);
             $this->audit->record($account->id, 'assessments.saved', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: (int) $project->id,
                 details: [['field' => 'checklist', 'before' => 'Checklist', 'after' => null]]);
         });
@@ -372,25 +345,6 @@ final class ChecklistService
         return $rows;
     }
 
-    /** @return array<int, array{value: ?int, notes: ?string}> answered criteria only */
-    private function validateScores(array $scores, array &$errors): array
-    {
-        $out = [];
-        foreach ($this->criteria() as $c) {
-            $value = trim((string) ($scores[$c->id]['value'] ?? $scores[(string) $c->id]['value'] ?? ''));
-            $notes = trim((string) ($scores[$c->id]['notes'] ?? $scores[(string) $c->id]['notes'] ?? ''));
-            if ($value === '' && $notes === '') {
-                continue;
-            }
-            if ($value !== '' && ! $c->options->contains('value', (int) $value)) {
-                $errors["scores.{$c->id}.value"] = [__('people.errors.choice')];
-            }
-            $out[$c->id] = ['value' => $value === '' ? null : (int) $value, 'notes' => $notes === '' ? null : mb_substr($notes, 0, 65535)];
-        }
-
-        return $out;
-    }
-
     /** Everything the printable checklist needs (cl.docx layout). */
     public function printable(WebAccount $account, int $projectId): array
     {
@@ -403,7 +357,7 @@ final class ChecklistService
 
         return [
             'project' => $project, 'city' => $city, 'person' => $this->beneficiary($projectId), 'state' => $state, 'names' => $names,
-            'opinions' => $this->opinions()->keyBy('id'), 'criteria' => $this->criteria(),
+            'opinions' => $this->opinions()->keyBy('id'), 'need' => $this->need($projectId),
             'sender' => $state['header']['rejection_message_sender_account_id'] ? DB::table('web_accounts')->where('id', $state['header']['rejection_message_sender_account_id'])->value('username') : null,
         ];
     }

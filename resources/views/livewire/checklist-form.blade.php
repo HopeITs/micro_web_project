@@ -70,25 +70,26 @@
         @include('checklists._members', ['location' => 't', 'title' => __('checklists.lists.team'), 'step' => 4, 'dateField' => 'team_date'])
         @include('checklists._members', ['location' => 'c', 'title' => __('checklists.lists.committee'), 'step' => 5, 'dateField' => 'committee_date'])
 
-        {{-- The assessment scores --}}
-        <x-hc.section :title="__('checklists.sections.scores')" step="6">
-            <div class="hc-table-wrap"><table class="hc-table stack">
-                <thead><tr><th>{{ __('checklists.criterion') }}</th><th>{{ __('checklists.score') }}</th><th>{{ __('checklists.fields.notes') }}</th></tr></thead>
+        {{-- The need assessment: computed from the application data, read only (desktop view need_evaluation) --}}
+        <x-hc.section :title="__('checklists.sections.need')" step="6">
+            <p class="hc-hint" style="margin-block:0 12px">{{ __('checklists.need.hint') }}</p>
+            @if($need === null)
+                <p class="muted">{{ __('checklists.errors.no_beneficiary') }}</p>
+            @else
+            <div class="hc-table-wrap"><table class="hc-table stack" aria-label="{{ __('checklists.sections.need') }}">
+                <thead><tr><th>{{ __('checklists.criterion') }}</th><th>{{ __('checklists.need.indicator') }}</th><th class="num">{{ __('checklists.need.mark') }}</th></tr></thead>
                 <tbody>
-                @foreach($criteria as $c)
-                    <tr wire:key="sc-{{ $c->id }}">
-                        <th scope="row" data-label="{{ __('checklists.criterion') }}" style="font-weight:600">{{ $c->label }}</th>
-                        <td data-label="{{ __('checklists.score') }}" style="min-width:240px">
-                            <div class="hc-choice" role="radiogroup" aria-label="{{ $c->label }}">
-                                @foreach($c->options as $o)<label><input type="radio" value="{{ $o->value }}" wire:model="form.scores.{{ $c->id }}.value">{{ $o->label }}</label>@endforeach
-                            </div>
-                            @error('form.scores.'.$c->id.'.value')<p class="hc-error">{{ $message }}</p>@enderror
-                        </td>
-                        <td data-label="{{ __('checklists.fields.notes') }}" style="min-width:180px"><input class="hc-input" wire:model="form.scores.{{ $c->id }}.notes" aria-label="{{ __('checklists.fields.notes') }}"></td>
+                @foreach($need['rows'] as $row)
+                    <tr wire:key="need-{{ $row['key'] }}">
+                        <th scope="row" data-label="{{ __('checklists.criterion') }}" style="font-weight:600">{{ __('checklists.need.criteria.'.$row['key']) }}</th>
+                        <td data-label="{{ __('checklists.need.indicator') }}" style="white-space:pre-line">{{ $row['indicator'] !== '' ? $row['indicator'] : '—' }}</td>
+                        <td data-label="{{ __('checklists.need.mark') }}" class="num">{{ $row['mark'] ?? '—' }}</td>
                     </tr>
                 @endforeach
                 </tbody>
+                <tfoot><tr><th scope="row" colspan="2" style="text-align:end">{{ __('checklists.need.total') }}</th><td class="num" data-label="{{ __('checklists.need.total') }}"><strong>{{ $need['total'] }}</strong></td></tr></tfoot>
             </table></div>
+            @endif
         </x-hc.section>
 
         {{-- Notes and the rejection message --}}

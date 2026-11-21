@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * The application form on the unified schema (M4.5), as the desktop Application_New_Form: one save writes the project, its beneficiary
  * (new or registered, with the duplicate warnings of M4.3), the beneficiary's story and switches, the family grid, the beneficiary's
- * sub-tables and the project's own tables, in one transaction. Rules from Save_Application: a preliminary application needs the project
+ * sub-tables, the project's own tables and its 10 manual scores ({@see ProjectScores}, desktop "تحليل المشروع"), in one transaction. Rules from Save_Application: a preliminary application needs the project
  * description and starts "On Hold"; a full one also needs the funding type and requested amount, and becoming full (directly or from
  * preliminary) needs the readiness check ({@see ApplicationReadiness}), moves the project to "Waiting" and opens the application-stage tasks.
  * Writing needs `applications.manage` and `people.manage` in the city.
@@ -30,7 +30,7 @@ final class ApplicationService
 
     public function __construct(
         private AccountAccess $access, private AccountAuditTrail $audit, private ProjectNumberAllocator $numbers, private PeopleService $people, private ApplicationReadiness $readiness,
-        private LifecycleService $lifecycle,
+        private LifecycleService $lifecycle, private ProjectScores $scores,
     ) {}
 
     /** @return list<int> cities where the account may write applications */
@@ -65,6 +65,7 @@ final class ApplicationService
             'person_id' => null, 'person' => self::strings(PersonFields::personFlat(), []), 'family_number' => '',
             'applicant' => self::strings(ApplicationFields::flat(ApplicationFields::APPLICANT, 'full'), []),
             'grids' => array_fill_keys(array_keys(ApplicationFields::GRIDS), []), 'removed' => array_fill_keys(array_keys(ApplicationFields::GRIDS), []),
+            'scores' => $this->scores->load(null),
         ];
         $state['project']['request_date'] = now()->format('Y-m-d');
 
@@ -84,6 +85,7 @@ final class ApplicationService
             'person_id' => $person ? (int) $person->id : null, 'person' => self::strings(PersonFields::personFlat(), (array) ($person ?? [])),
             'family_number' => '', 'applicant' => self::strings(ApplicationFields::flat(ApplicationFields::APPLICANT, 'full'), (array) ($link ?? [])),
             'grids' => [], 'removed' => array_fill_keys(array_keys(ApplicationFields::GRIDS), []),
+            'scores' => $this->scores->load($projectId),
         ];
         $family = $person ? $this->familyOf((int) $person->id) : null;
         $state['family_number'] = $family ? (string) $family->family_number : '';
@@ -174,7 +176,7 @@ final class ApplicationService
     /**
      * Validates the whole form without writing. Returns the cleaned values; throws one ValidationException listing every field.
      *
-     * @return array{project: array, person: array, applicant: array, grids: array<string, list<array>>}
+     * @return array{project: array, person: array, applicant: array, grids: array<string, list<array>>, scores: ?array}
      */
     public function validateState(array $state, ?int $projectId, bool $stageRules = true): array
     {
@@ -236,11 +238,13 @@ final class ApplicationService
                 }
             }
         }
+        // The project scores (full form, desktop "تحليل المشروع"); a state without them (an older draft) leaves them as they are.
+        $scores = isset($state['scores']) && is_array($state['scores']) ? $this->scores->validate($state['scores'], $errors) : null;
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
 
-        return ['project' => $project, 'person' => $person, 'applicant' => $applicant, 'grids' => $grids];
+        return ['project' => $project, 'person' => $person, 'applicant' => $applicant, 'grids' => $grids, 'scores' => $scores];
     }
 
     /** Readiness issues of the form for a full application (empty when ready). @return list<string> */
@@ -329,6 +333,10 @@ final class ApplicationService
             }
             foreach ($rowCounts as $kind => $counts) {
                 $details[] = ['field' => 'rows.'.$kind, 'before' => null, 'after' => $counts];
+            }
+            // Each changed score by its criterion and option names (field score.c<id>).
+            if ($values['scores'] !== null) {
+                array_push($details, ...$this->scores->save($city, $projectId, $values['scores']));
             }
             $this->audit->record($account->id, $existing ? 'applications.updated' : 'applications.created', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId,
                 details: $details === [] ? null : $details);

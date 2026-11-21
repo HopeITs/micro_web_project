@@ -101,15 +101,17 @@
     </section>
     @endforeach
 
+    @if($need !== null)
     <section>
-        <div class="sec">{{ __('checklists.sections.scores') }}</div>
-        <table class="grid"><thead><tr><th>{{ __('checklists.criterion') }}</th><th>{{ __('checklists.score') }}</th><th>{{ $p('notes') }}</th></tr></thead><tbody>
-        @foreach($criteria as $c)
-            @php($score = $state['scores'][$c->id] ?? ['value' => '', 'notes' => ''])
-            <tr><td>{{ $c->label }}</td><td>{{ $score['value'] === '' ? '—' : ($c->options->firstWhere('value', (int) $score['value'])->label ?? $score['value']) }}</td><td>{{ $score['notes'] ?: '' }}</td></tr>
+        <div class="sec">{{ __('checklists.sections.need') }}</div>
+        <table class="grid"><thead><tr><th style="width:38%">{{ __('checklists.criterion') }}</th><th>{{ __('checklists.need.indicator') }}</th><th style="width:14%;text-align:center">{{ __('checklists.need.mark') }}</th></tr></thead><tbody>
+        @foreach($need['rows'] as $row)
+            <tr><td>{{ __('checklists.need.criteria.'.$row['key']) }}</td><td style="text-align:center">{{ $row['indicator'] !== '' ? $row['indicator'] : '—' }}</td><td style="text-align:center">{{ $row['mark'] ?? '—' }}</td></tr>
         @endforeach
+            <tr><th colspan="2" style="text-align:end">{{ __('checklists.need.total') }}</th><th style="text-align:center">{{ $need['total'] }}</th></tr>
         </tbody></table>
     </section>
+    @endif
 
     <section>
         <div class="sec">{{ $p('notes') }}</div>

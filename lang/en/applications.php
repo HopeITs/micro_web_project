@@ -9,6 +9,11 @@ return [
     'sections' => [
         'beneficiary' => 'Applicant\'s personal details', 'project' => 'Project form', 'premises' => 'Project premises and budget', 'extra' => 'More information',
         'story' => 'Project story', 'work' => 'Work and education', 'family' => 'Family, losses, health and property', 'aid' => 'Aid, debts and power',
+        'scores' => 'Project analysis',
+    ],
+    'scores' => [
+        'hint' => 'The staff assessment of the project (as in the full application form of the old program). The total counts the favourable answers.',
+        'criterion' => 'Criterion', 'answer' => 'Assessment', 'notes' => 'Notes', 'total' => 'Total: :total', 'empty' => 'The project has not been assessed yet.',
     ],
     'fields' => [
         'project_subcategory_id' => 'Field', 'career_id' => 'Career', 'speciality' => 'Speciality', 'project_type_id' => 'Project type', 'request_date' => 'Request date',

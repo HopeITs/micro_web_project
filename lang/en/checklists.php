@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'title' => 'Checklist and assessment', 'intro' => "The beneficiary's visits, test and training, the team and committee opinions, and the project score. Each yes/no question opens its details below it.",
-    'sections' => ['visits' => 'Visits', 'experience' => 'Experience and training', 'scores' => 'Project assessment', 'decision' => 'Notes and decision'],
+    'title' => 'Checklist and assessment', 'intro' => "The beneficiary's visits, test and training, the team and committee opinions, and the need assessment. Each yes/no question opens its details below it.",
+    'sections' => ['visits' => 'Visits', 'experience' => 'Experience and training', 'need' => 'Need assessment', 'decision' => 'Notes and decision'],
     'lists' => ['key_people' => 'Key persons', 'team' => 'Team opinion', 'committee' => 'Committee opinion'],
     'fields' => [
         'has_home_visit' => 'Home visited', 'home_visit_date' => 'Home visit date', 'home_visit_time' => 'Time', 'home_visitor_1_id' => 'First visitor', 'home_visitor_2_id' => 'Second visitor', 'home_visit_note' => 'Visit notes',
@@ -16,8 +16,19 @@ return [
         'rejection_message' => 'Rejection message sent', 'rejection_message_date' => 'Message date', 'rejection_message_sender_account_id' => 'Sender',
     ],
     'member' => 'Member', 'position' => 'Position', 'opinion_k' => 'Opinion', 'no_key_people' => 'This city has no key persons in its list yet.', 'manage_list' => 'Manage the list', 'no_members' => 'This city has no members in this list yet.', 'name_notes' => 'Name', 'role_notes' => 'Role', 'opinion' => 'Opinion', 'reason' => 'Reason', 'add_member' => 'Add member',
-    'criterion' => 'Criterion', 'score' => 'Score',
-    'save' => 'Save', 'print' => 'Print', 'delete' => 'Delete checklist', 'confirm_delete' => "Delete the checklist, the members' opinions and the project score?",
+    'criterion' => 'Criterion',
+    'need' => [
+        'hint' => 'Calculated from the application data (the beneficiary, the household and the project); read only and never stored. Edit the application form to change it.',
+        'indicator' => 'Indicator', 'mark' => 'Mark', 'total' => 'Total:',
+        'criteria' => [
+            'loss' => 'Losses the beneficiary suffered', 'worktype' => 'Nature of the beneficiary\x27s work', 'maritalstatus' => 'Marital status',
+            'num_at_home' => 'People living in the home', 'workers' => 'Workers in the home or income source',
+            'child_elder' => 'Children under 3 and elderly over 70', 'illness' => 'Illnesses', 'home_type' => 'Home ownership',
+            'project_place' => 'Project premises ownership', 'assets' => 'Property or other income sources', 'power_source' => 'Is there a power source',
+        ],
+        'military' => 'Military service during the war', 'none' => 'None', 'incomplete' => 'Incomplete data', 'not_working' => 'Not working', 'unset' => 'Not set',
+    ],
+    'save' => 'Save', 'print' => 'Print', 'delete' => 'Delete checklist', 'confirm_delete' => "Delete the checklist and the members' opinions?",
     'saved' => 'Checklist saved.', 'deleted' => 'Checklist deleted.', 'read_only' => 'Read only: administrators and data entry edit and print it.',
     'print_labels' => [
         'info' => 'Beneficiary', 'name' => 'Name', 'project_no' => 'Project number', 'city' => 'City', 'project_name' => 'Project',

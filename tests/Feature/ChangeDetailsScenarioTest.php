@@ -67,14 +67,22 @@ class ChangeDetailsScenarioTest extends TestCase
         $this->assertSame(['before' => null, 'after' => 'نعم'], $this->latest('applications.updated')['answer.q'.$first]);
     }
 
-    public function test_checklist_records_header_fields_and_scores_by_name(): void
+    public function test_checklist_records_header_fields(): void
+    {
+        $project = $this->project();
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->set('form.header.notes', 'ملاحظة أولى')->call('save')->assertHasNoErrors();
+        $details = $this->latest('assessments.saved');
+        $this->assertSame('ملاحظة أولى', $details['notes']['after']);
+        $this->assertArrayNotHasKey('score.c'.DB::table('score_criteria')->orderBy('sort_order')->value('id'), $details);
+    }
+
+    public function test_application_form_records_scores_by_name(): void
     {
         $project = $this->project();
         $criterion = (int) DB::table('score_criteria')->orderBy('sort_order')->value('id');
-        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->set('form.header.notes', 'ملاحظة أولى')->set('form.scores.'.$criterion.'.value', '1')->call('save')->assertHasNoErrors();
-        $details = $this->latest('assessments.saved');
-        $this->assertSame('ملاحظة أولى', $details['notes']['after']);
-        $this->assertSame('نعم', $details['score.c'.$criterion]['after']);
+        Livewire::test(ApplicationForm::class, ['projectId' => $project->id])->set('form.scores.'.$criterion.'.value', '1')->set('form.scores.'.$criterion.'.notes', 'يكفي')
+            ->call('save')->assertHasNoErrors();
+        $this->assertSame(['before' => null, 'after' => 'نعم · يكفي'], $this->latest('applications.updated')['score.c'.$criterion]);
     }
 
     public function test_person_sub_table_edit_is_prefixed_with_its_table(): void

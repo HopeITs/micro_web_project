@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Services\Assessments\ChecklistService;
+use App\Services\Lookups\LookupAdminService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +16,7 @@ class ChecklistForm extends Component
     #[Locked]
     public int $projectId;
 
-    /** @var array<string, mixed> header, members (k/t/c rows), removed, scores, exists, person_id */
+    /** @var array<string, mixed> header, members (k/t/c rows), removed, exists, person_id */
     public array $form = [];
 
     public string $message = '';
@@ -90,8 +91,8 @@ class ChecklistForm extends Component
         return view('livewire.checklist-form', [
             'project' => $project, 'editable' => $service->canManage(auth()->user(), $project),
             'memberOptions' => ['k' => $service->members($city, 'k', $keep('k')), 't' => $service->members($city, 't', [...$keep('t'), ...$headerKeep]), 'c' => $service->members($city, 'c', $keep('c'))],
-            'allMembers' => $service->members($city, null, $headerKeep), 'opinions' => $service->opinions(), 'criteria' => $service->criteria(), 'senders' => $service->senders($city),
-            'manageMembers' => app(\App\Services\Lookups\LookupAdminService::class)->canEdit(auth()->user(), 'checklist_members', $city),
+            'allMembers' => $service->members($city, null, $headerKeep), 'opinions' => $service->opinions(), 'need' => $service->need($this->projectId), 'senders' => $service->senders($city),
+            'manageMembers' => app(LookupAdminService::class)->canEdit(auth()->user(), 'checklist_members', $city),
             'person' => $this->form['person_id'] ? DB::table('people')->where('id', $this->form['person_id'])->first() : null,
         ]);
     }

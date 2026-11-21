@@ -7,6 +7,7 @@ namespace App\Services\Applications;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
+use App\Services\Lifecycle\LifecycleService;
 use App\Services\People\PeopleService;
 use App\Services\People\PersonFields;
 use App\Services\ProjectNumberAllocator;
@@ -29,6 +30,7 @@ final class ApplicationService
 
     public function __construct(
         private AccountAccess $access, private AccountAuditTrail $audit, private ProjectNumberAllocator $numbers, private PeopleService $people, private ApplicationReadiness $readiness,
+        private LifecycleService $lifecycle,
     ) {}
 
     /** @return list<int> cities where the account may write applications */
@@ -297,7 +299,7 @@ final class ApplicationService
                     'city_id' => $city, 'project_number' => $n, 'program_registrar_account_id' => $account->id, 'created_at' => $now, 'updated_at' => $now,
                 ]));
                 DB::table('project_applicants')->insert($values['applicant'] + ['city_id' => $city, 'project_id' => $projectId, 'person_id' => $personId, 'role' => self::BENEFICIARY, 'created_at' => $now, 'updated_at' => $now]);
-                $this->setState($city, $projectId, $stage === 'full' ? 'Waiting' : 'On Hold');
+                $this->lifecycle->recordInitial((object) ['id' => $projectId, 'city_id' => $city], $stage === 'full' ? LifecycleService::WAITING : LifecycleService::ON_HOLD);
             } else {
                 if ($number !== null && $number !== (int) $existing->project_number) {
                     $this->renumber($city, $projectId, $number);
@@ -310,11 +312,11 @@ final class ApplicationService
                     DB::table('project_applicants')->where('id', $link->id)->update($values['applicant'] + ['person_id' => $personId, 'updated_at' => $now]);
                 }
                 if ($becomesFull) {
-                    $this->setState($city, $projectId, 'Waiting');
+                    $this->lifecycle->recordInitial((object) ['id' => $projectId, 'city_id' => $city], LifecycleService::WAITING);
                 }
             }
             if ($becomesFull) {
-                $this->openApplicationTasks($city, $projectId);
+                $this->lifecycle->assignTasks((object) ['id' => $projectId, 'city_id' => $city], 'a');
             }
             $rowCounts = $this->saveGrids($city, $projectId, $personId, $values['grids'], $state['removed'] ?? []);
             // v1.3 change details: project and story fields that changed (with the number and stage), then rows added/changed/removed per table.
@@ -347,28 +349,6 @@ final class ApplicationService
         }
         DB::table('projects')->where('id', $projectId)->update(['project_number' => $number]);
         DB::table('project_number_sequences')->where('city_id', $city)->where('next_number', '<=', $number)->update(['next_number' => $number + 1, 'updated_at' => now()]);
-    }
-
-    /** Ends the current state and records the new one (by its English name, as the desktop's `state.Name_en`). */
-    private function setState(int $city, int $projectId, string $stateName): void
-    {
-        $state = DB::table('project_states')->where('name_en', $stateName)->value('id');
-        if ($state === null) {
-            return;
-        }
-        DB::table('project_state_history')->where('project_id', $projectId)->where('is_current', true)->update(['is_current' => false, 'updated_at' => now()]);
-        DB::table('project_state_history')->insert(['city_id' => $city, 'project_id' => $projectId, 'project_state_id' => $state, 'changed_on' => now()->format('Y-m-d'), 'is_current' => true, 'created_at' => now(), 'updated_at' => now()]);
-    }
-
-    /** The application-stage tasks (task type "a"), not done, as the desktop inserts them for a full application. */
-    private function openApplicationTasks(int $city, int $projectId): void
-    {
-        $have = DB::table('project_tasks')->where('project_id', $projectId)->whereNull('deleted_at')->pluck('task_definition_id')->map(fn ($id) => (int) $id)->all();
-        foreach (DB::table('task_definitions')->where('type', 'a')->where('is_active', true)->pluck('id') as $task) {
-            if (! in_array((int) $task, $have, true)) {
-                DB::table('project_tasks')->insert(['city_id' => $city, 'project_id' => $projectId, 'task_definition_id' => $task, 'state' => 0, 'task_date' => now(), 'created_at' => now(), 'updated_at' => now()]);
-            }
-        }
     }
 
     /**

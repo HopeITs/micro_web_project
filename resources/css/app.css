@@ -222,6 +222,15 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-timeline li:last-child::before { display: none; }
 .hc-timeline li::after { content: ""; position: absolute; inset-inline-start: 0; inset-block-start: 6px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--surface); background: var(--line-strong); box-shadow: 0 0 0 1px var(--line-strong); }
 .hc-timeline li.current::after { background: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+/* M4.8 project tasks */
+.hc-tasks { list-style: none; margin: 0; padding: 0; }
+.hc-tasks li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-block-end: 1px solid var(--line); }
+.hc-tasks li:last-child { border-block-end: 0; }
+.hc-tasks label { display: flex; align-items: center; gap: 10px; min-height: 32px; cursor: pointer; }
+.hc-tasks input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--brand); flex: none; }
+.hc-tasks input:disabled + span { cursor: default; }
+.hc-tasks li.is-done span:not(.muted) { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.hc-tasks .muted { font-size: .8rem; white-space: nowrap; }
 
 .hc-progress { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
 .hc-progress span { display: block; height: 100%; background: var(--brand); border-radius: inherit; }

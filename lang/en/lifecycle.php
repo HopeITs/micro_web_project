@@ -12,6 +12,30 @@ return [
         'financed_from_accepted' => 'An accepted project becomes financed when finance records its loan.',
         'accept_capability' => 'Your account cannot accept projects in this city.',
     ],
+    // M4.8
+    'save' => 'Save', 'reason_saved' => 'State reason and note saved.',
+    'donor' => 'Donor', 'donor_hint' => 'A project is accepted together with its donor.',
+    'errors' => [
+        'state' => 'Choose a state from the list.', 'reason' => 'Choose a reason from the list.', 'donor' => 'Choose the donor to accept the project.',
+        'stale' => 'Someone else has just changed this project\'s state. Reload the page and try again.',
+    ],
+    'tasks' => [
+        'title' => 'Project tasks', 'none' => 'No tasks yet. Study tasks open with the full application, follow-up tasks on acceptance.',
+        'progress' => ':done of :all done', 'study' => 'Study tasks', 'followup' => 'Follow-up tasks',
+        'done' => 'done', 'open' => 'not done', 'not_yours' => 'Not your responsibility',
+    ],
+    'next' => [
+        'complete_full' => 'Complete the full application so the request can be studied.',
+        'checklist' => 'Fill in the assessment checklist for this application.',
+        'task' => 'Finish the task: :task',
+        'decide' => 'The study is complete: accept, delay or reject the application.',
+        'delayed' => 'The application is delayed: return it to Waiting or decide.',
+        'loan' => 'Record the loan and instalment schedule so the project becomes financed.',
+        'instalments' => 'Follow the instalments until the last one is paid.',
+        'today' => 'since today',
+        'since' => '{1} for 1 day|[2,*] for :days days',
+        'actions' => ['open_form' => 'Open the form', 'open_checklist' => 'Open the checklist', 'see_tasks' => 'Tasks', 'change_state' => 'Change state'],
+    ],
     'checklist' => [
         'title' => 'Assessment checklist', 'scope' => 'The checklist belongs to the beneficiary and is shared by all of their projects. Member rows are added or edited here; deleting a checklist is not available.',
         'beneficiary' => 'Beneficiary', 'choose' => 'Choose a checklist', 'choose_hint' => 'This person has several checklists. Open one to edit it.',

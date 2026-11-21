@@ -7,15 +7,21 @@ namespace App\Services\Lifecycle;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
-use App\Services\Operational\OperationalTables;
-use App\Services\Staff\ProjectNotices;
+use App\Services\Staff\NoticeService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Project state history and the lifecycle side effects of the desktop workflow.
- * Catalog states are addressed by their source-qualified English name; identifier 0 (Rejected) is a valid state.
+ * Project states and their side effects (M4.8, desktop AdminPanel_From state column and TasksOfProjects), on the unified schema
+ * (`project_state_history`, `project_states`, `state_reasons`, `project_tasks`, `task_definitions`).
+ *
+ * Owner decisions (21 Nov 2026): only the administrator changes a state (`lifecycle.manage`; Accepted also needs `lifecycle.accept`),
+ * as in the desktop (roles 1 and 8); accepting needs the donor in the same step (the desktop only warned afterwards).
+ * Desktop rules kept: On Hold is only recorded by a preliminary application, Waiting only follows the full application, an
+ * Accepted project becomes Financed only when finance records its loan; Accepted opens the "f" tasks once; Withdrew removes the
+ * donor; Withdrew, Canceled, Finished and Closed mark every notice of the project seen; every change except Rejected and Waiting
+ * sends a state notice to the city's staff roles.
  */
 final class LifecycleService
 {
@@ -23,118 +29,124 @@ final class LifecycleService
 
     public const WAITING = 'Waiting';
 
+    public const UNDER_REVIEW = 'Under Review';
+
+    public const DELAYED = 'Delayed';
+
+    public const REJECTED = 'Rejected';
+
     public const ACCEPTED = 'Accepted';
 
     public const FINANCED = 'Financed';
 
     public const WITHDREW = 'Withdrew';
 
+    public const CANCELED = 'Canceled';
+
     public const FINISHED = 'Finished';
 
-    /** States whose arrival marks every notice of the project seen (AdminPanel_From: Withdrew, Canceled, Finished, Closed). */
-    private const CLEARING = ['Withdrew', 'Canceled', 'Finished', 'Closed'];
+    public const CLOSED = 'Closed';
 
-    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private OperationalTables $tables, private ProjectNotices $projectNotices) {}
+    /** States whose arrival marks every notice of the project seen. */
+    private const CLEARING = [self::WITHDREW, self::CANCELED, self::FINISHED, self::CLOSED];
 
-    private function authorize(WebAccount $account, int $city, ?string $capability = null): void
+    /** States that send no state notice. */
+    private const SILENT = [self::REJECTED, self::WAITING];
+
+    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private NoticeService $notices) {}
+
+    // ---------------------------------------------------------------- reading
+
+    /** The project row, readable with `applications.view` in its city (others: 404, as CityScope). */
+    public function project(WebAccount $account, int $projectId): object
     {
-        if (! $this->access->check($account, $city, 'applications.view') || ($capability !== null && ! $this->access->check($account, $city, $capability))) {
-            $this->audit->record($account->id, 'access.denied', 'denied');
-            abort(403);
-        }
+        $readable = $this->access->cities($account, 'applications.view')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $project = DB::table('projects')->where('id', $projectId)->whereNull('deleted_at')->whereIn('city_id', $readable ?: [0])->first();
+        abort_if($project === null, 404);
+
+        return $project;
     }
 
-    private function project(int $id): object
+    public function canManage(WebAccount $account, int $city): bool
     {
-        $row = $this->tables->query('microproject')->where('p.id', $id)->first();
-        abort_if($row === null, 404);
-
-        return $row;
+        return $this->access->check($account, $city, 'lifecycle.manage');
     }
 
-    private function catalogState(object $project, string $nameEn): object
+    /** Newest first, with the state and reason names. */
+    public function history(int $projectId): Collection
     {
-        $state = $this->tables->catalog('state', (int) $project->city_id, (int) $project->source_id)->first(fn ($row) => $row->c_Name_en === $nameEn);
-        abort_if($state === null, 409, 'The "'.$nameEn.'" state is missing from this city catalog.');
-
-        return $state;
+        return DB::table('project_state_history as h')->join('project_states as s', 's.id', '=', 'h.project_state_id')
+            ->leftJoin('state_reasons as r', 'r.id', '=', 'h.state_reason_id')
+            ->where('h.project_id', $projectId)->whereNull('h.deleted_at')
+            ->orderByDesc('h.changed_on')->orderByDesc('h.id')
+            ->get(['h.id', 'h.project_state_id', 'h.state_reason_id', 'h.note', 'h.changed_on', 'h.is_current', 's.name_ar as state_ar', 's.name_en as state_en',
+                'r.name_ar as reason_ar', 'r.name_en as reason_en']);
     }
 
-    /** Newest first. Rows of one project, with catalog names resolved. */
-    public function history(object $project): Collection
-    {
-        $mp = $this->tables->relation('microproject_state', 'MicroProject_ID');
-        $stateRef = $this->tables->relation('microproject_state', 'State_ID');
-        $reasonRef = $this->tables->relation('microproject_state', 'StateReason_ID');
-        $states = $this->tables->catalog('state', (int) $project->city_id, (int) $project->source_id)->keyBy('id');
-        $reasons = $this->tables->catalog('statereason', (int) $project->city_id, (int) $project->source_id)->keyBy('id');
-
-        return $this->tables->query('microproject_state')->where('p.city_id', $project->city_id)->where('p.source_id', $project->source_id)
-            ->where('p.'.$mp['resolved_column'], $project->id)->where('p.'.$mp['state_column'], 'resolved')
-            ->orderByDesc('p.c_Date')->orderByDesc('p.id')->get()
-            ->map(function ($row) use ($states, $reasons, $stateRef, $reasonRef) {
-                $state = $row->{$stateRef['state_column']} === 'resolved' ? $states->get($row->{$stateRef['resolved_column']}) : null;
-                $reason = $row->{$reasonRef['state_column']} === 'resolved' ? $reasons->get($row->{$reasonRef['resolved_column']}) : null;
-                $row->state_id = $state?->id;
-                $row->state_name_en = $state?->c_Name_en;
-                $row->state_name_ar = $state?->c_Name_ar;
-                $row->reason_id = $reason?->id;
-                $row->reason_name = $reason?->c_Name;
-
-                return $row;
-            });
-    }
-
-    /** The row flagged current, else the newest row of a project whose legacy rows carry no flag. */
+    /** The row flagged current, else the newest (old records without a flag). */
     public function current(Collection $history): ?object
     {
-        return $history->first(fn ($row) => (int) $row->c_Current_State === 1) ?? $history->first();
+        return $history->first(fn ($row) => (bool) $row->is_current) ?? $history->first();
     }
 
-    private function version(object $project, Collection $history): string
+    public function currentState(int $projectId): ?object
     {
-        return hash('sha256', json_encode([$project->c_ApplicationState, $history->map(fn ($r) => [$r->id, $r->state_id, $r->reason_id, $r->c_Date, $r->c_Note, $r->c_Current_State])->all()], JSON_THROW_ON_ERROR));
+        return $this->current($this->history($projectId));
     }
 
-    /** Read model for the project page. */
+    /** A fingerprint of what the screen showed: a save over a state changed meanwhile is refused. */
+    public function version(object $project, Collection $history): string
+    {
+        return hash('sha256', json_encode([$project->donor_id, $history->map(fn ($r) => [$r->id, $r->project_state_id, $r->state_reason_id, $r->note, (string) $r->changed_on, (bool) $r->is_current])->all()], JSON_THROW_ON_ERROR));
+    }
+
+    /** Read model of the project page's state card. Reasons and notes are shown to the managers only, as before. */
     public function panel(WebAccount $account, int $projectId): array
     {
-        $project = $this->project($projectId);
+        $project = $this->project($account, $projectId);
         $city = (int) $project->city_id;
-        $this->authorize($account, $city);
-        $history = $this->history($project);
+        $history = $this->history($projectId);
         $current = $this->current($history);
-        $canManage = $this->access->check($account, $city, 'lifecycle.manage');
-        $shown = $canManage ? $history : $history->map(function ($row) {
-            $row = clone $row;
-            $row->reason_name = $row->c_Note = null;
-
-            return $row;
-        });
+        $canManage = $this->canManage($account, $city);
         $canAccept = $canManage && $this->access->check($account, $city, 'lifecycle.accept');
 
+        // Reasons and notes stay with the managers: the masked rows are the only ones that reach the page (and the Livewire snapshot).
+        $shown = $canManage ? $history : $history->map(fn ($row) => (object) (['state_reason_id' => null, 'reason_ar' => null, 'reason_en' => null, 'note' => null] + (array) $row));
+
         return [
-            'history' => $shown, 'current' => $current === null ? null : $shown->firstWhere('id', $current->id), 'version' => $this->version($project, $history),
+            'project' => $project,
+            'history' => $shown,
+            'current' => $current === null ? null : $shown->firstWhere('id', $current->id),
+            'version' => $this->version($project, $history),
             'canManage' => $canManage,
-            'targets' => $canManage ? $this->targets($project, $current, $canAccept) : collect(),
-            'reasons' => $canManage ? $this->tables->catalog('statereason', $city, (int) $project->source_id) : collect(),
+            'targets' => $canManage ? $this->targets($current, $canAccept) : collect(),
+            'reasons' => $canManage ? DB::table('state_reasons')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en']) : collect(),
+            'donors' => $canManage ? $this->donors($project) : collect(),
         ];
     }
 
-    private function targets(object $project, ?object $current, bool $canAccept): Collection
+    /** Active donors, plus the project's own one even when hidden since. */
+    private function donors(object $project): Collection
     {
-        return $this->tables->catalog('state', (int) $project->city_id, (int) $project->source_id)
-            ->filter(fn ($state) => $this->rejection($current, $state->c_Name_en, $canAccept) === null)->values();
+        return DB::table('donors')->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $project->donor_id ?? 0))
+            ->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en']);
     }
 
-    /** Why a move is refused, or null when allowed. */
-    private function rejection(?object $current, ?string $target, bool $canAccept): ?string
+    /** States the manager may choose now. */
+    private function targets(?object $current, bool $canAccept): Collection
     {
-        $from = $current?->state_name_en;
+        return DB::table('project_states')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en'])
+            ->filter(fn ($state) => $this->refusal($current, $state->name_en, $canAccept) === null)->values();
+    }
+
+    /** Why a move is refused (a lifecycle.refusals key), or null when allowed. */
+    public function refusal(?object $current, ?string $target, bool $canAccept): ?string
+    {
+        $from = $current?->state_en;
 
         return match (true) {
             $target === self::ON_HOLD => 'on_hold',
-            $current !== null && $current->state_name_en === $target => 'same_state',
+            $current !== null && $from === $target => 'same_state',
             $target === self::WAITING && $from === self::ON_HOLD => 'waiting_from_preliminary',
             $target === self::FINANCED && $from === self::ACCEPTED => 'financed_from_accepted',
             $target === self::ACCEPTED && ! $canAccept => 'accept_capability',
@@ -142,138 +154,198 @@ final class LifecycleService
         };
     }
 
-    public function transition(WebAccount $account, int $projectId, int $stateId, ?int $reasonId, ?string $note, string $version): void
+    // ---------------------------------------------------------------- changing
+
+    /** The administrator's state change. Accepted needs `$donorId`. */
+    public function transition(WebAccount $account, int $projectId, int $stateId, ?int $reasonId, ?string $note, ?int $donorId, string $version): void
     {
-        DB::transaction(function () use ($account, $projectId, $stateId, $reasonId, $note, $version) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            $project = $this->project($projectId);
+        $this->authorizeManage($account, $projectId);
+        DB::transaction(function () use ($account, $projectId, $stateId, $reasonId, $note, $donorId, $version) {
+            $project = $this->locked($projectId);
             $city = (int) $project->city_id;
-            $this->authorize($account, $city, 'lifecycle.manage');
-            $history = $this->history($project);
-            abort_unless(hash_equals($this->version($project, $history), $version), 409, 'Project state changed. Reload before saving.');
-            $state = $this->tables->find('state', $stateId, $city, (int) $project->source_id);
-            abort_if($state === null, 422, 'Select a state from this city.');
-            $reason = $this->reason($project, $reasonId);
-            $refusal = $this->rejection($this->current($history), $state->c_Name_en, $this->access->check($account, $city, 'lifecycle.accept'));
+            $history = $this->history($projectId);
+            $this->checkVersion($project, $history, $version);
+            $state = DB::table('project_states')->where('id', $stateId)->first();
+            if ($state === null) {
+                throw ValidationException::withMessages(['state_id' => __('lifecycle.errors.state')]);
+            }
+            $current = $this->current($history);
+            $refusal = $this->refusal($current, $state->name_en, $this->access->check($account, $city, 'lifecycle.accept'));
             if ($refusal !== null) {
                 throw ValidationException::withMessages(['state_id' => __('lifecycle.refusals.'.$refusal)]);
             }
-            $this->enter($project, $state, $reason, $note);
-            if ($state->c_Name_en === self::ACCEPTED) {
-                $this->assignTasks($project, 'f');
+            $reason = $this->reason($reasonId);
+            $details = [['field' => 'state', 'before' => $current?->state_ar, 'after' => $state->name_ar]];
+            if ($reason !== null) {
+                $details[] = ['field' => 'state_reason', 'before' => null, 'after' => $reason->name_ar];
             }
-            if ($state->c_Name_en === self::WITHDREW) {
-                $this->clearDonor($project);
+            if (($note ?? '') !== '') {
+                $details[] = ['field' => 'state_note', 'before' => null, 'after' => $note];
             }
-            if (in_array($state->c_Name_en, self::CLEARING, true)) {
-                $this->projectNotices->clearProject($project);
+
+            if ($state->name_en === self::ACCEPTED) {
+                $donor = $donorId === null ? null : $this->donors($project)->firstWhere('id', $donorId);
+                if ($donor === null) {
+                    throw ValidationException::withMessages(['donor_id' => __('lifecycle.errors.donor')]);
+                }
+                if ((int) $project->donor_id !== (int) $donor->id) {
+                    $details[] = ['field' => 'donor', 'before' => $this->donorName($project->donor_id), 'after' => $donor->name_ar];
+                    DB::table('projects')->where('id', $projectId)->update(['donor_id' => $donor->id, 'updated_at' => now()]);
+                }
             }
-            $this->projectNotices->stateChanged($project, $state, $account->id);
-            $this->audit->record($account->id, 'lifecycle.transitioned', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+            $this->enter($project, (int) $state->id, $reason?->id, $note);
+            if ($state->name_en === self::ACCEPTED) {
+                $added = $this->assignTasks($project, 'f');
+                if ($added > 0) {
+                    $details[] = ['field' => 'tasks_opened', 'before' => null, 'after' => $added];
+                }
+            }
+            if ($state->name_en === self::WITHDREW && $project->donor_id !== null) {
+                // Desktop: "the donor will be removed from the project".
+                $details[] = ['field' => 'donor', 'before' => $this->donorName($project->donor_id), 'after' => null];
+                DB::table('projects')->where('id', $projectId)->update(['donor_id' => null, 'donor_group_id' => null, 'updated_at' => now()]);
+            }
+            if (in_array($state->name_en, self::CLEARING, true)) {
+                $this->notices->ofProject($project)->update(['seen' => 1]);
+            }
+            if (! in_array($state->name_en, self::SILENT, true)) {
+                $body = 'تم تبديل حالة المشروع إلى: '.$state->name_ar;
+                $this->notices->broadcast($city, 0, $project, 'state', NoticeService::STATE, now()->toDateString(), $this->beneficiaryName($projectId), $body, $account->id);
+            }
+            $this->audit->record($account->id, 'lifecycle.transitioned', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId, details: $details);
         });
     }
 
-    /** Reason and note of the state row currently in force. */
+    /** Reason and note of the state row in force (the desktop's two columns beside the state). */
     public function updateCurrent(WebAccount $account, int $projectId, ?int $reasonId, ?string $note, string $version): void
     {
+        $this->authorizeManage($account, $projectId);
         DB::transaction(function () use ($account, $projectId, $reasonId, $note, $version) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            $project = $this->project($projectId);
-            $city = (int) $project->city_id;
-            $this->authorize($account, $city, 'lifecycle.manage');
-            $history = $this->history($project);
-            abort_unless(hash_equals($this->version($project, $history), $version), 409, 'Project state changed. Reload before saving.');
+            $project = $this->locked($projectId);
+            $history = $this->history($projectId);
+            $this->checkVersion($project, $history, $version);
             $current = $this->current($history);
-            abort_if($current === null, 422, 'The project has no state to update.');
-            $reason = $this->reason($project, $reasonId);
-            DB::table('op_microproject_state')->where('id', $current->id)->update(['c_Note' => $note] + $this->tables->link('microproject_state', 'StateReason_ID', $reason?->id));
-            $this->audit->record($account->id, 'lifecycle.reason_updated', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+            if ($current === null) {
+                throw ValidationException::withMessages(['state_id' => __('lifecycle.none')]);
+            }
+            $reason = $this->reason($reasonId);
+            $details = AccountAuditTrail::changes(['state_reason' => $current->reason_ar, 'state_note' => $current->note], ['state_reason' => $reason?->name_ar, 'state_note' => $note]);
+            if ($details === null) {
+                return;
+            }
+            DB::table('project_state_history')->where('id', $current->id)->update(['state_reason_id' => $reason?->id, 'note' => $note, 'updated_at' => now()]);
+            $this->audit->record($account->id, 'lifecycle.reason_updated', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId, details: $details);
         });
     }
 
-    private function reason(object $project, ?int $reasonId): ?object
+    /** Refuses (and records the refusal) before any transaction, so the audit row is not rolled back. */
+    private function authorizeManage(WebAccount $account, int $projectId): void
+    {
+        $project = $this->project($account, $projectId);
+        if (! $this->canManage($account, (int) $project->city_id)) {
+            $this->audit->record($account->id, 'access.denied', 'denied', (int) $project->city_id);
+            abort(403);
+        }
+    }
+
+    private function locked(int $projectId): object
+    {
+        return DB::table('projects')->where('id', $projectId)->lockForUpdate()->first();
+    }
+
+    private function checkVersion(object $project, Collection $history, string $version): void
+    {
+        if (! hash_equals($this->version($project, $history), $version)) {
+            throw ValidationException::withMessages(['version' => __('lifecycle.errors.stale')]);
+        }
+    }
+
+    private function reason(?int $reasonId): ?object
     {
         if ($reasonId === null) {
             return null;
         }
-        $reason = $this->tables->find('statereason', $reasonId, (int) $project->city_id, (int) $project->source_id);
-        abort_if($reason === null, 422, 'Select a reason from this city.');
+        $reason = DB::table('state_reasons')->where('id', $reasonId)->first(['id', 'name_ar', 'name_en']);
+        if ($reason === null) {
+            throw ValidationException::withMessages(['reason_id' => __('lifecycle.errors.reason')]);
+        }
 
         return $reason;
     }
 
-    /** Clears every current flag and records the new state as current. Caller holds the project lock. */
-    private function enter(object $project, object $state, ?object $reason, ?string $note): void
+    private function donorName(?int $donorId): ?string
     {
-        $flag = $this->tables->relation('microproject_state', 'MicroProject_ID');
-        DB::table('op_microproject_state')->where('city_id', $project->city_id)->where('source_id', $project->source_id)
-            ->where($flag['resolved_column'], $project->id)->where(fn ($q) => $q->whereNull('c_Current_State')->orWhere('c_Current_State', '<>', 0))->update(['c_Current_State' => 0]);
-        $this->tables->insert('microproject_state', (int) $project->city_id, (int) $project->source_id, [
-            'c_Current_State' => 1, 'c_Date' => now()->toDateString(), 'c_Note' => $note,
-        ] + $this->tables->link('microproject_state', 'MicroProject_ID', (int) $project->id)
-            + $this->tables->link('microproject_state', 'State_ID', (int) $state->id)
-            + $this->tables->link('microproject_state', 'StateReason_ID', $reason === null ? null : (int) $reason->id));
+        return $donorId === null ? null : DB::table('donors')->where('id', $donorId)->value('name_ar');
     }
 
-    /** Desktop assigns every task of the given type once; a retry must not duplicate the assignment. */
-    private function assignTasks(object $project, string $type): void
+    /** "first last ابن/ة father" of the beneficiary (the desktop's notice title), or ''. */
+    public function beneficiaryName(int $projectId): string
     {
-        $projectRef = $this->tables->relation('task_microproject', 'MicroProject_ID');
-        $taskRef = $this->tables->relation('task_microproject', 'Task_ID');
-        $assigned = DB::table('op_task_microproject')->where('city_id', $project->city_id)->where('source_id', $project->source_id)
-            ->where($projectRef['resolved_column'], $project->id)->pluck($taskRef['resolved_column'])->map(fn ($id) => (int) $id)->all();
-        foreach ($this->tables->catalog('task', (int) $project->city_id, (int) $project->source_id) as $task) {
-            if ($task->c_T_Type !== $type || in_array((int) $task->id, $assigned, true)) {
+        $person = DB::table('project_applicants as a')->join('people as p', 'p.id', '=', 'a.person_id')->where('a.project_id', $projectId)->whereNull('a.deleted_at')
+            ->orderByRaw("CASE WHEN a.role = 'مستفيد' THEN 0 ELSE 1 END")->orderBy('a.id')->first(['p.first_name', 'p.last_name', 'p.father_name']);
+
+        return $person === null ? '' : trim(trim(($person->first_name ?? '').' '.($person->last_name ?? '')).' ابن/ة '.($person->father_name ?? ''));
+    }
+
+    /** Ends the current state and records the new one. The caller holds the project lock. */
+    private function enter(object $project, int $stateId, ?int $reasonId, ?string $note): void
+    {
+        $now = now();
+        DB::table('project_state_history')->where('project_id', $project->id)->where('is_current', true)->update(['is_current' => false, 'updated_at' => $now]);
+        DB::table('project_state_history')->insert([
+            'city_id' => $project->city_id, 'project_id' => $project->id, 'project_state_id' => $stateId, 'state_reason_id' => $reasonId, 'note' => $note,
+            'changed_on' => $now->format('Y-m-d'), 'is_current' => true, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+    }
+
+    /**
+     * Opens every active task of the type once ("a": the study, on the full application; "f": the follow-up, on acceptance). A retry or a
+     * second acceptance adds nothing. "Project accepted" (the first "f" task) is opened done, as the desktop's T_ID 1. Returns how many.
+     */
+    public function assignTasks(object $project, string $type): int
+    {
+        $have = DB::table('project_tasks')->where('project_id', $project->id)->whereNull('deleted_at')->pluck('task_definition_id')->map(fn ($id) => (int) $id)->all();
+        $first = DB::table('task_definitions')->where('type', 'f')->orderBy('sort_order')->orderBy('id')->value('id');
+        $added = 0;
+        $now = now();
+        foreach (DB::table('task_definitions')->where('type', $type)->where('is_active', true)->where('name_ar', '<>', '')->orderBy('sort_order')->orderBy('id')->pluck('id') as $task) {
+            if (in_array((int) $task, $have, true)) {
                 continue;
             }
-            $this->tables->insert('task_microproject', (int) $project->city_id, (int) $project->source_id, [
-                'c_State' => (int) $task->c_T_ID === 1 ? 1 : 0, 'c_Date' => now()->format('Y-m-d H:i:s'),
-            ] + $this->tables->link('task_microproject', 'MicroProject_ID', (int) $project->id) + $this->tables->link('task_microproject', 'Task_ID', (int) $task->id));
+            DB::table('project_tasks')->insert(['city_id' => $project->city_id, 'project_id' => $project->id, 'task_definition_id' => $task,
+                'state' => (int) $task === (int) $first ? 1 : 0, 'task_date' => $now, 'created_at' => $now, 'updated_at' => $now]);
+            $added++;
+        }
+
+        return $added;
+    }
+
+    // ---------------------------------------------------------------- moves made by other modules (callers authorize and hold the lock)
+
+    /** First state of a new application (On Hold, or Waiting for one saved full). */
+    public function recordInitial(object $project, string $nameEn): void
+    {
+        $state = DB::table('project_states')->where('name_en', $nameEn)->value('id');
+        if ($state !== null) {
+            $this->enter($project, (int) $state, null, null);
         }
     }
 
-    private function clearDonor(object $project): void
-    {
-        $donor = $this->tables->relation('microproject', 'MP_Donor');
-        if ($project->{$donor['state_column']} === 'resolved') {
-            DB::table('op_microproject')->where('id', $project->id)->update($this->tables->link('microproject', 'MP_Donor', null));
-        }
-    }
-
-    /** The state row in force for a project, with its catalog names resolved. */
-    public function currentState(object $project): ?object
-    {
-        return $this->current($this->history($project));
-    }
-
-    /**
-     * Finance-driven move (Financed on the first loan, Finished on the last payment). Writes nothing and returns false when the
-     * project is already in that state, so a retry cannot add a duplicate history row. Caller holds the project lock and has authorized.
-     */
-    public function enterNamed(object $project, string $nameEn): bool
-    {
-        if ($this->currentState($project)?->state_name_en === $nameEn) {
-            return false;
-        }
-        $this->enter($project, $this->catalogState($project, $nameEn), null, null);
-
-        return true;
-    }
-
-    /** Preliminary creation: first history row. Called inside the creation transaction. */
-    public function recordPreliminary(object $project): void
-    {
-        $this->enter($project, $this->catalogState($project, self::ON_HOLD), null, null);
-    }
-
-    /**
-     * Preliminary → full handoff: application state, Waiting history row and the "a" task assignments.
-     * Caller holds the project lock and has authorized the change.
-     */
+    /** Preliminary → full: Waiting and the study ("a") tasks. */
     public function enterFull(object $project): void
     {
-        DB::table('op_microproject')->where('id', $project->id)->update(['c_ApplicationState' => 'project']);
-        $this->enter($project, $this->catalogState($project, self::WAITING), null, null);
+        $this->recordInitial($project, self::WAITING);
         $this->assignTasks($project, 'a');
+    }
+
+    /** A move driven by finance or visits (Financed on the first loan, Finished on the last payment); false when already there. */
+    public function enterNamed(object $project, string $nameEn): bool
+    {
+        if ($this->currentState((int) $project->id)?->state_en === $nameEn) {
+            return false;
+        }
+        $this->recordInitial($project, $nameEn);
+
+        return true;
     }
 }

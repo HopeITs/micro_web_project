@@ -32,6 +32,8 @@
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
     @if($current)<x-hc.stage-bar :current="$path['current']" :mode="$path['mode']" :tone="$path['tone']" :note="$label($current->projectState)" style="margin-block-end:20px"/>@endif
+    @php($tracks = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
+    @if($tracks)<livewire:project-next-step :project-id="$project->id" />@endif
 
     <div class="hc-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); align-items:start">
         <div class="hc-grid">
@@ -77,12 +79,9 @@
                 @endif
             </x-hc.section>
         </div>
-        <x-hc.card :title="__('hc.history')">
-            <ol class="hc-timeline">
-                @foreach($project->projectStateHistory as $h)
-                    <li @class(['current' => $h->is_current])><strong>{{ $label($h->projectState) }}</strong><br><span class="muted num">{{ $h->changed_on?->format('Y-m-d') }}</span>@if($h->stateReason)<br><span class="muted">{{ $label($h->stateReason) }}</span>@endif</li>
-                @endforeach
-            </ol>
-        </x-hc.card>
+        @if($tracks)<div class="hc-grid">
+            <livewire:project-lifecycle :project-id="$project->id" />
+            <livewire:project-tasks :project-id="$project->id" />
+        </div>@endif
     </div>
 </x-layouts.hc>

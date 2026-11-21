@@ -59,10 +59,12 @@ final class NoticeService
     /** Stores one unseen notice. `$account` null makes it the shared copy (only visit and clearance notices may be shared). */
     public function add(int $city, int $source, ?object $project, string $kind, string $date, string $title, string $body, ?int $account, ?int $sender = null, ?int $payKey = null): int
     {
+        // Unified schema (v1.2+): no source_id; the desktop payment key is kept as legacy_pay_key. `$source` stays for the callers
+        // not yet moved to the unified schema (M4.9+), and is ignored.
         return (int) DB::table('web_notices')->insertGetId([
-            'city_id' => $city, 'source_id' => $source, 'account_id' => $account, 'sender_account_id' => $sender, 'project_id' => $project?->id, 'project_number' => $project?->c_MP_ID,
-            'kind' => $kind, 'pay_key' => $payKey, 'notice_date' => $date, 'original_date' => null, 'title' => $title, 'body' => $body, 'note' => null, 'change_reason' => null,
-            'seen' => 0, 'created_at' => now('UTC')->format('Y-m-d H:i:s.u'),
+            'city_id' => $city, 'account_id' => $account, 'sender_account_id' => $sender, 'project_id' => $project?->id, 'project_number' => $project?->project_number ?? $project?->c_MP_ID ?? null,
+            'kind' => $kind, 'legacy_pay_key' => $payKey, 'notice_date' => $date, 'original_date' => null, 'title' => $title, 'body' => $body, 'note' => null, 'change_reason' => null,
+            'seen' => false, 'retired_by_kobo' => false, 'created_at' => now('UTC')->format('Y-m-d H:i:s'),
         ]);
     }
 

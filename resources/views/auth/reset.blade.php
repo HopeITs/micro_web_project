@@ -1,16 +1,21 @@
-<x-layouts.guest :title="__('account.reset_title')">
-    <section class="login-card card"><div class="login-heading"><h1>{{ __('account.reset_title') }}</h1>
-        @if($valid)<p>{{ __('account.change_intro', ['min' => \App\Services\AccountPasswords::MIN_LENGTH]) }}</p>@endif</div>
-        @if($errors->any())<div class="form-message form-message-error" role="alert">{{ $errors->first() }}</div>@endif
-        @if($valid)
-        <form method="POST" action="{{ route('auth.reset.store', ['locale' => app()->getLocale(), 'token' => $token]) }}" class="login-form">@csrf
-            <x-ui.input id="password" name="password" type="password" :label="__('account.new_password')" autocomplete="new-password" required />
-            <x-ui.input id="password_confirmation" name="password_confirmation" type="password" :label="__('account.confirm_password')" autocomplete="new-password" required />
-            <x-ui.button type="submit" class="login-submit">{{ __('account.change') }}</x-ui.button>
+@php($locale = app()->getLocale())
+<x-layouts.auth :title="__('account.reset_title')">
+    @if($valid)
+        <p class="muted">{{ __('account.change_intro', ['min' => \App\Services\AccountPasswords::MIN_LENGTH]) }}</p>
+        @if($errors->any())<x-hc.alert type="danger">{{ $errors->first() }}</x-hc.alert>@endif
+        <form method="POST" action="{{ route('auth.reset.store', ['locale' => $locale, 'token' => $token]) }}" class="hc-auth-fields" novalidate>
+            @csrf
+            <x-hc.field :label="__('account.new_password')" for="password" :error="''">
+                <x-hc.password id="password" autocomplete="new-password" required minlength="{{ \App\Services\AccountPasswords::MIN_LENGTH }}" autofocus :invalid="$errors->any()"/>
+            </x-hc.field>
+            <x-hc.field :label="__('account.confirm_password')" for="password_confirmation" :error="''">
+                <x-hc.password id="password_confirmation" autocomplete="new-password" required/>
+            </x-hc.field>
+            <x-hc.button type="submit" icon="check" style="width:100%">{{ __('account.change') }}</x-hc.button>
         </form>
-        @else
-        <div class="form-message form-message-error" role="alert">{{ __('account.expired') }}</div>
-        <p><a href="{{ route('auth.forgot', ['locale' => app()->getLocale()]) }}">{{ __('account.forgot_title') }}</a></p>
-        @endif
-    </section>
-</x-layouts.guest>
+    @else
+        <x-hc.alert type="danger">{{ __('account.expired') }}</x-hc.alert>
+        <a class="hc-btn" href="{{ route('auth.forgot', ['locale' => $locale]) }}" style="justify-content:center">{{ __('account.forgot_title') }}</a>
+    @endif
+    <p><a class="hc-link" href="{{ route('auth.login', ['locale' => $locale]) }}">{{ __('account.back_to_login') }}</a></p>
+</x-layouts.auth>

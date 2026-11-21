@@ -10,6 +10,7 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\AccountPasswords;
 use App\Services\AccountProvisioner;
+use App\Support\InstitutionEmail;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -495,11 +496,10 @@ final class AccountAdminService
     }
 
     /** A lower-cased valid e-mail address of at most 190 characters, or null. */
+    /** Accounts sign in with their institution e-mail (21 Nov 2026), so only an address of that domain is accepted. */
     private function normalizeEmail(string $value): ?string
     {
-        $value = mb_strtolower(trim($value));
-
-        return $value !== '' && mb_strlen($value) <= 190 && filter_var($value, FILTER_VALIDATE_EMAIL) !== false ? $value : null;
+        return InstitutionEmail::normalize($value);
     }
 
     /** Whether every capability the account holds, in every city, is one the administrator holds there too (so it cannot take the account over). */

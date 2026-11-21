@@ -59,7 +59,7 @@ class InstallableAppTest extends TestCase
     public function test_a_signed_in_user_finds_install_in_the_account_menu_in_both_languages(): void
     {
         $this->seed(DatabaseSeeder::class);
-        $this->post('/ar/login', ['username' => 'role.data-entry', 'password' => 'password'])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => 'role.data-entry@hcsyria.org', 'password' => 'password'])->assertRedirect('/ar');
 
         $this->get('/ar')->assertOk()->assertSee('hc-install-item', false)->assertSee('تثبيت التطبيق')
             ->assertSee('/ar/manifest.webmanifest', false);

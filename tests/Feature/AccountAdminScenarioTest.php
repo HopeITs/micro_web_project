@@ -27,7 +27,7 @@ class AccountAdminScenarioTest extends TestCase
 
     private function signIn(string $username, string $password = 'password'): void
     {
-        $this->post('/ar/login', ['username' => $username, 'password' => $password])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => (array_key_exists($username, \Database\Seeders\RoleAccountsSeeder::accounts()) ? \Database\Seeders\RoleAccountsSeeder::email($username) : null) ?? $username, 'password' => $password])->assertRedirect('/ar');
     }
 
     private function desktopUser(string $username, string $code): int
@@ -56,23 +56,23 @@ class AccountAdminScenarioTest extends TestCase
         $this->get('/ar')->assertDontSee(route('admin.accounts.index', ['locale' => 'ar']));
         $this->get('/ar/admin/accounts')->assertForbidden();
         $this->get('/ar/admin/tasks')->assertForbidden();
-        $this->post('/ar/admin/accounts/plain', ['username' => 'x', 'email' => 'x@example.org', 'roles' => [$this->city('DAM') => 'administrator']])->assertForbidden();
+        $this->post('/ar/admin/accounts/plain', ['username' => 'x', 'email' => 'x@hcsyria.org', 'roles' => [$this->city('DAM') => 'administrator']])->assertForbidden();
         $this->assertDatabaseMissing('web_accounts', ['username' => 'x']);
     }
 
     public function test_new_staff_member_gets_a_one_time_password_and_only_their_city(): void
     {
         $this->signIn('super.admin');
-        $response = $this->post('/ar/admin/accounts/plain', ['username' => 'new.clerk', 'email' => 'New.Clerk@Example.org', 'roles' => [$this->city('DAM') => 'data-entry']]);
+        $response = $this->post('/ar/admin/accounts/plain', ['username' => 'new.clerk', 'email' => 'New.Clerk@HCSyria.org', 'roles' => [$this->city('DAM') => 'data-entry']]);
         $id = $this->accountId('new.clerk');
         $response->assertRedirect('/ar/admin/accounts/'.$id)->assertSessionHas('one_time_password');
         $password = session('one_time_password');
-        $this->get('/ar/admin/accounts/'.$id)->assertOk()->assertSee($password)->assertSee('new.clerk@example.org');
+        $this->get('/ar/admin/accounts/'.$id)->assertOk()->assertSee($password)->assertSee('new.clerk@hcsyria.org');
         $this->assertSame(['data-entry'], app(AccessRoles::class)->roles(WebAccount::find($id), $this->city('DAM')));
         $this->assertSame([], app(AccessRoles::class)->roles(WebAccount::find($id), $this->city('HMS')));
 
         $this->post('/ar/logout');
-        $this->post('/ar/login', ['username' => 'new.clerk', 'password' => $password]);
+        $this->post('/ar/login', ['login' => 'new.clerk@hcsyria.org', 'password' => $password]);
         $this->get('/ar/projects')->assertRedirect('/ar/account/password');
         $this->get('/ar/account/password')->assertOk()->assertSee(__('account.first_login', [], 'ar'));
         $this->post('/ar/account/password', ['password' => 'a-new-long-password-1', 'password_confirmation' => 'a-new-long-password-1'])->assertRedirect();
@@ -108,8 +108,9 @@ class AccountAdminScenarioTest extends TestCase
 
         // The person signs in with their desktop password.
         $this->post('/ar/logout');
+        // The new account has no institution e-mail yet, so it signs in by user name and must add its e-mail first.
         $this->signIn('rami.haddad');
-        $this->get('/ar/projects')->assertOk();
+        $this->get('/ar/projects')->assertRedirect('/ar/account/email');
     }
 
     public function test_unusable_desktop_password_cannot_be_the_credential(): void
@@ -137,7 +138,7 @@ class AccountAdminScenarioTest extends TestCase
 
         $this->post("/ar/admin/accounts/{$guest}/disable", ['disabled' => '1'])->assertSessionHasNoErrors();
         $this->post('/ar/logout');
-        $this->from('/ar/login')->post('/ar/login', ['username' => 'role.guest', 'password' => 'password'])->assertRedirect('/ar/login');
+        $this->from('/ar/login')->post('/ar/login', ['login' => 'role.guest@hcsyria.org', 'password' => 'password'])->assertRedirect('/ar/login');
         $this->assertGuest();
     }
 
@@ -154,10 +155,10 @@ class AccountAdminScenarioTest extends TestCase
     public function test_city_administrator_only_sees_and_changes_their_city(): void
     {
         $this->signIn('super.admin');
-        $this->post('/ar/admin/accounts/plain', ['username' => 'lat.admin', 'email' => 'lat.admin@example.org', 'roles' => [$this->city('LAT') => 'administrator']]);
+        $this->post('/ar/admin/accounts/plain', ['username' => 'lat.admin', 'email' => 'lat.admin@hcsyria.org', 'roles' => [$this->city('LAT') => 'administrator']]);
         $password = session('one_time_password');
         $this->post('/ar/logout');
-        $this->post('/ar/login', ['username' => 'lat.admin', 'password' => $password]);
+        $this->post('/ar/login', ['login' => 'lat.admin@hcsyria.org', 'password' => $password]);
         $this->post('/ar/account/password', ['password' => 'lat-admin-long-password', 'password_confirmation' => 'lat-admin-long-password']);
 
         $this->get('/ar/admin/accounts/new')->assertOk()->assertSee('maya.saleh')->assertDontSee('rami.haddad');

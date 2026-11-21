@@ -1,46 +1,28 @@
 @php($locale = app()->getLocale())
-<!DOCTYPE html>
-<html lang="{{ $locale }}" dir="{{ $locale === 'ar' ? 'rtl' : 'ltr' }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noindex, nofollow">
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
-    @include('partials.pwa-head')
-    <title>{{ __('hc.login_title') }} · {{ __('hc.brand') }}</title>
-    <script>try { var t = localStorage.getItem('hc.theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}</script>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body>
-<div class="hc-auth">
-    <section class="hc-auth-art">
-        <img class="hc-auth-logo" src="{{ asset('assets/brand/hope-center.svg') }}" alt="{{ __('hc.organization') }}" width="172" height="59">
-        <div>
-            <h1>{{ __('hc.login_heading') }}</h1>
-            <p>{{ __('hc.login_intro') }}</p>
-        </div>
-        <p style="font-size:.85rem">{{ __('hc.organization') }}</p>
-    </section>
-    <main class="hc-auth-form">
-        <form method="POST" action="{{ route('auth.attempt', ['locale' => $locale]) }}" novalidate>
-            @csrf
-            <img class="hc-auth-micro" src="{{ asset('assets/brand/micro-projects.svg') }}" alt="{{ __('hc.brand') }}" width="180" height="66">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <h2 style="font-size:1.4rem">{{ __('hc.login_title') }}</h2>
-                <a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route('auth.login', ['locale' => $locale === 'ar' ? 'en' : 'ar']) }}" lang="{{ $locale === 'ar' ? 'en' : 'ar' }}"><x-hc.icon name="globe" :size="16"/>{{ $locale === 'ar' ? 'English' : 'العربية' }}</a>
+<x-layouts.auth :title="__('hc.login_title')">
+    <form method="POST" action="{{ route('auth.attempt', ['locale' => $locale]) }}" class="hc-auth-fields" novalidate>
+        @csrf
+        @if(session('status'))<x-hc.alert type="success">{{ session('status') }}</x-hc.alert>@endif
+        @if($errors->any())<x-hc.alert type="danger">{{ $errors->first() }}</x-hc.alert>@endif
+        <x-hc.field :label="__('hc.login_email')" for="login" :error="''" :hint="__('hc.login_email_hint')">
+            <div class="hc-input-icon">
+                <x-hc.icon name="mail" :size="18"/>
+                <input id="login" name="login" type="text" inputmode="email" class="hc-input ltr" value="{{ old('login') }}" placeholder="{{ 'name@'.\App\Support\InstitutionEmail::domain() }}"
+                       autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="200" required autofocus aria-describedby="login-hint" @if($errors->any()) aria-invalid="true" @endif>
             </div>
-            @if($errors->any())<x-hc.alert type="danger">{{ $errors->first() }}</x-hc.alert>@endif
-            <x-hc.field :label="__('hc.username')" for="username" :error="''">
-                <input id="username" name="username" class="hc-input ltr" value="{{ old('username') }}" autocomplete="username" required autofocus @if($errors->any()) aria-invalid="true" @endif>
-            </x-hc.field>
-            <x-hc.field :label="__('hc.password')" for="password" :error="''">
-                <input id="password" name="password" type="password" class="hc-input ltr" autocomplete="current-password" required @if($errors->any()) aria-invalid="true" @endif>
-            </x-hc.field>
-            <x-hc.button type="submit" icon="arrow" style="width:100%">{{ __('hc.login') }}</x-hc.button>
-            <p class="hc-hint">{{ __('hc.login_note') }}</p>
-        </form>
-        <div class="hc-auth-install"><x-hc.install-app variant="button"/></div>
-    </main>
-</div>
-</body>
-</html>
+        </x-hc.field>
+        <x-hc.field :label="__('hc.password')" for="password" :error="''">
+            <x-hc.password id="password" maxlength="1024" required :invalid="$errors->any()"/>
+        </x-hc.field>
+        <div class="hc-auth-row">
+            <label class="hc-check" title="{{ __('hc.remember_hint') }}">
+                <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
+                <span>{{ __('hc.remember_me') }}</span>
+            </label>
+            <a class="hc-link" href="{{ route('auth.forgot', ['locale' => $locale]) }}">{{ __('hc.forgot') }}</a>
+        </div>
+        <x-hc.button type="submit" icon="arrow" style="width:100%">{{ __('hc.login') }}</x-hc.button>
+        <p class="hc-hint">{{ __('hc.login_note') }}</p>
+    </form>
+    <x-slot:after><div class="hc-auth-install"><x-hc.install-app variant="button"/></div></x-slot:after>
+</x-layouts.auth>

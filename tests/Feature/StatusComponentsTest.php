@@ -90,7 +90,7 @@ class StatusComponentsTest extends TestCase
     public function test_a_data_entry_user_sees_the_path_on_a_project_page(): void
     {
         $this->seed(DatabaseSeeder::class);
-        $this->post('/ar/login', ['username' => 'role.data-entry', 'password' => 'password'])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => 'role.data-entry@hcsyria.org', 'password' => 'password'])->assertRedirect('/ar');
         $project = DB::table('project_state_history as h')->join('project_states as s', 's.id', '=', 'h.project_state_id')
             ->where('h.is_current', true)->where('s.name_en', 'Rejected')->value('h.project_id');
 

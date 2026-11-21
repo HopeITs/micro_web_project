@@ -5,14 +5,17 @@ namespace App\Services;
 use App\Models\LegacyStaffUser;
 use App\Models\WebAccount;
 use App\Security\LegacyPasswordVerifier;
+use App\Support\InstitutionEmail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 
 /**
- * Global username/password login (unified schema v1.1). An account either has its own Argon2id hash, or —
- * until its first web login — the desktop PBKDF2 hash of its reviewed legacy_staff_users credential. Both
- * paths always do the same hashing work so timing does not reveal which accounts exist.
+ * Login with the institution e-mail and password (owner decision of 21 Nov 2026). An account that has no e-mail yet may still
+ * sign in with its desktop user name during the transition and must then add its institution e-mail before using the site;
+ * once an account has an e-mail its user name no longer signs in. An account either has its own Argon2id hash, or — until its
+ * first web login — the desktop PBKDF2 hash of its reviewed legacy_staff_users credential. Every path does the same hashing
+ * work so timing does not reveal which accounts exist.
  */
 final class AuthenticateAccount
 {
@@ -22,9 +25,15 @@ final class AuthenticateAccount
 
     public function __construct(private LegacyPasswordVerifier $legacy, private AccountAuditTrail $audit) {}
 
-    public function attempt(string $username, string $password): ?WebAccount
+    /** Why the last attempt was refused when the password was right: 'use_email' (the account signs in with its e-mail now). */
+    public ?string $refusal = null;
+
+    /** @param  string  $login  the institution e-mail, or the desktop user name of an account without an e-mail */
+    public function attempt(string $login, string $password): ?WebAccount
     {
-        return DB::transaction(function () use ($username, $password) {
+        $this->refusal = null;
+
+        return DB::transaction(function () use ($login, $password) {
             $legacyPerformed = false;
             $modernPerformed = false;
             $completeWork = function () use ($password, &$legacyPerformed, &$modernPerformed) {
@@ -43,11 +52,18 @@ final class AuthenticateAccount
 
                 return null;
             };
-            if ($username === '' || strlen($username) > 800 || mb_strlen($username) > 200 || strlen($password) > 4096
-                || preg_match('//u', $username) !== 1 || preg_match('//u', $password) !== 1) {
+            $login = trim($login);
+            if ($login === '' || strlen($login) > 800 || mb_strlen($login) > 200 || strlen($password) > 4096
+                || preg_match('//u', $login) !== 1 || preg_match('//u', $password) !== 1) {
                 return $deny();
             }
-            $account = WebAccount::where('username', $username)->lockForUpdate()->first();
+            $byEmail = InstitutionEmail::looksLikeEmail($login);
+            if ($byEmail) {
+                $email = InstitutionEmail::normalize($login);
+                $account = $email === null ? null : WebAccount::where('email', $email)->lockForUpdate()->first();
+            } else {
+                $account = WebAccount::where('username', $login)->lockForUpdate()->first();
+            }
             if ($account === null || $account->disabled_at !== null) {
                 return $deny();
             }
@@ -77,6 +93,13 @@ final class AuthenticateAccount
                 return $deny();
             }
             if (! $valid) {
+                return $deny();
+            }
+            if (! $byEmail && InstitutionEmail::normalize((string) $account->email) !== null) {
+                // The right password, but this account has moved to its institution e-mail: say so instead of a generic error.
+                // (An older address of another domain does not count: that account still signs in by name and must add its own.)
+                $this->refusal = 'use_email';
+
                 return $deny();
             }
             if ($account->password_hash === null || Hash::needsRehash($account->password_hash)) {

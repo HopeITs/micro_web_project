@@ -15,7 +15,7 @@ final class WebAccount extends Authenticatable
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['password_hash'];
+    protected $hidden = ['password_hash', 'remember_token'];
 
     protected $dateFormat = 'Y-m-d H:i:s.u';
 
@@ -33,9 +33,10 @@ final class WebAccount extends Authenticatable
         return 'password_hash';
     }
 
+    /** "Remember me" (schema v1.4): cycled at logout and whenever the password changes, which signs out every remembered device. */
     public function getRememberTokenName(): string
     {
-        return '';
+        return 'remember_token';
     }
 
     public function credentialLegacyUser(): BelongsTo

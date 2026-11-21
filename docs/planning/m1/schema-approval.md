@@ -50,3 +50,15 @@
   - The log stays append-only.
 - **Approved SHA-256:** `2d9b4f9d15287ac5c3f7c049ccc252245e3639446d258f7a8cd2a379dc5c6baf`, covering [unified-schema-v1.3.json](unified-schema-v1.3.json) (137 tables, 1,486 columns). Earlier versions are unchanged.
 - **What this allows:** the migrations and models move to v1.3, and each module may record its change details, without asking again.
+
+## Addendum v1.4 — "remember me" for the e-mail login
+
+- **Decided by the user:** 21 November 2026. Staff sign in with the institution e-mail (`@hcsyria.org`), and the login page gets "remember me". The decision and its approval are written in the addendum inside [unified-schema-v1.4.php](unified-schema-v1.4.php) (`addendum_v1_4`). No separate review page was made, because only one column changes.
+- **What it changes:** one optional column, `web_accounts.remember_token` (text, 100 characters).
+  - This is Laravel's standard "remember me" token.
+  - It is written when someone signs in with "remember me" ticked.
+  - It is replaced on sign-out and when the password is changed or reset, so every remembered device is signed out.
+  - It is not transferred from the desktop program.
+- **Unchanged:** every other table and column. `web_accounts.email` already existed and is unique. Password reset uses the existing `account_password_resets`.
+- **Approved SHA-256:** `6d95d4fc6e5375b9cb7975a58439be1e0105246f63ad3228a3fd89b6f46b7e61`. It covers [unified-schema-v1.4.json](unified-schema-v1.4.json) (137 tables, 1,487 columns). Earlier versions are unchanged.
+- **What this allows:** the migrations move to v1.4 without asking again.

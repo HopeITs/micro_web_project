@@ -4,21 +4,28 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Mail\PasswordResetLink;
 use App\Models\WebAccount;
+use App\Support\InstitutionEmail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
  * Password changes and resets of web accounts. A logged-in user changes the password without giving the old one; a user who forgot it
- * proves who they are with the user name and the e-mail stored for the account and receives a single-use reset link on screen (valid
- * for fifteen minutes, stored only as a SHA-256 hash). Nothing is sent by e-mail: delivery stays disabled.
+ * types the institution e-mail of the account and receives a single-use reset link by e-mail (valid for thirty minutes, stored only as a
+ * SHA-256 hash). The page answers the same whether or not the e-mail belongs to an account, so it cannot be used to find accounts.
+ * Passwords are stored as hashes and can never be sent; every change signs out the devices kept signed in with "remember me".
  */
 final class AccountPasswords
 {
     public const MIN_LENGTH = 10;
 
-    public const RESET_MINUTES = 15;
+    public const RESET_MINUTES = 30;
+
+    /** A new link is not sent more often than this for one account. */
+    public const RESEND_SECONDS = 60;
 
     public function __construct(private AccountAuditTrail $audit) {}
 
@@ -61,36 +68,37 @@ final class AccountPasswords
     private function store(int $accountId, string $password): void
     {
         $time = now('UTC')->format('Y-m-d H:i:s.u');
-        DB::table('web_accounts')->where('id', $accountId)->update(['password_hash' => Hash::make($password), 'password_changed_at' => $time, 'updated_at' => $time]);
+        DB::table('web_accounts')->where('id', $accountId)->update(['password_hash' => Hash::make($password), 'password_changed_at' => $time, 'remember_token' => Str::random(60), 'updated_at' => $time]);
     }
 
     /**
-     * The forgot-password check: the user name and e-mail must belong to one enabled account. Returns the plain single-use token (shown on
-     * screen), or null when they do not match. Earlier unused tokens of the account stop working.
+     * The forgot-password request: when the institution e-mail belongs to an enabled account, a single-use link is e-mailed to it and
+     * earlier unused links of the account stop working. Returns nothing either way (the page always shows the same answer).
      */
-    public function requestReset(string $username, string $email): ?string
+    public function requestReset(string $email, string $locale): void
     {
-        $email = mb_strtolower(trim($email));
-        $token = Str::random(40);
-        $hash = hash('sha256', $token, true);
-        $account = $username === '' || $email === '' || strlen($username) > 800 ? null
-            : DB::table('web_accounts')->where('username', $username)->where('email', $email)->whereNull('disabled_at')->first(['id']);
+        $email = InstitutionEmail::normalize($email);
+        $account = $email === null ? null : DB::table('web_accounts')->where('email', $email)->whereNull('disabled_at')->first(['id', 'email']);
         if ($account === null) {
             $this->audit->record(null, 'password.reset_denied', 'denied');
 
-            return null;
+            return;
         }
-
-        return DB::transaction(function () use ($account, $token, $hash) {
+        $recent = DB::table('account_password_resets')->where('account_id', $account->id)
+            ->where('requested_at', '>', now('UTC')->subSeconds(self::RESEND_SECONDS)->format('Y-m-d H:i:s.u'))->exists();
+        if ($recent) {
+            return;
+        }
+        $token = Str::random(40);
+        DB::transaction(function () use ($account, $token) {
             $now = now('UTC');
             DB::table('account_password_resets')->where('account_id', $account->id)->whereNull('used_at')->update(['used_at' => $now->format('Y-m-d H:i:s.u')]);
             DB::table('account_password_resets')->insert([
-                'account_id' => $account->id, 'token_sha256' => $hash, 'requested_at' => $now->format('Y-m-d H:i:s.u'), 'expires_at' => $now->addMinutes(self::RESET_MINUTES)->format('Y-m-d H:i:s.u'), 'used_at' => null,
+                'account_id' => $account->id, 'token_sha256' => hash('sha256', $token, true), 'requested_at' => $now->format('Y-m-d H:i:s.u'), 'expires_at' => $now->addMinutes(self::RESET_MINUTES)->format('Y-m-d H:i:s.u'), 'used_at' => null,
             ]);
             $this->audit->record(null, 'password.reset_requested', 'succeeded', subjectAccount: (int) $account->id, subjectType: 'account', subjectId: (int) $account->id);
-
-            return $token;
         });
+        Mail::to($account->email)->send(new PasswordResetLink(route('auth.reset', ['locale' => $locale, 'token' => $token]), self::RESET_MINUTES, $locale));
     }
 
     /** The reset record behind a token when it is unused, unexpired and its account is enabled. */

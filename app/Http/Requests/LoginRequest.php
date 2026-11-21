@@ -14,8 +14,10 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'username' => ['required', 'string', 'max:200'],
+            // The institution e-mail, or the desktop user name of an account that has no e-mail yet.
+            'login' => ['required', 'string', 'max:200'],
             'password' => ['required', 'string', 'max:1024'],
+            'remember' => ['nullable', 'in:1,on,true'],
         ];
     }
 }

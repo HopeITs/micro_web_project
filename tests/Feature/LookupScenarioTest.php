@@ -39,7 +39,7 @@ class LookupScenarioTest extends TestCase
 
     private function damascusClerk(): WebAccount
     {
-        $account = app(AccountProvisioner::class)->createPlain('dam.clerk', null, Hash::make('a-long-test-password'), 'test:dam-clerk');
+        $account = app(AccountProvisioner::class)->createPlain('dam.clerk', 'dam.clerk@hcsyria.org', Hash::make('a-long-test-password'), 'test:dam-clerk');
         DB::table('web_accounts')->where('id', $account->id)->update(['password_changed_at' => now()]);
         app(AccessRoles::class)->assign($account->fresh(), $this->city('DAM'), 'data-entry', 'test:dam-clerk');
         $this->actingAs($account->fresh());

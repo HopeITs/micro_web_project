@@ -77,7 +77,7 @@ foreach ($def['tables'] as $table => $t) {
     $out['tables'][$table] = array_filter([
         'addendum' => $t['addendum'] ?? null,
         'group' => $t['group'], 'scope' => $scope, 'source' => $t['source'] ?? null, 'legacy_key' => $t['legacy_key'] ?? null,
-        'note' => $t['note'] ?? null, 'unique' => $uniques ?: null, 'columns' => $columns ?: null,
+        'note' => $t['note'] ?? null, 'unique' => $uniques ?: null, 'indexes' => $t['indexes'] ?? null, 'columns' => $columns ?: null,
     ], fn ($v) => $v !== null);
 }
 

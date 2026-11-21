@@ -27,7 +27,8 @@ final class AccessRoles
             'projects.view', 'people.view', 'people.manage', 'applications.view', 'applications.manage', 'attachments.download', 'assessments.view', 'assessments.manage',
             'special_cases.view', 'special_cases.manage', 'special_cases.delete', 'visits.view', 'visits.manage', 'visits.delete',
             'me_visits.view', 'me_visits.manage', 'me_visits.delete', 'profession_meetings.view', 'profession_meetings.manage', 'profession_meetings.delete',
-            'tasks.view', 'notifications.view', 'reports.export', 'attachments.personal', 'attachments.legal', 'lookups.manage',
+            // tasks.manage (owner decision, 21 Nov 2026): data entry may be made responsible for study tasks and tick them.
+            'tasks.view', 'tasks.manage', 'notifications.view', 'reports.export', 'attachments.personal', 'attachments.legal', 'lookups.manage',
         ],
         // The desktop's Financial role and its cashier duty are one role in the web (owner decision, 27 Oct 2026).
         'financial' => [

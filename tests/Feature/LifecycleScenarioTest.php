@@ -182,6 +182,21 @@ class LifecycleScenarioTest extends TestCase
         Livewire::test(ProjectTasks::class, ['projectId' => $project->id])->assertDontSee(__('lifecycle.tasks.title', [], 'ar'));
     }
 
+    public function test_data_entry_ticks_the_study_tasks_it_is_responsible_for(): void
+    {
+        $this->as('role.administrator');
+        $project = $this->project('Waiting');
+        app(LifecycleService::class)->assignTasks($project, 'a');
+        [$mine, $other] = DB::table('project_tasks')->where('project_id', $project->id)->orderBy('id')->limit(2)->get()->all();
+
+        $entry = $this->as('role.data-entry');
+        DB::table('account_city_tasks')->insert(['account_id' => $entry->id, 'city_id' => $project->city_id, 'task_definition_id' => $mine->task_definition_id, 'assigned_at' => now()]);
+        Livewire::test(ProjectTasks::class, ['projectId' => $project->id])->call('toggle', $mine->id, true)->assertDispatched('project-progress');
+        $this->assertSame(1, (int) DB::table('project_tasks')->where('id', $mine->id)->value('state'));
+        Livewire::test(ProjectTasks::class, ['projectId' => $project->id])->call('toggle', $other->id, true)->assertForbidden();
+        $this->assertSame(0, (int) DB::table('project_tasks')->where('id', $other->id)->value('state'));
+    }
+
     public function test_next_step_names_the_role_it_waits_on(): void
     {
         $this->as('role.data-entry');

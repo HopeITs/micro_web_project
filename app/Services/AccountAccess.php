@@ -23,7 +23,7 @@ final class AccountAccess
     public const EXPORT_CAPABILITIES = ['finance.export', 'reports.export', 'attachments.personal', 'attachments.legal', 'attachments.financial'];
 
     /** Capabilities added to roles after accounts were already assigned them; `staff:sync-export-roles` grants them to existing holders. */
-    public const ADDED_CAPABILITIES = [...self::EXPORT_CAPABILITIES, 'lookups.manage'];
+    public const ADDED_CAPABILITIES = [...self::EXPORT_CAPABILITIES, 'lookups.manage', 'tasks.manage'];
 
     /** Image category (as the desktop's `imagetype.Category` spells it) → the grant that opens it. */
     public const ATTACHMENT_CATEGORIES = ['ثبوتيات شخصية - Personal' => 'attachments.personal', 'أوراق قانونية - Legal' => 'attachments.legal', 'أوراق مالية - Financial' => 'attachments.financial'];

@@ -12,7 +12,8 @@ return [
     'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'export_hint' => 'يصدّر كل السطور المطابقة، لا هذه الصفحة فقط.',
     'none' => 'لا توجد أحداث مطابقة', 'read_only' => 'للقراءة فقط',
     'changed' => 'تغيّر (القيمة لا تُعرض)', 'changes_summary' => '{1} تغيّر حقل واحد|{2} تغيّر حقلان|[3,10] تغيّرت :count حقول|[11,*] تغيّر :count حقلاً', 'cut' => 'مختصر',
-    'fields' => ['email' => 'البريد الإلكتروني', 'state' => 'الحالة', 'state_reason' => 'سبب الحالة', 'state_note' => 'ملاحظة الحالة', 'donor' => 'الجهة الممولة', 'tasks_opened' => 'مهام فُتحت', 'task' => 'المهمة'],
+    'fields' => ['email' => 'البريد الإلكتروني', 'state' => 'الحالة', 'state_reason' => 'سبب الحالة', 'state_note' => 'ملاحظة الحالة', 'donor' => 'الجهة الممولة', 'tasks_opened' => 'مهام فُتحت', 'task' => 'المهمة',
+        'attachment' => ['original_name' => 'اسم الملف', 'type' => 'نوع المرفق']],
     'col' => [
         'number' => 'الرقم', 'desktop_number' => 'رقم البرنامج', 'time' => 'الوقت', 'account' => 'الحساب', 'user' => 'المستخدم', 'city' => 'المدينة',
         'action' => 'الإجراء', 'kind' => 'النوع', 'record' => 'السجل', 'changes' => 'ما الذي تغيّر', 'event' => 'رمز الحدث', 'details' => 'تفاصيل', 'table' => 'الشاشة / الجدول', 'description' => 'الوصف',
@@ -36,6 +37,7 @@ return [
         'logs_listed' => 'فتح سجل الأحداث', 'reports_exported' => 'تصدير تقرير', 'national_checked' => 'فحص رقم وطني',
         'lifecycle_transitioned' => 'تغيير حالة المشروع', 'lifecycle_reason_updated' => 'تعديل سبب الحالة', 'lifecycle_undone' => 'تراجع عن تغيير حالة المشروع',
         'application_draft_saved' => 'حفظ مسودة طلب', 'application_draft_viewed' => 'فتح مسودة طلب', 'application_draft_discarded' => 'حذف مسودة طلب',
+        'attachments_uploaded' => 'رفع مرفق', 'attachments_deleted' => 'حذف مرفق', 'attachments_view' => 'فتح مرفق',
     ],
     'verbs' => [
         'view' => 'فتح', 'list' => 'عرض قائمة', 'listed' => 'عرض قائمة', 'board' => 'فتح لوحة', 'search' => 'بحث في', 'statistics' => 'إحصاءات',

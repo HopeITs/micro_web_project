@@ -83,5 +83,6 @@
             <livewire:project-lifecycle :project-id="$project->id" />
             <livewire:project-tasks :project-id="$project->id" />
         </div>@endif
+        <livewire:attachments-panel owner="project" :owner-id="$project->id" />
     </div>
 </x-layouts.hc>

@@ -62,6 +62,7 @@
             </x-hc.card>
         </div>
         <div class="hc-grid">
+            <livewire:attachments-panel owner="person" :owner-id="$person->id" />
             <livewire:family-panel :person-id="$person->id" />
             @foreach(array_keys(\App\Services\People\PersonFields::DETAILS) as $kind)
                 <livewire:person-details :person-id="$person->id" :kind="$kind" :key="'d-'.$kind" />

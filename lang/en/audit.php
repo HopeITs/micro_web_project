@@ -12,7 +12,8 @@ return [
     'export_xlsx' => 'Excel', 'export_csv' => 'CSV', 'export_hint' => 'Exports every matching row, not only this page.',
     'none' => 'No events match', 'read_only' => 'Read only',
     'changed' => 'changed (value not shown)', 'changes_summary' => '{1} :count field changed|[2,*] :count fields changed', 'cut' => 'shortened',
-    'fields' => ['email' => 'E-mail', 'state' => 'State', 'state_reason' => 'State reason', 'state_note' => 'State note', 'donor' => 'Donor', 'tasks_opened' => 'Tasks opened', 'task' => 'Task'],
+    'fields' => ['email' => 'E-mail', 'state' => 'State', 'state_reason' => 'State reason', 'state_note' => 'State note', 'donor' => 'Donor', 'tasks_opened' => 'Tasks opened', 'task' => 'Task',
+        'attachment' => ['original_name' => 'File name', 'type' => 'Attachment type']],
     'col' => [
         'number' => 'No.', 'desktop_number' => 'Desktop no.', 'time' => 'Time', 'account' => 'Account', 'user' => 'User', 'city' => 'City',
         'action' => 'Action', 'kind' => 'Kind', 'record' => 'Record', 'changes' => 'What changed', 'event' => 'Event code', 'details' => 'Details', 'table' => 'Screen / table', 'description' => 'Description',
@@ -36,6 +37,7 @@ return [
         'logs_listed' => 'Opened the audit log', 'reports_exported' => 'Exported a report', 'national_checked' => 'Checked a national number',
         'lifecycle_transitioned' => 'Changed the project state', 'lifecycle_reason_updated' => 'Changed the state reason', 'lifecycle_undone' => 'Undid a project state change',
         'application_draft_saved' => 'Saved an application draft', 'application_draft_viewed' => 'Opened an application draft', 'application_draft_discarded' => 'Discarded an application draft',
+        'attachments_uploaded' => 'Uploaded an attachment', 'attachments_deleted' => 'Deleted an attachment', 'attachments_view' => 'Opened an attachment',
     ],
     'verbs' => [
         'view' => 'Opened', 'list' => 'Listed', 'listed' => 'Listed', 'board' => 'Opened the board', 'search' => 'Searched', 'statistics' => 'Opened statistics',

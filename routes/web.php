@@ -65,6 +65,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/people/{person}', [PeopleController::class, 'show'])->whereNumber('person')->name('people.show');
             Route::get('/people/{person}/edit', [PeopleController::class, 'edit'])->whereNumber('person')->name('people.edit');
 
+            // M4.11 attachments (AttachmentService rechecks the owner, attachments.download and the category grant on every file).
+            Route::get('/attachments', [\App\Http\Controllers\AttachmentFileController::class, 'index'])->name('attachments.index');
+            Route::get('/attachments/{attachment}', [\App\Http\Controllers\AttachmentFileController::class, 'show'])->whereNumber('attachment')->name('attachments.file');
+
             // M4.2 lists (every action rechecks lookups.manage per city / in all cities in LookupAdminService).
             Route::get('/lookups', [LookupController::class, 'index'])->name('lookups.index');
             Route::get('/lookups/{list}', [LookupController::class, 'show'])->where('list', '[a-z_]{2,40}')->name('lookups.show');

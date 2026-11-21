@@ -27,7 +27,7 @@ final class Navigation
         'finance' => [
             ['key' => 'loans', 'icon' => 'wallet', 'capability' => 'finance.manage', 'task' => 'M4.9'],
             ['key' => 'payments', 'icon' => 'calendar', 'capability' => 'finance.view', 'task' => 'M4.9'],
-            ['key' => 'attachments', 'icon' => 'file', 'capability' => 'attachments.download', 'task' => 'M4.11'],
+            ['key' => 'attachments', 'icon' => 'file', 'route' => 'attachments.index', 'capability' => 'attachments.download'],
         ],
         'field' => [
             ['key' => 'visits', 'icon' => 'map', 'capability' => 'visits.view', 'task' => 'M4.12'],

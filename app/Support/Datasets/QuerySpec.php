@@ -19,7 +19,7 @@ final class QuerySpec
 {
     public const OPS = ['in', 'not_in', 'contains', 'empty', 'not_empty', 'between', 'gt', 'lt'];
 
-    public const DATE_PRESETS = ['this_month', 'last_90_days', 'this_year'];
+    public const DATE_PRESETS = ['this_month', 'last_90_days', 'this_year', 'next_30_days'];
 
     public const MAX_VALUES = 200;
 
@@ -219,6 +219,7 @@ final class QuerySpec
         return match ($preset) {
             'this_month' => [$today->startOfMonth()->toDateString(), $today->endOfMonth()->toDateString()],
             'last_90_days' => [$today->subDays(89)->toDateString(), $today->toDateString()],
+            'next_30_days' => [$today->toDateString(), $today->addDays(30)->toDateString()],
             'this_year' => [$today->startOfYear()->toDateString(), $today->endOfYear()->toDateString()],
             default => throw new InvalidArgumentException("Unknown date preset [{$preset}]."),
         };

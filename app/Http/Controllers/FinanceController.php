@@ -7,6 +7,9 @@ namespace App\Http\Controllers;
 use App\Services\Finance\FinanceService;
 use App\Services\Finance\PaymentScheduleService;
 use App\Services\Reports\TableExport;
+use App\Support\Datasets\InstallmentsDataset;
+use App\Support\Datasets\InvalidQuerySpec;
+use App\Support\Datasets\QuerySpec;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -34,7 +37,22 @@ final class FinanceController
             'view' => ['nullable', Rule::in(PaymentScheduleService::VIEWS)], 'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'],
             'year' => ['nullable', 'integer', 'between:2000,2100'], 'month' => ['nullable', 'integer', 'between:1,12'], 'group' => ['nullable', 'integer', 'min:1'],
             'currency' => ['nullable', Rule::in(FinanceService::CURRENCIES)], 'format' => ['nullable', 'in:xlsx,csv'],
+            'f' => ['sometimes', 'array', 'max:20'], 'f.*' => ['array'],
         ]);
+        // The page's smart filters (ids, codes, numbers and dates only; name filters never travel in an address).
+        $dataset = new InstallmentsDataset;
+        $list = [];
+        foreach ((array) ($filters['f'] ?? []) as $key => $filter) {
+            $list[] = ['field' => (string) $key, 'op' => (string) ($filter['op'] ?? ''), 'values' => (array) ($filter['values'] ?? [])];
+        }
+        try {
+            $spec = QuerySpec::fromArray(['filters' => $list])->validate($dataset);
+        } catch (InvalidQuerySpec) {
+            abort(422);
+        }
+        abort_if(collect($spec->filters)->contains(fn ($f) => $dataset->field($f['field'])->sensitive), 422);
+        unset($filters['f']);
+        $filters['spec'] = $spec;
         $rows = $schedule->exportRows($request->user(), $filters);
         $headings = array_map(fn ($key) => __('finance.payments.columns.'.$key), ['city', 'number', 'beneficiary', 'group', 'currency', 'amount', 'due', 'status', 'received']);
 

@@ -10,6 +10,9 @@ use App\Services\AccountAuditTrail;
 use App\Services\ProjectNumberAllocator;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Support\Datasets\InstallmentsDataset;
+use App\Support\Datasets\QuerySpec;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -44,9 +47,9 @@ final class PaymentScheduleService
         $permitted = $audit ? $this->opened($account) : $this->permitted($account, false);
         $ids = $this->selected($filters, $permitted);
         [$query, $dateColumn] = $this->filtered($ids, $filters);
-        $totals = (clone $query)->reorder()->select(DB::raw('l.currency as currency, COUNT(*) as installments, SUM(i.amount) as total'))->groupBy('l.currency')->orderBy('l.currency')->get()
+        $totals = (clone $query)->reorder()->select(DB::raw('l.currency as currency, COUNT(*) as installments, SUM(loan_installments.amount) as total'))->groupBy('l.currency')->orderBy('l.currency')->get()
             ->map(fn ($row) => (object) ['currency' => $row->currency, 'installments' => (int) $row->installments, 'total' => Money::canonical($row->total) ?? '0']);
-        $rows = $query->orderBy($dateColumn)->orderBy('i.id')->paginate(self::PER_PAGE);
+        $rows = $query->orderBy($dateColumn)->orderBy('loan_installments.id')->paginate(self::PER_PAGE);
         $names = $this->names($rows->getCollection()->pluck('project_id')->unique()->all());
         $rows->setCollection($rows->getCollection()->map(function ($row) use ($names) {
             $row->amount = Money::canonical($row->amount) ?? '0';
@@ -99,24 +102,46 @@ final class PaymentScheduleService
         return $chosen !== [] ? $chosen : $allowed;
     }
 
-    /** Joins instalment → loan → project (none deleted) in the cities, with the group, currency and year/month filters. */
-    private function base(array $cityIds, array $filters): Builder
+    /**
+     * Instalment → loan → project (none deleted) in the cities, with the group and currency filters and, when given,
+     * the search box (`search`) and the smart filters (`spec`, a QuerySpec; `$except`'s field is skipped for its facet counts).
+     * Starts from the dataset's city-scoped model, so these can only narrow the permitted cities.
+     */
+    public function builder(array $cityIds, array $filters, ?string $except = null): EloquentBuilder
     {
-        $query = DB::table('loan_installments as i')
-            ->join('loans as l', 'l.id', '=', 'i.loan_id')
-            ->join('projects as p', 'p.id', '=', 'l.project_id')
-            ->join('cities as c', 'c.id', '=', 'p.city_id')
-            ->leftJoin('donor_groups as g', 'g.id', '=', 'p.donor_group_id')
-            ->whereNull('i.deleted_at')->whereNull('l.deleted_at')->whereNull('p.deleted_at')
-            ->whereIn('i.city_id', $cityIds === [] ? [0] : $cityIds);
+        $dataset = new InstallmentsDataset;
+        $query = $dataset->query()->whereIn('loan_installments.city_id', $cityIds === [] ? [0] : $cityIds);
         if (! empty($filters['group'])) {
             $query->where('p.donor_group_id', (int) $filters['group']);
         }
         if (! empty($filters['currency'])) {
             $query->where('l.currency', $filters['currency']);
         }
+        if (($filters['search'] ?? '') !== '') {
+            $dataset->search($query, (string) $filters['search']);
+        }
+        if (($filters['spec'] ?? null) instanceof QuerySpec) {
+            $filters['spec']->apply($query, $dataset, $except !== null ? [$except] : [], false);
+        }
 
         return $query;
+    }
+
+    private function base(array $cityIds, array $filters): EloquentBuilder
+    {
+        return $this->builder($cityIds, $filters);
+    }
+
+    /** Whether the search box or smart filters narrow the list (then the default "due" view shows every instalment). */
+    public static function narrowed(array $filters): bool
+    {
+        return ($filters['search'] ?? '') !== '' || (($filters['spec'] ?? null) instanceof QuerySpec && $filters['spec']->filters !== []);
+    }
+
+    /** @return list<int> the cities of the account's finance access, narrowed by the chosen ones */
+    public function cityIdsFor(WebAccount $account, array $filters): array
+    {
+        return $this->selected($filters, $this->permitted($account, false));
     }
 
     /** @return array{0: Builder, 1: string} */
@@ -124,8 +149,11 @@ final class PaymentScheduleService
     {
         $view = in_array($filters['view'] ?? 'due', self::VIEWS, true) ? ($filters['view'] ?? 'due') : 'due';
         $query = $this->base($cityIds, $filters);
+        if ($view === 'due' && self::narrowed($filters)) {
+            $view = 'all';
+        }
         $paid = in_array($view, ['paid', 'paid_month'], true);
-        $dateColumn = $paid ? 'i.received_on' : 'i.due_on';
+        $dateColumn = $paid ? 'loan_installments.received_on' : 'loan_installments.due_on';
         $this->view($query, $view);
         if (! empty($filters['year'])) {
             $year = (int) $filters['year'];
@@ -136,24 +164,25 @@ final class PaymentScheduleService
             $expression = DB::connection()->getDriverName() === 'sqlite' ? "CAST(strftime('%m', {$dateColumn}) AS INTEGER)" : "MONTH({$dateColumn})";
             $query->whereRaw($expression.' = ?', [(int) $filters['month']]);
         }
-        $query->select(['i.id', 'i.amount', 'i.due_on', 'i.is_paid', 'i.received_on', 'l.currency', 'p.id as project_id', 'p.project_number', 'p.city_id', 'c.code as city_code',
+        $query->select(['loan_installments.id', 'loan_installments.amount', 'loan_installments.due_on', 'loan_installments.is_paid', 'loan_installments.received_on', 'l.currency', 'p.id as project_id', 'p.project_number', 'p.city_id', 'c.code as city_code',
             'c.name_ar as city_ar', 'c.name_en as city_en', 'g.name_ar as group_ar', 'g.name_en as group_en']);
 
-        return [$query, $dateColumn];
+        return [$query->toBase(), $dateColumn];
     }
 
-    private function view(Builder $query, string $view): void
+    private function view(EloquentBuilder $query, string $view): void
     {
         $today = now()->toDateString();
         $monthStart = now()->startOfMonth()->toDateString();
         $monthEnd = now()->endOfMonth()->toDateString();
         match ($view) {
-            'due' => $query->where('i.is_paid', false)->where('i.due_on', '<=', $monthEnd),
-            'overdue' => $query->where('i.is_paid', false)->where('i.due_on', '<', $today),
-            'month' => $query->where('i.is_paid', false)->whereBetween('i.due_on', [$today, $monthEnd]),
-            'paid_month' => $query->where('i.is_paid', true)->whereBetween('i.received_on', [$monthStart, $monthEnd]),
-            'unpaid' => $query->where('i.is_paid', false),
-            'paid' => $query->where('i.is_paid', true),
+            'due' => $query->where('loan_installments.is_paid', false)->where('loan_installments.due_on', '<=', $monthEnd),
+            'overdue' => $query->where('loan_installments.is_paid', false)->where('loan_installments.due_on', '<', $today),
+            'month' => $query->where('loan_installments.is_paid', false)->whereBetween('loan_installments.due_on', [$today, $monthEnd]),
+            'paid_month' => $query->where('loan_installments.is_paid', true)->whereBetween('loan_installments.received_on', [$monthStart, $monthEnd]),
+            'unpaid' => $query->where('loan_installments.is_paid', false),
+            'paid' => $query->where('loan_installments.is_paid', true),
+            default => null,
         };
     }
 
@@ -161,6 +190,7 @@ final class PaymentScheduleService
     private function tiles(array $cityIds, array $filters): array
     {
         $out = [];
+        unset($filters['spec'], $filters['search']); // the tiles count under the city, group and currency filters only
         foreach (['overdue', 'month', 'paid_month'] as $view) {
             $query = $this->base($cityIds, $filters);
             $this->view($query, $view);
@@ -181,7 +211,7 @@ final class PaymentScheduleService
         $permitted = $this->permitted($account, true);
         [$query, $dateColumn] = $this->filtered($this->selected($filters, $permitted), $filters);
         $this->audit->record($account->id, 'reports.exported', 'succeeded');
-        $query->orderBy($dateColumn)->orderBy('i.id');
+        $query->orderBy($dateColumn)->orderBy('loan_installments.id');
         $en = app()->getLocale() === 'en';
 
         return (function () use ($query, $en) {

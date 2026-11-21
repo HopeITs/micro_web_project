@@ -47,6 +47,7 @@ final class GlobalSearch
             return $out;
         }
         $out['projects'] = $this->projects($account, $term);
+        $out['commands'] = [...$out['commands'], ...$this->projectActions($account, $out['projects'])];
         if (ProjectNumberAllocator::parse($term) === null || strlen(preg_replace('/\D/', '', $term)) >= 5) {
             $out['people'] = $this->peopleFor($account, $term);
         }
@@ -81,7 +82,7 @@ final class GlobalSearch
             ->leftJoinSub($current, 'cs', 'cs.project_id', '=', 'projects.id')->leftJoin('project_states as st', 'st.id', '=', 'cs.project_state_id')
             ->leftJoinSub($first, 'ap', 'ap.project_id', '=', 'projects.id')->leftJoin('people as b', 'b.id', '=', 'ap.person_id')
             ->whereNull('projects.deleted_at')->whereIn('projects.city_id', $cities)
-            ->select('projects.id', 'projects.project_number', 'projects.name', 'c.code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'st.name_ar as state_ar', 'st.name_en as state_en',
+            ->select('projects.id', 'projects.city_id', 'projects.project_number', 'projects.name', 'c.code', 'c.name_ar as city_ar', 'c.name_en as city_en', 'st.name_ar as state_ar', 'st.name_en as state_en',
                 'b.first_name', 'b.father_name', 'b.last_name');
 
         $number = ProjectNumberAllocator::parse($term);
@@ -116,8 +117,26 @@ final class GlobalSearch
             'state' => $p->state_ar ? ($locale === 'en' && $p->state_en ? $p->state_en : $p->state_ar) : null,
             'tone' => ProjectStatus::tone($p->state_en), 'stateIcon' => ProjectStatus::icon($p->state_en),
             'url' => route('projects.show', ['locale' => $locale, 'project' => $p->id]),
-            'icon' => 'folder',
+            'icon' => 'folder', 'project' => $p->id, 'city' => (int) $p->city_id, 'number' => ProjectNumberAllocator::display($p->code, (int) $p->project_number),
         ])->values()->all();
+    }
+
+    /** M4.10: for the top projects found, "Executive file of ALP-1001" and "Purchases of ALP-1001" for an account that may open those pages in the project's city. */
+    private function projectActions(WebAccount $account, array $projects): array
+    {
+        $out = [];
+        foreach (array_slice($projects, 0, 3) as $project) {
+            if (! $this->access->check($account, $project['city'], 'applications.view')) {
+                continue;
+            }
+            foreach (['executive' => ['executive.show', 'executive_files.view', 'clipboard'], 'purchasing' => ['purchasing.show', 'purchasing.view', 'clipboard']] as $key => [$route, $capability, $icon]) {
+                if (Route::has($route) && $this->access->check($account, $project['city'], $capability)) {
+                    $out[] = ['title' => __($key.'.cmd').' '.$project['number'], 'meta' => $project['title'], 'url' => route($route, ['locale' => app()->getLocale(), 'project' => $project['project']]), 'icon' => $icon];
+                }
+            }
+        }
+
+        return $out;
     }
 
     private function pages(WebAccount $account, string $term): array

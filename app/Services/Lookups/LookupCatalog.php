@@ -27,6 +27,7 @@ final class LookupCatalog
             'fields' => ['abbreviation' => ['kind' => 'text', 'max' => 50, 'required' => true]]],
         'donor_groups' => ['table' => 'donor_groups', 'city' => false, 'group' => 'finance', 'desktop' => 'AddNewGroup',
             'fields' => ['donor_id' => ['kind' => 'parent', 'list' => 'donors', 'required' => true]]],
+        'purchasing_categories' => ['table' => 'purchasing_categories', 'city' => false, 'group' => 'finance', 'desktop' => 'Purchasing_Form'],
         'state_reasons' => ['table' => 'state_reasons', 'city' => false, 'group' => 'projects', 'desktop' => 'AddNewStateReasons'],
         'checklist_members' => ['table' => 'checklist_members', 'city' => true, 'group' => 'checklist', 'desktop' => 'AddNewChecklistMember',
             'fields' => ['checklist_position_id' => ['kind' => 'parent', 'list' => 'checklist_positions', 'required' => false]]],

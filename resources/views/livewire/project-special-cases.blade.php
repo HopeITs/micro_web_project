@@ -6,7 +6,6 @@
     $manage = $page['canManage'];
 @endphp
 <div class="hc-grid">
-    @if($notice !== '')<x-hc.alert type="success">{{ $notice }}</x-hc.alert>@endif
     @error('version')<x-hc.alert type="danger">{{ $message }}</x-hc.alert>@enderror
     @error('case')<x-hc.alert type="danger">{{ $message }}</x-hc.alert>@enderror
     @unless($manage)<x-hc.alert type="info">{{ __('special_cases.read_only') }}</x-hc.alert>@endunless
@@ -26,11 +25,12 @@
     </x-hc.card>
 
     @if($manage)
-    <form wire:submit="save" class="hc-grid">
+    <form wire:submit="save" class="hc-grid" id="sc-form" x-data x-on:case-saved.window="setTimeout(() => document.getElementById('sc-reason')?.focus(), 150)" @if($focusNew) x-init="$nextTick(() => { $el.scrollIntoView({ block: 'start' }); document.getElementById('sc-reason')?.focus() })" @endif>
         <x-hc.card :title="$editing ? __('special_cases.edit_title') : __('special_cases.new')">
             @if($editing)
                 <x-slot:actions><x-hc.button type="button" variant="ghost" size="sm" icon="plus" wire:click="startNew">{{ __('special_cases.new') }}</x-hc.button></x-slot:actions>
             @endif
+            @if($notice !== '')<x-hc.alert type="success" style="margin-block-end:16px">{{ $notice }}</x-hc.alert>@endif
             <div class="hc-form-grid">
                 <x-hc.field :label="__('special_cases.fields.date')" for="sc-date" :error="$errors->first('date')" required>
                     <input class="hc-input num ltr" type="date" id="sc-date" wire:model="date" max="{{ now()->toDateString() }}">
@@ -68,6 +68,13 @@
     @endif
 
     <x-hc.card :title="__('special_cases.recorded', ['count' => $page['cases']->count()])" :flush="true">
+        {{-- A project may have any number of cases (owner request 22 Nov 2026): add another one at any time. --}}
+        @if($manage)
+            <x-slot:actions>
+                <x-hc.button type="button" size="sm" icon="plus" wire:click="startNew"
+                             x-on:click="$nextTick(() => { document.getElementById('sc-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => document.getElementById('sc-reason')?.focus(), 250) })">{{ __('special_cases.add_another') }}</x-hc.button>
+            </x-slot:actions>
+        @endif
         @forelse($page['cases'] as $case)
             <article style="padding:16px 20px;border-block-end:1px solid var(--line)" wire:key="case-{{ $case->id }}" id="case-{{ $case->id }}" @class(['is-current' => $editing === $case->id])>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">

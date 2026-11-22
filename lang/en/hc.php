@@ -52,6 +52,7 @@ return [
     // F3 Ctrl+K search
     'cmdk_trigger' => 'Search a person, project or page', 'cmdk_title' => 'Quick search', 'cmdk_placeholder' => 'Name, national number, project number like DAM-1001, or a page…',
     'cmdk_recent' => 'Recently opened', 'cmdk_commands' => 'Actions', 'cmdk_projects' => 'Projects', 'cmdk_people' => 'People', 'cmdk_pages' => 'Pages',
+    'picker_placeholder' => 'Project number (e.g. DAM-1041) or beneficiary name', 'picker_choose' => 'Choose the project', 'picker_hint' => 'Type the project number or part of the beneficiary or project name.', 'picker_none' => 'No matching project in the cities where you may add.',
     'cmdk_none_title' => 'No results', 'cmdk_none' => 'Try part of the name, the national number or the project number.', 'cmdk_move' => 'to move', 'cmdk_open' => 'to open', 'cmdk_close' => 'to close',
     'cmd_new_application' => 'New application', 'cmd_new_person' => 'Add a person', 'cmd_national_check' => 'Check a national number', 'cmd_change_password' => 'Change password',
     'path_group_intake' => 'Intake', 'path_group_assessment' => 'Assessment', 'path_group_decision' => 'Decision (delayed)', 'path_group_funding' => 'Funding', 'path_group_followup' => 'Follow-up', 'path_group_closing' => 'Closing', 'path_group_stopped' => 'Stopped',

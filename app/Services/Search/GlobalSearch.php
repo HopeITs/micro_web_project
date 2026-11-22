@@ -72,7 +72,22 @@ final class GlobalSearch
 
     private function projects(WebAccount $account, string $term): array
     {
-        $cities = $this->access->cities($account, 'projects.view')->pluck('id')->all();
+        return $this->projectsFor($account, $term, 'projects.view', self::LIMIT);
+    }
+
+    /**
+     * Projects matching a number ("DAM-1041", "1041") or words of the project or beneficiary name, limited to the cities where the
+     * account holds $capability. Shared by Ctrl+K and the "add new" project pickers (checklist, special cases).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function projectsFor(WebAccount $account, string $term, string $capability, int $limit = self::LIMIT): array
+    {
+        $term = trim(mb_substr($term, 0, 100));
+        if (mb_strlen($term) < 1) {
+            return [];
+        }
+        $cities = $this->access->cities($account, $capability)->pluck('id')->all();
         if ($cities === []) {
             return [];
         }
@@ -111,7 +126,7 @@ final class GlobalSearch
         }
         $locale = app()->getLocale();
 
-        return $query->orderByDesc('projects.request_date')->limit(self::LIMIT)->get()->map(fn ($p) => [
+        return $query->orderByDesc('projects.request_date')->limit($limit)->get()->map(fn ($p) => [
             'title' => ProjectNumberAllocator::display($p->code, (int) $p->project_number).' · '.$p->name,
             'meta' => ($locale === 'en' && $p->city_en ? $p->city_en : $p->city_ar).($p->first_name ? ' · '.trim($p->first_name.' '.$p->father_name.' '.$p->last_name) : ''),
             'state' => $p->state_ar ? ($locale === 'en' && $p->state_en ? $p->state_en : $p->state_ar) : null,

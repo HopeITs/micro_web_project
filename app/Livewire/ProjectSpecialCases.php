@@ -38,9 +38,14 @@ class ProjectSpecialCases extends Component
 
     public string $notice = '';
 
+    /** Opened from "new special case" on the list page (?new=1): the form takes the focus once. */
+    #[Locked]
+    public bool $focusNew = false;
+
     public function mount(int $projectId): void
     {
         $this->projectId = $projectId;
+        $this->focusNew = request()->boolean('new');
         $this->fresh(app(SpecialCaseService::class)->page(auth()->user(), $projectId));
     }
 
@@ -99,6 +104,8 @@ class ProjectSpecialCases extends Component
         }
         $this->fresh($service->page(auth()->user(), $this->projectId));
         $this->notice = __('special_cases.saved');
+        // The form is blank again for another case on the same project: the cursor goes back to its first field.
+        $this->dispatch('case-saved');
     }
 
     public function delete(int $id): void

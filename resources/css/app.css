@@ -132,6 +132,7 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: var(--radius-sm); border: 0; background: transparent; color: var(--ink-2); cursor: pointer; position: relative; }
 .hc-icon-btn:hover { background: var(--surface-2); color: var(--ink); }
 .hc-icon-btn .dot { position: absolute; inset-block-start: 6px; inset-inline-end: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-size: .68rem; font-weight: 700; display: grid; place-items: center; }
+.hc-icon-btn .hc-badge-dot { position: absolute; inset-block-start: 4px; inset-inline-end: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--brand, #BE1F24); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
 
 .hc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .hc-label { font-size: .88rem; font-weight: 700; color: var(--ink-2); }

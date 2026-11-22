@@ -42,7 +42,8 @@ final class Navigation
         'tools' => [
             ['key' => 'search', 'icon' => 'search', 'capability' => 'projects.view', 'task' => 'M4.17'],
             ['key' => 'statistics', 'icon' => 'chart', 'capability' => 'applications.view', 'task' => 'M4.17'],
-            ['key' => 'tasks', 'icon' => 'task', 'capability' => 'tasks.view', 'task' => 'M4.16'],
+            ['key' => 'tasks', 'icon' => 'task', 'route' => 'tasks.board', 'capability' => 'tasks.view'],
+            ['key' => 'notifications', 'icon' => 'bell', 'route' => 'notifications.index', 'capability' => 'notifications.view'],
             ['key' => 'accounts', 'icon' => 'shield', 'route' => 'admin.accounts.index', 'capability' => 'accounts.manage'],
             ['key' => 'lookups', 'icon' => 'clipboard', 'route' => 'lookups.index', 'capability' => 'lookups.manage'],
             ['key' => 'audit', 'icon' => 'clock', 'route' => 'admin.audit', 'capability' => 'accounts.manage'],

@@ -16,7 +16,7 @@ final class NotificationController
 {
     public function index(Request $request, string $locale, NotificationInboxService $inbox): View
     {
-        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1']]);
+        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'kind' => ['nullable', 'in:message,visit,clearance,payment,trophy,executive_file,state,purchases']]);
 
         return view('staff.notifications', $inbox->inbox($request->user(), $filters) + ['filters' => $filters]);
     }
@@ -24,7 +24,7 @@ final class NotificationController
     /** Everything in the box, as an Excel workbook or CSV (the box's own authorization and city scope apply). */
     public function export(Request $request, string $locale, NotificationInboxService $inbox, TableExport $export): StreamedResponse
     {
-        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'format' => ['nullable', 'in:xlsx,csv']]);
+        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'kind' => ['nullable', 'in:message,visit,clearance,payment,trophy,executive_file,state,purchases'], 'format' => ['nullable', 'in:xlsx,csv']]);
         $rows = $inbox->exportRows($request->user(), $filters);
 
         return $export->stream(TableExport::format($filters['format'] ?? null), 'notifications-'.now()->format('Ymd-His'), ['City', 'Date', 'Type', 'Project number', 'Title', 'Message', 'Sender'], $rows, [3], app()->isLocale('ar'));
@@ -52,10 +52,10 @@ final class NotificationController
     {
         $data = $request->validate([
             'city' => ['required', 'integer', 'min:1'], 'to' => ['required', 'string', 'max:20'], 'date' => ['nullable', 'string', 'max:10'],
-            'title' => ['nullable', 'string', 'max:255'], 'body' => ['nullable', 'string', 'max:65535'], 'project' => ['nullable', 'string', 'max:19'],
+            'title' => ['nullable', 'string', 'max:255'], 'body' => ['nullable', 'string', 'max:65535'], 'project' => ['nullable', 'string', 'max:19'], 'email_copy' => ['nullable', 'in:1'],
         ]);
-        $count = $inbox->send($request->user(), $data);
+        $result = $inbox->send($request->user(), $data);
 
-        return redirect()->route('notifications.create', ['locale' => $locale, 'city' => $data['city']])->with('status', __('staff.notifications.sent', ['count' => $count]));
+        return redirect()->route('notifications.create', ['locale' => $locale, 'city' => $data['city']])->with('status', __('staff.notifications.sent', ['count' => $result['sent']]).($result['emailed'] > 0 ? ' '.__('staff.notifications.sent_mail', ['count' => $result['emailed']]) : '').($result['failed'] > 0 ? ' '.__('staff.notifications.mail_failed', ['count' => $result['failed']]) : ''));
     }
 }

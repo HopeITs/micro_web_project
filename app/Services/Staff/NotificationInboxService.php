@@ -9,7 +9,9 @@ use App\Services\AccessRoles;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
-use App\Services\Operational\OperationalTables;
+use App\Mail\StaffMessage;
+use App\Services\ProjectNumberAllocator;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -27,7 +29,7 @@ final class NotificationInboxService
 
     public const AHEAD_DAYS = 3;
 
-    public function __construct(private AccessRoles $roles, private AccountAccess $access, private AccountAuditTrail $audit, private OperationalTables $tables, private NoticeService $notices) {}
+    public function __construct(private AccessRoles $roles, private AccountAccess $access, private AccountAuditTrail $audit, private NoticeService $notices) {}
 
     /** Cities where the account may read its notices. */
     public function cities(WebAccount $account): Collection
@@ -56,7 +58,7 @@ final class NotificationInboxService
     public function inbox(WebAccount $account, array $filters): array
     {
         [$permitted, $ids] = $this->scope($account, $filters, 'notifications.list');
-        $rows = $this->query($account, $ids)->orderByDesc('n.notice_date')->orderByDesc('n.id')->paginate(self::PER_PAGE)->withQueryString();
+        $rows = $this->withKind($this->query($account, $ids), $filters)->orderByDesc('n.notice_date')->orderByDesc('n.id')->paginate(self::PER_PAGE)->withQueryString();
         $senders = DB::table('web_accounts')->whereIn('id', $rows->getCollection()->pluck('sender_account_id')->filter()->unique()->all())->pluck('username', 'id');
         $capabilities = [];
         foreach ($ids as $city) {
@@ -102,7 +104,7 @@ final class NotificationInboxService
     public function exportRows(WebAccount $account, array $filters): \Generator
     {
         [, $ids] = $this->scope($account, $filters, 'reports.exported');
-        $query = $this->query($account, $ids)->orderByDesc('n.notice_date')->orderByDesc('n.id');
+        $query = $this->withKind($this->query($account, $ids), $filters)->orderByDesc('n.notice_date')->orderByDesc('n.id');
 
         return (function () use ($query) {
             foreach ($query->lazy(500)->chunk(500) as $chunk) {
@@ -134,7 +136,7 @@ final class NotificationInboxService
         return DB::transaction(function () use ($account, $cities, $ids) {
             $rows = $this->query($account, $cities->pluck('id')->map(fn ($id) => (int) $id)->all())->whereIn('n.id', array_values(array_unique($ids)))->get();
             foreach ($rows as $row) {
-                $row->kind === NoticeService::PAYMENT && $row->pay_key !== null ? $this->notices->setSeenForPayment($row, 1) : $this->notices->setSeenLike($row, 1);
+                $row->kind === NoticeService::PAYMENT ? $this->notices->setSeenForPayment($row, 1) : $this->notices->setSeenLike($row, 1);
             }
             $this->audit->record($account->id, 'notifications.seen', 'succeeded');
 
@@ -160,9 +162,10 @@ final class NotificationInboxService
      * Sends a message to one account or to everyone who reads notifications in a city. `project` (a project number of the city) is for
      * administrators (`accounts.manage`), as on the desktop. The sender is the acting account.
      *
-     * @param  array{city: int, to: string, date?: ?string, title?: ?string, body?: ?string, project?: ?string}  $input
+     * @param  array{city: int, to: string, date?: ?string, title?: ?string, body?: ?string, project?: ?string, email_copy?: mixed}  $input
+     * @return array{sent: int, emailed: int, failed: int} notices stored, and the e-mail copies sent or that could not be delivered (never blocks the notice)
      */
-    public function send(WebAccount $account, array $input): int
+    public function send(WebAccount $account, array $input): array
     {
         $city = (int) ($input['city'] ?? 0);
         if (! $this->access->check($account, $city, 'notifications.send')) {
@@ -170,8 +173,8 @@ final class NotificationInboxService
             abort(403);
         }
 
-        return DB::transaction(function () use ($account, $input, $city) {
-            $source = $this->tables->source($city);
+        $mail = [];
+        $count = DB::transaction(function () use ($account, $input, $city, &$mail) {
             $fail = fn (string $field, string $key): never => throw ValidationException::withMessages([$field => __('staff.notifications.errors.'.$key)]);
             $body = Fields::text($input['body'] ?? '');
             (trim($body) !== '' && strlen($body) <= 16777215) || $fail('body', 'body');
@@ -191,16 +194,40 @@ final class NotificationInboxService
             if (! Fields::blank($input['project'] ?? null)) {
                 $this->access->check($account, $city, 'accounts.manage') || $fail('project', 'project_admin');
                 ctype_digit(trim((string) $input['project'])) || $fail('project', 'project');
-                $project = $this->tables->query('microproject')->where('p.city_id', $city)->where('p.source_id', $source)->where('p.c_MP_ID', (int) trim((string) $input['project']))->first();
+                $project = DB::table('projects')->where('city_id', $city)->where('project_number', (int) trim((string) $input['project']))->whereNull('deleted_at')->first();
                 $project !== null || $fail('project', 'project');
             }
             foreach ($recipients as $recipient) {
-                $this->notices->add($city, $source, $project, NoticeService::MESSAGE, $date, $title, $body, $recipient->id, $account->id);
+                $this->notices->add($city, 0, $project, NoticeService::MESSAGE, $date, $title, $body, $recipient->id, $account->id);
             }
             $this->audit->record($account->id, 'notifications.sent', 'succeeded', $city);
+            $mail = ['recipients' => $recipients->pluck('id')->all(), 'title' => $title, 'body' => $body, 'project' => $project];
 
             return $recipients->count();
         });
+
+        $emailed = $failed = 0;
+        if (! empty($input['email_copy']) && $mail !== []) {
+            $city_name = (string) DB::table('cities')->where('id', $city)->value(app()->isLocale('en') ? 'name_en' : 'name_ar');
+            $ref = $mail['project'] === null ? null : ProjectNumberAllocator::display((string) DB::table('cities')->where('id', $city)->value('code'), (int) $mail['project']->project_number);
+            foreach (DB::table('web_accounts')->whereIn('id', $mail['recipients'])->whereNotNull('email')->where('email', '<>', '')->get(['email']) as $to) {
+                try {
+                    Mail::to($to->email)->send(new StaffMessage($account->username, $city_name, $mail['title'], $mail['body'], $ref, app()->getLocale()));
+                    $emailed++;
+                } catch (\Throwable $e) {
+                    report($e);
+                    $failed++;
+                }
+            }
+        }
+
+        return ['sent' => $count, 'emailed' => $emailed, 'failed' => $failed];
+    }
+
+    /** Narrows the box to one kind of notice (message, visit, payment, ...) when the filter asks for it. */
+    private function withKind(Builder $query, array $filters): Builder
+    {
+        return ! empty($filters['kind']) ? $query->where('n.kind', (string) $filters['kind']) : $query;
     }
 
     /** The unseen notices of the account's box in the cities, with each city's date horizon. */
@@ -209,7 +236,7 @@ final class NotificationInboxService
         $today = now()->toDateString();
         $ahead = now()->addDays(self::AHEAD_DAYS)->toDateString();
         $query = DB::table('web_notices as n')->join('cities as c', 'c.id', '=', 'n.city_id')->where('n.account_id', $account->id)->where('n.seen', 0)
-            ->select(['n.*', 'c.name_en as city_name_en', 'c.name_ar as city_name_ar']);
+            ->select(['n.*', 'c.code as project_code', 'c.name_en as city_name_en', 'c.name_ar as city_name_ar']);
 
         return $query->where(function (Builder $any) use ($cityIds, $account, $today, $ahead) {
             foreach ($cityIds as $city) {

@@ -37,7 +37,7 @@ final class Navigation
             // M4.13: the list of all special cases (each project's cases open from its page).
             ['key' => 'special_cases', 'icon' => 'clipboard', 'route' => 'special-cases.index', 'capability' => 'special_cases.view'],
             ['key' => 'kobo', 'icon' => 'sync', 'capability' => 'visits.manage', 'task' => 'M4.14'],
-            ['key' => 'meetings', 'icon' => 'meeting', 'capability' => 'profession_meetings.view', 'task' => 'M4.15'],
+            ['key' => 'meetings', 'icon' => 'meeting', 'route' => 'meetings.index', 'capability' => 'profession_meetings.view'],
         ],
         'tools' => [
             ['key' => 'search', 'icon' => 'search', 'capability' => 'projects.view', 'task' => 'M4.17'],
@@ -68,7 +68,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'checklists.index' => ['checklists.index', 'checklists.show', 'checklists.print'], 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
+                        'projects.index' => 'projects.*', 'meetings.index' => 'meetings.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'checklists.index' => ['checklists.index', 'checklists.show', 'checklists.print'], 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
                     }),
                 ];
             }

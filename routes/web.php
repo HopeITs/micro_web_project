@@ -83,6 +83,11 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/visits/statistics', [\App\Http\Controllers\VisitController::class, 'statistics'])->name('visits.statistics');
             Route::get('/visits/statistics/export', [\App\Http\Controllers\VisitController::class, 'statisticsExport'])->middleware('throttle:10,1')->name('visits.statistics.export');
 
+            // M4.15 profession meetings (ProfessionMeetingService rechecks profession_meetings.view / manage / delete per city; reopening needs accounts.manage).
+            Route::get('/profession-meetings', [\App\Http\Controllers\ProfessionMeetingController::class, 'index'])->name('meetings.index');
+            Route::get('/profession-meetings/new', [\App\Http\Controllers\ProfessionMeetingController::class, 'create'])->name('meetings.create');
+            Route::get('/profession-meetings/report', [\App\Http\Controllers\ProfessionMeetingController::class, 'report'])->name('meetings.report');
+            Route::get('/profession-meetings/{meeting}', [\App\Http\Controllers\ProfessionMeetingController::class, 'show'])->whereNumber('meeting')->name('meetings.show');
             // M4.16 task board (TaskBoardService / ProjectTaskService recheck tasks.view, applications.view, tasks.manage and the responsibility per city) and the notification box.
             Route::get('/task-board', [\App\Http\Controllers\TaskBoardController::class, 'index'])->name('tasks.board');
             Route::get('/task-board/export', [\App\Http\Controllers\TaskBoardController::class, 'export'])->middleware('throttle:10,1')->name('tasks.board.export');

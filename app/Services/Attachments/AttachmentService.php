@@ -27,6 +27,8 @@ final class AttachmentService
     public const OWNERS = [
         'project' => ['table' => 'projects', 'column' => 'project_id', 'view' => 'projects.view', 'subject' => 'application_entity'],
         'person' => ['table' => 'people', 'column' => 'person_id', 'view' => 'people.view', 'subject' => 'person_entity'],
+        // M4.15: the minutes, photos and papers of a profession meeting.
+        'meeting' => ['table' => 'profession_meetings', 'column' => 'profession_meeting_id', 'view' => 'profession_meetings.view', 'subject' => 'meeting_entity'],
     ];
 
     /** The desktop's personal photo type (`imagetype.Name_en` "Profile"): set from the person page only, never from the list. */
@@ -89,9 +91,9 @@ final class AttachmentService
     {
         $row = $this->query()->where('a.id', $id)->first();
         abort_if($row === null, 404);
-        $kind = $row->project_id ? 'project' : ($row->person_id ? 'person' : null);
+        $kind = $row->project_id ? 'project' : ($row->person_id ? 'person' : ($row->profession_meeting_id ? 'meeting' : null));
         abort_if($kind === null, 404);
-        $owner = $this->owner($account, $kind, (int) ($row->project_id ?: $row->person_id));
+        $owner = $this->owner($account, $kind, (int) ($row->project_id ?: ($row->person_id ?: $row->profession_meeting_id)));
         abort_unless((int) $owner->city_id === (int) $row->city_id && $this->allowed($this->categories($account, (int) $row->city_id), $row->category), 404);
         $row->owner_kind = $kind;
         $row->owner_id = (int) $owner->id;
@@ -342,7 +344,7 @@ final class AttachmentService
                     $id = (int) DB::table('attachments')->insertGetId([
                         'city_id' => $owner->city_id, 'legacy_id' => null,
                         'project_id' => $kind === 'project' ? $owner->id : null, 'person_id' => $kind === 'person' ? $owner->id : null,
-                        'profession_meeting_id' => null, 'attachment_type_id' => $type, 'original_name' => $this->cleanName($file->getClientOriginalName()),
+                        'profession_meeting_id' => $kind === 'meeting' ? $owner->id : null, 'attachment_type_id' => $type, 'original_name' => $this->cleanName($file->getClientOriginalName()),
                         'stored_path' => $stored, 'extension' => $ext,
                         // The schema keeps the desktop source; a web upload is the same kind of record as the desktop `image` row.
                         'legacy_source' => 'image', 'uploaded_by_account_id' => $account->id, 'uploaded_at' => $now, 'created_at' => $now, 'updated_at' => $now,

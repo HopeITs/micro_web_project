@@ -31,6 +31,10 @@
     </a>
     <div class="hc-header-actions">
         @if($account)<livewire:command-palette />@endif
+        @if($account && app(\App\Services\Staff\NotificationInboxService::class)->cities($account)->isNotEmpty())
+            @php($unseen = app(\App\Services\Staff\NotificationInboxService::class)->count($account))
+            <a class="hc-icon-btn" style="position:relative" href="{{ route('notifications.index', ['locale' => $locale]) }}" aria-label="{{ __('staff.nav_notifications') }}@if($unseen > 0) ({{ $unseen }})@endif" title="{{ __('staff.nav_notifications') }}"><x-hc.icon name="bell"/>@if($unseen > 0)<span class="hc-badge-dot" aria-hidden="true">{{ $unseen > 99 ? '99+' : $unseen }}</span>@endif</a>
+        @endif
         <div style="position:relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
             <button class="hc-icon-btn" type="button" @click="open = !open" :aria-expanded="open" aria-label="{{ __('hc.theme') }}" title="{{ __('hc.theme') }}">
                 <x-hc.icon name="sun" x-show="theme !== 'dark'"/><x-hc.icon name="moon" x-show="theme === 'dark'" x-cloak/>

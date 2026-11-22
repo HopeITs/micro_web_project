@@ -82,6 +82,15 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/visits/statistics', [\App\Http\Controllers\VisitController::class, 'statistics'])->name('visits.statistics');
             Route::get('/visits/statistics/export', [\App\Http\Controllers\VisitController::class, 'statisticsExport'])->middleware('throttle:10,1')->name('visits.statistics.export');
 
+            // M4.16 task board (TaskBoardService / ProjectTaskService recheck tasks.view, applications.view, tasks.manage and the responsibility per city) and the notification box.
+            Route::get('/task-board', [\App\Http\Controllers\TaskBoardController::class, 'index'])->name('tasks.board');
+            Route::get('/task-board/export', [\App\Http\Controllers\TaskBoardController::class, 'export'])->middleware('throttle:10,1')->name('tasks.board.export');
+            Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+            Route::get('/notifications/export', [\App\Http\Controllers\NotificationController::class, 'export'])->middleware('throttle:10,1')->name('notifications.export');
+            Route::post('/notifications/seen', [\App\Http\Controllers\NotificationController::class, 'seen'])->block(10, 10)->name('notifications.seen');
+            Route::get('/notifications/send', [\App\Http\Controllers\NotificationController::class, 'create'])->name('notifications.create');
+            Route::post('/notifications/send', [\App\Http\Controllers\NotificationController::class, 'send'])->block(10, 10)->name('notifications.send');
+
             // M4.13 special cases (SpecialCaseService / SpecialCaseListService recheck applications.view + special_cases.view, manage, delete and reports.export per city).
             Route::get('/applications/{project}/special-cases', [\App\Http\Controllers\SpecialCaseController::class, 'project'])->whereNumber('project')->name('special-cases.project');
             Route::get('/special-cases', [\App\Http\Controllers\SpecialCaseController::class, 'index'])->name('special-cases.index');

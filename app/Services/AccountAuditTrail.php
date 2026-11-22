@@ -22,7 +22,7 @@ final class AccountAuditTrail
         'me_visits.view' => ['application_entity'], 'me_visits.saved' => ['application_entity'], 'me_visits.deleted' => ['application_entity'],
         'special_cases.restored' => ['application_entity'],
         'profession_meetings.list' => [], 'profession_meetings.view' => ['meeting_entity'], 'profession_meetings.saved' => ['meeting_entity'], 'profession_meetings.deleted' => ['meeting_entity'], 'profession_meetings.restored' => ['meeting_entity'], 'visits.restored' => ['application_entity'], 'me_visits.restored' => ['application_entity'],
-        'tasks.board' => [], 'tasks.toggled' => ['application_entity'],
+        'tasks.board' => [], 'tasks.mine' => [], 'tasks.toggled' => ['application_entity'],
         'notifications.list' => [], 'notifications.seen' => [], 'notifications.sent' => [], 'notifications.noted' => [], 'notifications.rescheduled' => [],
         'accounts.list' => [], 'accounts.role_assigned' => ['account'], 'accounts.role_revoked' => ['account'], 'accounts.email_set' => ['account'], 'accounts.tasks_saved' => [],
         'password.changed' => ['account'], 'password.reset_requested' => ['account'], 'password.reset_denied' => [], 'password.reset' => ['account'], 'accounts.view' => ['account'], 'accounts.disabled' => ['account'], 'accounts.enabled' => ['account'],

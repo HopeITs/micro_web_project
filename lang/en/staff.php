@@ -4,6 +4,10 @@ return [
     'nav_tasks' => 'Task board',
     'nav_notifications' => 'Notifications',
     'notifications' => [
+        'count' => ':count notice(s)', 'kind' => 'Type', 'kinds' => ['message' => 'Message', 'visit' => 'Visit', 'clearance' => 'Clearance', 'payment' => 'Payment due', 'trophy' => 'Trophy', 'executive_file' => 'Executive file', 'state' => 'State change', 'purchases' => 'Purchases finished'],
+        'email_copy' => 'Also e-mail a copy to the recipients', 'project_hint' => 'Optional: a project number of this city to link the message to.',
+        'sent_mail' => ':count e-mail copy(ies) sent.', 'mail_failed' => ':count e-mail copy(ies) could not be delivered; the notice itself was stored.',
+        'mail_subject' => 'Message from :sender', 'mail_intro' => ':sender (:city) sent you a message in Micro Projects:', 'mail_footer' => 'You can also read it in the Notifications box of the Micro Projects site.',
         'title' => 'Notifications', 'intro' => 'Unseen notices addressed to your account. Marking one seen clears every copy of it.',
         'no_identity' => 'Your account is not linked to a staff identity in the selected cities, so it has no notices there. An administrator links identities after review.',
         'mark' => 'Seen', 'project' => 'Project', 'city' => 'City', 'about' => 'About', 'body' => 'Notice', 'date' => 'Date', 'sent_by' => 'Sent by', 'open' => 'Open',
@@ -13,6 +17,9 @@ return [
         'errors' => ['body' => 'Write the message.', 'title' => 'The subject is too long (255 bytes at most).', 'date' => 'Enter a valid date.', 'to' => 'Choose who receives the message.', 'project' => 'Enter a project number of this city.', 'project_admin' => 'Only administrators can attach a project.'],
     ],
     'tasks' => [
+        'open' => 'Open', 'son_of' => 'son/daughter of', 'mine' => 'My tasks', 'grid' => 'All projects', 'total' => ':count project(s)', 'state' => 'Project state',
+        'mine_total' => ':count open task(s) assigned to you', 'open_tasks' => 'Open tasks (tap to mark done)', 'confirm_done' => 'Mark ":task" as done?',
+        'mine_none' => 'Nothing waiting for you', 'mine_none_hint' => 'All tasks assigned to you are done.', 'mine_unassigned' => 'No tasks are assigned to your account', 'mine_unassigned_hint' => 'An administrator assigns task responsibilities per city under Accounts. The grid still shows every project.',
         'export_xlsx' => 'Export all matching projects (Excel)',
         'title' => 'Task board', 'intro' => 'The tasks of every project in the cities you may read. A task can be changed only by the staff member responsible for it.',
         'kind' => 'Board', 'funded' => 'Funded projects', 'applications' => 'Applications', 'search' => 'Search (number, project, person, phone)',

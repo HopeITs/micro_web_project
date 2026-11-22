@@ -7,22 +7,30 @@ namespace App\Services\Staff;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
-use App\Services\Operational\OperationalTables;
+use App\Services\Finance\Fields;
+use App\Services\Lifecycle\ProjectTaskService;
+use App\Services\ProjectNumberAllocator;
+use App\Support\ArabicSearch;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The task board (`TaskBoard_Form`): one row per project with a done / not done cell for every task of the board, across the
- * permitted cities. Cells can be toggled by a staff member who is responsible for the task (the desktop's `task_user`); the
- * responsibility of a historical source user is carried to the web account through its reviewed legacy link. `tasks.manage_all`
- * lets an administrator toggle any task of a city, because a web-only account has no source user to be assigned.
+ * The task board (M4.16, desktop `TaskBoard_Form`) on the unified schema. Two views of the same data:
+ *  - the grid: one row per project, one done / not done cell per task, for the funded board ("f", tasks of accepted projects) or the
+ *    application board ("a", the study tasks), across the cities where the account holds `tasks.view` and `applications.view`;
+ *  - "my tasks": the open tasks of the projects on the boards that the account is responsible for (`account_city_tasks`).
+ * A cell is ticked by an account that holds `tasks.manage` and is responsible for that task in the city, or holds `tasks.manage_all`
+ * (owner decision, 22 Nov 2026); the rule and the audit live in `ProjectTaskService::set`, which the project page uses too.
  */
 final class TaskBoardService
 {
     public const PER_PAGE = 50;
 
-    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private OperationalTables $tables, private NoticeService $notices) {}
+    /** English names of the states whose projects are listed on the funded board: Accepted, Financed, Finished, Canceled, Closed. */
+    public const FUNDED_STATES = ['Accepted', 'Financed', 'Finished', 'Canceled', 'Closed'];
+
+    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private ProjectTaskService $tasks) {}
 
     /** Cities where the account may read the task board. */
     public function cities(WebAccount $account): Collection
@@ -32,24 +40,45 @@ final class TaskBoardService
         return $this->access->cities($account, 'tasks.view')->filter(fn ($city) => in_array($city->id, $view, true))->values();
     }
 
+    /** The task columns of a board in the desktop order; the funded board leaves out the acceptance task, which every accepted project has. */
+    public function columns(string $kind): Collection
+    {
+        $query = DB::table('task_definitions')->where('type', $kind)->where('state', 1)->where('is_active', 1);
+        if ($kind === 'f') {
+            $first = DB::table('task_definitions')->where('type', 'f')->orderBy('sort_order')->orderBy('id')->value('id');
+            $query->where('id', '<>', $first ?? 0);
+        }
+
+        return $query->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en'])->map(function ($task) {
+            $task->id = (int) $task->id;
+            $task->label = app()->isLocale('en') && $task->name_en ? $task->name_en : $task->name_ar;
+
+            return $task;
+        });
+    }
+
+    /** @return list<int> ids of the states listed on the funded board */
+    private function fundedStates(): array
+    {
+        return DB::table('project_states')->whereIn('name_en', self::FUNDED_STATES)->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
     /**
-     * @param  array{kind?: ?string, cities?: list<int>, q?: ?string, state?: ?int, donor?: ?string, type?: ?string, tasks?: array<int, string>}  $filters
+     * @param  array{kind?: ?string, cities?: list<int>, q?: ?string, state?: ?int, donor?: ?int, type?: ?int, tasks?: array<int, string>}  $filters
      */
     public function board(WebAccount $account, array $filters): array
     {
-        [$query, $ids, $context, $columns, $kind, $permitted] = $this->boardQuery($account, $filters, 'tasks.board');
-
-        $rows = $query->orderByDesc('p.c_MP_ID')->orderBy('p.city_id')->orderBy('p.id')->paginate(self::PER_PAGE)->withQueryString();
-        $rows->setCollection($this->decorate($account, $rows->getCollection(), $context, $columns, $kind));
+        [$query, $ids, $columns, $kind, $permitted] = $this->boardQuery($account, $filters, 'tasks.board');
+        $rows = $query->orderByDesc('p.project_number')->orderBy('p.city_id')->orderBy('p.id')->paginate(self::PER_PAGE);
+        $rows->setCollection($this->decorate($account, $rows->getCollection(), $columns, $kind));
 
         return [
-            'rows' => $rows, 'cities' => $permitted, 'kind' => $kind, 'filters' => $filters,
-            'columns' => $this->labels($columns, $context), 'options' => $this->options($context),
-            'responsible' => $this->responsible($context, $columns), 'shown' => $ids,
+            'rows' => $rows, 'permitted' => $permitted, 'kind' => $kind, 'columns' => $columns, 'options' => $this->options($kind),
+            'responsible' => $this->responsible($ids, $columns), 'shown' => $ids,
         ];
     }
 
-    /** @return array{0: Builder, 1: list<int>, 2: array, 3: array, 4: string, 5: Collection} the filtered projects, shown cities, per-city context, task columns, board kind and permitted cities */
+    /** @return array{0: Builder, 1: list<int>, 2: Collection, 3: string, 4: Collection} query, shown cities, task columns, board kind, permitted cities */
     private function boardQuery(WebAccount $account, array $filters, string $event, bool $export = false): array
     {
         $permitted = $this->cities($account);
@@ -62,81 +91,63 @@ final class TaskBoardService
             abort(403);
         }
         $kind = ($filters['kind'] ?? 'f') === 'a' ? 'a' : 'f';
-        $selected = array_values(array_intersect($filters['cities'] ?? [], $permitted->pluck('id')->all()));
-        $ids = $selected !== [] ? $selected : $permitted->pluck('id')->all();
-        $columns = TaskBoardColumns::for($kind);
+        $selected = array_values(array_intersect(array_map('intval', $filters['cities'] ?? []), $permitted->pluck('id')->map(fn ($id) => (int) $id)->all()));
+        $ids = $selected !== [] ? $selected : $permitted->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $columns = $this->columns($kind);
         $this->audit->record($account->id, $event, 'succeeded');
 
-        $context = [];
-        foreach ($ids as $city) {
-            $context[$city] = $this->context($city, $kind);
-        }
-
-        $mpRef = $this->tables->relation('microproject_state', 'MicroProject_ID');
-        $stateRef = $this->tables->relation('microproject_state', 'State_ID');
-        $donorRef = $this->tables->relation('microproject', 'MP_Donor');
-        $typeRef = $this->tables->relation('microproject', 'MP_Type_ID');
-        $tmpProject = $this->tables->relation('task_microproject', 'MicroProject_ID');
-        $tmpTask = $this->tables->relation('task_microproject', 'Task_ID');
-        $wanted = array_filter($filters['tasks'] ?? [], fn ($flag, $legacy) => isset($columns[(int) $legacy]) && in_array($flag, ['0', '1'], true), ARRAY_FILTER_USE_BOTH);
-
-        $query = $this->tables->query('microproject')->whereIn('p.city_id', $ids);
-        $query->where(function (Builder $any) use ($ids, $context, $filters, $mpRef, $stateRef, $donorRef, $typeRef, $tmpProject, $tmpTask, $wanted) {
-            foreach ($ids as $city) {
-                $ctx = $context[$city];
-                $any->orWhere(function (Builder $q) use ($city, $ctx, $filters, $mpRef, $stateRef, $donorRef, $typeRef, $tmpProject, $tmpTask, $wanted) {
-                    $q->where('p.city_id', $city)->whereExists(function (Builder $s) use ($ctx, $filters, $mpRef, $stateRef) {
-                        $stateIds = $ctx['stateIds'];
-                        if (! empty($filters['state'])) {
-                            $stateIds = array_values(array_intersect($stateIds, $ctx['statesByLegacy'][(int) $filters['state']] ?? []));
-                        }
-                        $s->selectRaw('1')->from('op_microproject_state as s')->whereColumn('s.city_id', 'p.city_id')->whereColumn('s.source_id', 'p.source_id')
-                            ->whereColumn('s.'.$mpRef['resolved_column'], 'p.id')->where('s.'.$mpRef['state_column'], 'resolved')->where('s.c_Current_State', 1)
-                            ->where('s.'.$stateRef['state_column'], 'resolved')->whereIn('s.'.$stateRef['resolved_column'], $stateIds === [] ? [0] : $stateIds);
-                    });
-                    foreach (['donor' => [$donorRef, 'donors'], 'type' => [$typeRef, 'types']] as $key => [$ref, $catalog]) {
-                        if (! empty($filters[$key])) {
-                            $match = $ctx[$catalog][(string) $filters[$key]] ?? [];
-                            $q->where('p.'.$ref['state_column'], 'resolved')->whereIn('p.'.$ref['resolved_column'], $match === [] ? [0] : $match);
-                        }
-                    }
-                    foreach ($wanted as $legacy => $flag) {
-                        $taskRow = $ctx['tasks'][(int) $legacy] ?? null;
-                        if ($taskRow === null) {
-                            $q->whereRaw('1 = 0');
-
-                            continue;
-                        }
-                        $q->whereExists(function (Builder $t) use ($tmpProject, $tmpTask, $taskRow, $flag) {
-                            $t->selectRaw('1')->from('op_task_microproject as t')->whereColumn('t.city_id', 'p.city_id')->whereColumn('t.source_id', 'p.source_id')
-                                ->whereColumn('t.'.$tmpProject['resolved_column'], 'p.id')->where('t.'.$tmpProject['state_column'], 'resolved')
-                                ->where('t.'.$tmpTask['state_column'], 'resolved')->where('t.'.$tmpTask['resolved_column'], $taskRow);
-                            $flag === '1' ? $t->where('t.c_State', '<>', 0) : $t->where('t.c_State', 0);
-                        });
-                    }
-                });
-            }
+        $query = DB::table('projects as p')->join('cities as ci', 'ci.id', '=', 'p.city_id')->whereIn('p.city_id', $ids)->whereNull('p.deleted_at');
+        $query->whereExists(function (Builder $s) use ($kind, $filters) {
+            $s->selectRaw('1')->from('project_state_history as h')->whereColumn('h.project_id', 'p.id')->where('h.is_current', true)->whereNull('h.deleted_at');
+            $kind === 'f' && $s->whereIn('h.project_state_id', $this->fundedStates() ?: [0]);
+            ! empty($filters['state']) && $s->where('h.project_state_id', (int) $filters['state']);
         });
+        ! empty($filters['donor']) && $query->where('p.donor_id', (int) $filters['donor']);
+        ! empty($filters['type']) && $query->where('p.project_type_id', (int) $filters['type']);
+        foreach ($filters['tasks'] ?? [] as $task => $flag) {
+            if (! $columns->contains('id', (int) $task) || ! in_array((string) $flag, ['0', '1'], true)) {
+                continue;
+            }
+            $query->whereExists(fn (Builder $t) => $t->selectRaw('1')->from('project_tasks as t')->whereColumn('t.project_id', 'p.id')->whereNull('t.deleted_at')
+                ->where('t.task_definition_id', (int) $task)->where('t.state', (string) $flag === '1' ? 1 : 0));
+        }
         $search = trim((string) ($filters['q'] ?? ''));
         if ($search !== '') {
-            $query->where(function (Builder $q) use ($search) {
-                $q->whereRaw("p.c_MP_Name LIKE ? ESCAPE '!'", [$this->like($search)]);
-                if (ctype_digit($search)) {
-                    $q->orWhere('p.c_MP_ID', (int) $search);
+            $number = ProjectNumberAllocator::parse($search);
+            $query->where(function (Builder $q) use ($search, $number) {
+                ArabicSearch::orWhereLike($q, 'p.name', $search);
+                if ($number !== null) {
+                    $q->orWhere(fn ($n) => $n->where('p.project_number', $number[1])->when($number[0] !== null, fn ($c) => $c->where('ci.code', $number[0])));
                 }
-                $q->orWhereExists(function (Builder $s) use ($search) {
-                    $link = $this->tables->relation('person_microproject', 'MicroProject_ID');
-                    $person = $this->tables->relation('person_microproject', 'Person_ID');
-                    $like = $this->like($search);
-                    $s->selectRaw('1')->from('op_person_microproject as l')->join('op_person as pe', fn ($j) => $j->on('pe.id', '=', 'l.'.$person['resolved_column'])->on('pe.city_id', '=', 'l.city_id'))
-                        ->whereColumn('l.city_id', 'p.city_id')->whereColumn('l.source_id', 'p.source_id')->whereColumn('l.'.$link['resolved_column'], 'p.id')
-                        ->where('l.'.$link['state_column'], 'resolved')->where('l.'.$person['state_column'], 'resolved')
-                        ->where(fn ($n) => $n->whereRaw("pe.c_P_FirstName LIKE ? ESCAPE '!'", [$like])->orWhereRaw("pe.c_P_LastName LIKE ? ESCAPE '!'", [$like])->orWhereRaw("pe.c_P_FatherName LIKE ? ESCAPE '!'", [$like])->orWhereRaw("pe.c_P_Mobile LIKE ? ESCAPE '!'", [$like]));
+                $q->orWhereExists(function (Builder $e) use ($search) {
+                    $e->selectRaw('1')->from('project_applicants as a')->join('people as pe', 'pe.id', '=', 'a.person_id')->whereColumn('a.project_id', 'p.id')->whereNull('a.deleted_at');
+                    // Every word of the search in the first, last or father's name, or the mobile.
+                    foreach (array_slice(preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 5) as $word) {
+                        $e->where(function ($n) use ($word) {
+                            foreach (['pe.first_name', 'pe.last_name', 'pe.father_name'] as $column) {
+                                ArabicSearch::orWhereLike($n, $column, $word);
+                            }
+                            $n->orWhere('pe.mobile', 'like', '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $word).'%');
+                        });
+                    }
                 });
             });
         }
 
-        return [$query, $ids, $context, $columns, $kind, $permitted];
+        return [$query->select(['p.id', 'p.city_id', 'p.project_number', 'p.name', 'p.donor_id', 'p.project_type_id', 'ci.code', 'ci.name_en as city_en', 'ci.name_ar as city_ar']), $ids, $columns, $kind, $permitted];
+    }
+
+    /** Filter lists of the board: the states it lists, the donors and the project types. */
+    private function options(string $kind): array
+    {
+        $states = DB::table('project_states');
+        $kind === 'f' && $states->whereIn('id', $this->fundedStates() ?: [0]);
+
+        return [
+            'states' => $states->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en']),
+            'donors' => DB::table('donors')->where('is_active', 1)->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en', 'abbreviation']),
+            'types' => DB::table('project_types')->where('is_active', 1)->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'name_en']),
+        ];
     }
 
     /**
@@ -147,19 +158,16 @@ final class TaskBoardService
      */
     public function exportRows(WebAccount $account, array $filters): array
     {
-        [$query, $ids, $context, $columns, $kind] = $this->boardQuery($account, $filters, 'reports.exported', true);
-        $query->orderByDesc('p.c_MP_ID')->orderBy('p.city_id')->orderBy('p.id');
-        $labels = $this->labels($columns, $context);
-        $rows = (function () use ($query, $account, $context, $columns, $kind, $labels) {
+        [$query, , $columns, $kind] = $this->boardQuery($account, $filters, 'reports.exported', true);
+        $query->orderByDesc('p.project_number')->orderBy('p.city_id')->orderBy('p.id');
+        $rows = (function () use ($query, $account, $columns, $kind) {
             foreach ($query->lazy(200)->chunk(200) as $chunk) {
-                foreach ($this->decorate($account, collect($chunk->all()), $context, $columns, $kind) as $row) {
-                    $line = [$row->city_name_en, $row->c_MP_ID, implode('، ', $row->people_names), $row->mobile, $row->c_MP_Name, $row->state_name, $row->donor_name, $row->type_name];
-                    if ($kind === 'f') {
-                        $line[] = $row->loan_day;
-                    }
-                    foreach (array_keys($labels) as $legacy) {
-                        $cell = $row->cells[$legacy];
-                        $line[] = ! $cell['assigned'] ? 'Not assigned' : ($cell['done'] ? 'Done' : 'Not done');
+                foreach ($this->decorate($account, collect($chunk->all()), $columns, $kind) as $row) {
+                    $line = [$row->city_en, $row->display, implode('، ', $row->people), $row->mobile, $row->name, $row->state_name, $row->donor_name, $row->type_name];
+                    $kind === 'f' && $line[] = $row->loan_day;
+                    foreach ($columns as $column) {
+                        $cell = $row->cells[$column->id];
+                        $line[] = ! $cell['exists'] ? __('staff.tasks.not_assigned') : ($cell['done'] ? __('staff.tasks.done') : __('staff.tasks.open'));
                     }
 
                     yield $line;
@@ -167,243 +175,76 @@ final class TaskBoardService
             }
         })();
 
-        return [array_values($labels), $rows, $kind];
+        return [$columns->pluck('label')->all(), $rows, $kind];
     }
 
     /**
-     * Toggles one task of one project. The submitted `expected` state is the one the page showed: a stale or repeated submission is
-     * refused. Completing "مشتريات" notifies the city's communication staff; clearing it marks the project's notices seen.
+     * Ticks or unticks one cell. The submitted `expected` state is the one the page showed: a stale or repeated submission is refused.
+     * The permission, the audit record and the "purchases finished" notice are in `ProjectTaskService::set`.
      */
-    public function toggle(WebAccount $account, int $projectId, int $legacyTask, int $expected, int $done): void
+    public function toggle(WebAccount $account, int $projectTaskId, bool $expected, bool $done): void
     {
-        // Checked first, outside the transaction, so that a refusal is audited; checked again under the lock.
-        $this->authorize($account, $projectId, $legacyTask, true);
-        DB::transaction(function () use ($account, $projectId, $legacyTask, $expected, $done) {
-            DB::table('op_microproject')->where('id', $projectId)->lockForUpdate()->first();
-            [$project, $task] = $this->authorize($account, $projectId, $legacyTask, false);
-            $city = (int) $project->city_id;
-            $source = (int) $project->source_id;
-            $projectRef = $this->tables->relation('task_microproject', 'MicroProject_ID');
-            $taskRef = $this->tables->relation('task_microproject', 'Task_ID');
-            $cells = DB::table('op_task_microproject')->where('city_id', $city)->where('source_id', $source)
-                ->where($projectRef['resolved_column'], $projectId)->where($projectRef['state_column'], 'resolved')
-                ->where($taskRef['resolved_column'], $task->id)->where($taskRef['state_column'], 'resolved')->orderBy('id')->lockForUpdate()->get();
-            abort_if($cells->isEmpty(), 404);
-            abort_unless(((int) ($cells->first()->c_State ?? 0) !== 0 ? 1 : 0) === $expected && $expected !== $done, 409, 'The task changed. Reload before saving.');
-            DB::table('op_task_microproject')->whereIn('id', $cells->pluck('id')->all())->update(['c_State' => $done, 'c_Date' => now()->toDateString().' 00:00:00']);
-            if ($legacyTask === TaskBoardColumns::PURCHASES) {
-                if ($done === 1) {
-                    $name = $this->names([$projectId])[$projectId] ?? '';
-                    $this->notices->broadcast($city, $source, $project, 'communication', NoticeService::PURCHASES, now()->toDateString(), $name, 'انتهاء المشتريات', $account->id);
-                } else {
-                    $this->notices->setSeenForProject($project, NoticeService::PURCHASES, 1);
-                }
-            }
-            $this->audit->record($account->id, 'tasks.toggled', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId);
+        DB::transaction(function () use ($account, $projectTaskId, $expected, $done) {
+            $cell = DB::table('project_tasks')->where('id', $projectTaskId)->whereNull('deleted_at')->lockForUpdate()->first();
+            abort_if($cell === null, 404);
+            abort_unless(((int) $cell->state === 1) === $expected && $expected !== $done, 409, 'The task changed. Reload before saving.');
+            $this->tasks->set($account, (int) $cell->project_id, $projectTaskId, $done);
         });
     }
 
-    /**
-     * The project and task row of a toggle the account may make: the project is on the board of the task's kind, the account has
-     * the city's view and manage permissions and is responsible for the task (or may manage every task).
-     *
-     * @return array{0: object, 1: object}
-     */
-    private function authorize(WebAccount $account, int $projectId, int $legacyTask, bool $audit): array
-    {
-        $project = $this->tables->query('microproject')->where('p.id', $projectId)->first();
-        abort_if($project === null, 404);
-        $city = (int) $project->city_id;
-        $source = (int) $project->source_id;
-        $kind = isset(TaskBoardColumns::FUNDED[$legacyTask]) ? 'f' : (isset(TaskBoardColumns::APPLICATION[$legacyTask]) ? 'a' : null);
-        abort_if($kind === null, 404);
-        $deny = function () use ($account, $audit): never {
-            if ($audit) {
-                $this->audit->record($account->id, 'access.denied', 'denied');
-            }
-            abort(403);
-        };
-        foreach (['applications.view', 'tasks.view', 'tasks.manage'] as $capability) {
-            $this->access->check($account, $city, $capability) || $deny();
-        }
-        $task = $this->tables->catalog('task', $city, $source)->first(fn ($row) => (int) ($row->c_T_ID ?? 0) === $legacyTask);
-        abort_if($task === null, 404);
-        $this->access->check($account, $city, 'tasks.manage_all') || $this->assigned($account, $city, $source, [(int) $task->id])->contains((int) $task->id) || $deny();
-        abort_unless($this->onBoard($project, $kind), 404);
-
-        return [$project, $task];
-    }
-
-    /** Per city: its source, the catalog ids the board needs and the states the board lists. */
-    private function context(int $city, string $kind): array
-    {
-        $source = $this->tables->source($city);
-        $states = $this->tables->catalog('state', $city, $source);
-        $byLegacy = [];
-        foreach ($states as $state) {
-            $byLegacy[(int) $state->c_ID][] = (int) $state->id;
-        }
-        $listed = $kind === 'f' ? TaskBoardColumns::FUNDED_STATES : null;
-        $stateIds = $states->filter(fn ($state) => $listed === null || in_array((int) $state->c_ID, $listed, true))->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $group = fn (Collection $rows, string $column) => $rows->filter(fn ($row) => ($row->{$column} ?? '') !== '')->groupBy(fn ($row) => (string) $row->{$column})->map(fn ($g) => $g->pluck('id')->map(fn ($id) => (int) $id)->all())->all();
-        $donors = $this->tables->catalog('donor', $city, $source);
-        $types = $this->tables->catalog('microprojecttype', $city, $source);
-        $tasks = [];
-        foreach ($this->tables->catalog('task', $city, $source) as $task) {
-            $tasks[(int) $task->c_T_ID] ??= (int) $task->id;
-        }
-
-        return [
-            'source' => $source, 'states' => $states->keyBy('id'), 'stateIds' => $stateIds, 'statesByLegacy' => $byLegacy, 'tasks' => $tasks,
-            'taskNames' => $this->tables->catalog('task', $city, $source)->mapWithKeys(fn ($task) => [(int) $task->c_T_ID => (string) $task->c_T_Name])->all(),
-            'donorRows' => $donors, 'donors' => $group($donors, 'c_Name_abb'), 'typeRows' => $types, 'types' => $group($types, 'c_Name'),
-        ];
-    }
-
-    private function labels(array $columns, array $context): array
-    {
-        $labels = [];
-        foreach ($columns as $legacy => $fallback) {
-            $name = null;
-            foreach ($context as $ctx) {
-                $name ??= ($ctx['taskNames'][$legacy] ?? '') !== '' ? $ctx['taskNames'][$legacy] : null;
-            }
-            $labels[$legacy] = $name ?? $fallback;
-        }
-
-        return $labels;
-    }
-
-    private function options(array $context): array
-    {
-        $states = [];
-        $donors = [];
-        $types = [];
-        foreach ($context as $ctx) {
-            foreach ($ctx['states'] as $state) {
-                if (in_array((int) $state->id, $ctx['stateIds'], true)) {
-                    $states[(int) $state->c_ID] ??= app()->isLocale('ar') ? ($state->c_Name_ar ?? $state->c_Name_en) : ($state->c_Name_en ?? $state->c_Name_ar);
-                }
-            }
-            $donors += array_fill_keys(array_keys($ctx['donors']), true);
-            $types += array_fill_keys(array_keys($ctx['types']), true);
-        }
-        ksort($states);
-        ksort($donors);
-        ksort($types);
-
-        return ['states' => $states, 'donors' => array_keys($donors), 'types' => array_keys($types)];
-    }
-
-    /** Whether the project's current state lists it on the board of this task kind. */
-    private function onBoard(object $project, string $kind): bool
-    {
-        $mpRef = $this->tables->relation('microproject_state', 'MicroProject_ID');
-        $stateRef = $this->tables->relation('microproject_state', 'State_ID');
-        $current = DB::table('op_microproject_state')->where('city_id', $project->city_id)->where('source_id', $project->source_id)
-            ->where($mpRef['resolved_column'], $project->id)->where($mpRef['state_column'], 'resolved')->where('c_Current_State', 1)->where($stateRef['state_column'], 'resolved')
-            ->pluck($stateRef['resolved_column'])->map(fn ($id) => (int) $id)->all();
-        if ($current === []) {
-            return false;
-        }
-        if ($kind === 'a') {
-            return true;
-        }
-        $legacy = $this->tables->catalog('state', (int) $project->city_id, (int) $project->source_id)->filter(fn ($state) => in_array((int) $state->id, $current, true))->pluck('c_ID')->map(fn ($id) => (int) $id);
-
-        return $legacy->contains(fn ($id) => in_array($id, TaskBoardColumns::FUNDED_STATES, true));
-    }
-
-    /**
-     * Ids of the given task rows the account is responsible for: assigned to it by an administrator for this city (`account_city_tasks`).
-     *
-     * @param  list<int>  $taskIds
-     * @return Collection<int, int>
-     */
-    private function assigned(WebAccount $account, int $city, int $source, array $taskIds): Collection
-    {
-        return DB::table('account_city_tasks')->where('account_id', $account->id)->where('city_id', $city)->where('source_id', $source)->whereNull('revoked_at')
-            ->whereIn('task_id', $taskIds === [] ? [0] : $taskIds)->pluck('task_id')->map(fn ($id) => (int) $id)->unique()->values();
-    }
-
-    /** City → legacy task → user names of the accounts responsible for it. */
-    private function responsible(array $context, array $columns): array
+    /** City → task definition → user names of the accounts responsible for it. */
+    private function responsible(array $cityIds, Collection $columns): array
     {
         $result = [];
-        foreach ($context as $city => $ctx) {
-            $legacyByRow = array_flip(array_intersect_key($ctx['tasks'], $columns));
-            if ($legacyByRow === []) {
-                continue;
-            }
-            $rows = DB::table('account_city_tasks as t')->join('web_accounts as a', 'a.id', '=', 't.account_id')->where('t.city_id', $city)->where('t.source_id', $ctx['source'])
-                ->whereNull('t.revoked_at')->whereNull('a.disabled_at')->whereIn('t.task_id', array_keys($legacyByRow))->orderBy('a.username')->get(['t.task_id', 'a.username']);
-            foreach ($rows as $row) {
-                $result[$city][$legacyByRow[(int) $row->task_id]][] = (string) $row->username;
-            }
+        $rows = DB::table('account_city_tasks as t')->join('web_accounts as a', 'a.id', '=', 't.account_id')->whereIn('t.city_id', $cityIds)->whereNull('t.revoked_at')->whereNull('a.disabled_at')
+            ->whereIn('t.task_definition_id', $columns->pluck('id')->all() ?: [0])->orderBy('a.username')->get(['t.city_id', 't.task_definition_id', 'a.username']);
+        foreach ($rows as $row) {
+            $result[(int) $row->city_id][(int) $row->task_definition_id][] = (string) $row->username;
         }
 
         return $result;
     }
 
-    private function decorate(WebAccount $account, Collection $projects, array $context, array $columns, string $kind): Collection
+    private function decorate(WebAccount $account, Collection $projects, Collection $columns, string $kind): Collection
     {
         $ids = $projects->pluck('id')->map(fn ($id) => (int) $id)->all();
         if ($ids === []) {
             return $projects;
         }
-        $mpRef = $this->tables->relation('microproject_state', 'MicroProject_ID');
-        $stateRef = $this->tables->relation('microproject_state', 'State_ID');
-        $current = [];
-        foreach ($this->tables->query('microproject_state')->whereIn('p.'.$mpRef['resolved_column'], $ids)->where('p.'.$mpRef['state_column'], 'resolved')->where('p.c_Current_State', 1)->where('p.'.$stateRef['state_column'], 'resolved')->orderBy('p.id')->get() as $row) {
-            $current[(int) $row->{$mpRef['resolved_column']}] ??= (int) $row->{$stateRef['resolved_column']};
-        }
-        $loanRef = $this->tables->relation('loan', 'MicroProject_ID');
-        $loans = [];
-        if ($kind === 'f') {
-            foreach ($this->tables->query('loan')->whereIn('p.'.$loanRef['resolved_column'], $ids)->where('p.'.$loanRef['state_column'], 'resolved')->get() as $loan) {
-                $day = substr((string) ($loan->c_Loan_DateTaken ?? ''), 0, 10);
-                $project = (int) $loan->{$loanRef['resolved_column']};
-                if ($day !== '' && ($loans[$project] ?? $day) >= $day) {
-                    $loans[$project] = $day;
-                }
-            }
-        }
-        $people = $this->people($ids);
-        $tmpProject = $this->tables->relation('task_microproject', 'MicroProject_ID');
-        $tmpTask = $this->tables->relation('task_microproject', 'Task_ID');
-        $cells = [];
-        foreach ($this->tables->query('task_microproject')->whereIn('p.'.$tmpProject['resolved_column'], $ids)->where('p.'.$tmpProject['state_column'], 'resolved')->where('p.'.$tmpTask['state_column'], 'resolved')->orderBy('p.id')->get() as $cell) {
-            $cells[(int) $cell->{$tmpProject['resolved_column']}][(int) $cell->{$tmpTask['resolved_column']}] ??= $cell;
-        }
-        $donorRef = $this->tables->relation('microproject', 'MP_Donor');
-        $typeRef = $this->tables->relation('microproject', 'MP_Type_ID');
-        $assigned = [];
-        $manage = [];
-        foreach ($context as $city => $ctx) {
-            $manage[$city] = $this->access->check($account, $city, 'tasks.manage');
-            $assigned[$city] = ! $manage[$city] ? collect() : ($this->access->check($account, $city, 'tasks.manage_all')
-                ? collect($ctx['tasks'])->values() : $this->assigned($account, $city, $ctx['source'], array_values(array_intersect_key($ctx['tasks'], $columns))));
+        $en = app()->isLocale('en');
+        $pick = fn ($ar, $enName) => $en && $enName ? (string) $enName : (string) ($ar ?? '');
+        $states = DB::table('project_state_history as h')->join('project_states as s', 's.id', '=', 'h.project_state_id')->whereIn('h.project_id', $ids)->where('h.is_current', true)->whereNull('h.deleted_at')
+            ->orderBy('h.id')->get(['h.project_id', 's.name_ar', 's.name_en'])->groupBy('project_id')->map(fn ($g) => $pick($g->first()->name_ar, $g->first()->name_en));
+        $loans = $kind === 'f' ? DB::table('loans')->whereIn('project_id', $ids)->whereNull('deleted_at')->whereNotNull('taken_on')->groupBy('project_id')->selectRaw('project_id, MIN(taken_on) as day')->pluck('day', 'project_id') : collect();
+        $people = DB::table('project_applicants as a')->join('people as pe', 'pe.id', '=', 'a.person_id')->whereIn('a.project_id', $ids)->whereNull('a.deleted_at')
+            ->orderByRaw("CASE WHEN a.role = 'مستفيد' THEN 0 WHEN a.role = 'شريك' THEN 1 ELSE 2 END")->orderBy('a.id')->get(['a.project_id', 'pe.first_name', 'pe.last_name', 'pe.father_name', 'pe.mobile'])->groupBy('project_id');
+        $cells = DB::table('project_tasks')->whereIn('project_id', $ids)->whereNull('deleted_at')->orderBy('id')->get(['id', 'project_id', 'task_definition_id', 'state'])
+            ->groupBy('project_id')->map(fn ($g) => $g->keyBy('task_definition_id'));
+        $donors = DB::table('donors')->get(['id', 'name_ar', 'name_en', 'abbreviation'])->keyBy('id');
+        $types = DB::table('project_types')->get(['id', 'name_ar', 'name_en'])->keyBy('id');
+        $tickable = [];
+        foreach ($projects->pluck('city_id')->unique() as $city) {
+            $tickable[(int) $city] = $this->tasks->tickable($account, (int) $city);
         }
 
-        return $projects->map(function ($project) use ($context, $columns, $current, $loans, $people, $cells, $donorRef, $typeRef, $assigned, $manage) {
-            $ctx = $context[(int) $project->city_id];
-            $state = isset($current[(int) $project->id]) ? $ctx['states']->get($current[(int) $project->id]) : null;
-            $donor = $project->{$donorRef['state_column']} === 'resolved' ? $ctx['donorRows']->firstWhere('id', (int) $project->{$donorRef['resolved_column']}) : null;
-            $type = $project->{$typeRef['state_column']} === 'resolved' ? $ctx['typeRows']->firstWhere('id', (int) $project->{$typeRef['resolved_column']}) : null;
-            $project->state_name = $state === null ? null : (app()->isLocale('ar') ? ($state->c_Name_ar ?? $state->c_Name_en) : ($state->c_Name_en ?? $state->c_Name_ar));
-            $project->state_legacy = $state === null ? null : (int) $state->c_ID;
-            $project->donor_name = $donor?->c_Name_abb;
-            $project->type_name = $type?->c_Name;
-            $project->people_names = $people[(int) $project->id]['names'] ?? [];
-            $project->mobile = $people[(int) $project->id]['mobile'] ?? null;
-            $project->loan_day = $loans[(int) $project->id] ?? null;
+        return $projects->map(function ($project) use ($columns, $states, $loans, $people, $cells, $donors, $types, $tickable, $pick) {
+            $project->display = ProjectNumberAllocator::display((string) $project->code, (int) $project->project_number);
+            $project->city_name = app()->isLocale('en') ? $project->city_en : $project->city_ar;
+            $project->state_name = $states[$project->id] ?? null;
+            $donor = $donors[$project->donor_id] ?? null;
+            $project->donor_name = $donor === null ? null : ($donor->abbreviation ?: $pick($donor->name_ar, $donor->name_en));
+            $type = $types[$project->project_type_id] ?? null;
+            $project->type_name = $type === null ? null : $pick($type->name_ar, $type->name_en);
+            $list = $people[$project->id] ?? collect();
+            $project->people = $list->map(fn ($p) => trim(($p->first_name ?? '').' '.($p->last_name ?? '').' '.__('staff.tasks.son_of').' '.($p->father_name ?? '')))->unique()->values()->all();
+            $project->mobile = $list->pluck('mobile')->first(fn ($m) => ($m ?? '') !== '');
+            $project->loan_day = isset($loans[$project->id]) ? Fields::day($loans[$project->id]) : null;
             $project->cells = [];
-            foreach ($columns as $legacy => $_) {
-                $taskRow = $ctx['tasks'][$legacy] ?? null;
-                $cell = $taskRow === null ? null : ($cells[(int) $project->id][$taskRow] ?? null);
-                $project->cells[$legacy] = [
-                    'assigned' => $cell !== null, 'done' => $cell !== null && (int) ($cell->c_State ?? 0) !== 0,
-                    'manageable' => $cell !== null && $manage[(int) $project->city_id] && $assigned[(int) $project->city_id]->contains($taskRow),
+            foreach ($columns as $column) {
+                $cell = ($cells[$project->id] ?? collect())->get($column->id);
+                $project->cells[$column->id] = [
+                    'exists' => $cell !== null, 'done' => $cell !== null && (int) $cell->state === 1, 'id' => $cell?->id,
+                    'manageable' => $cell !== null && in_array($column->id, $tickable[(int) $project->city_id] ?? [], true),
                 ];
             }
 
@@ -411,42 +252,52 @@ final class TaskBoardService
         });
     }
 
-    /** @return array<int, string> project id → distinct linked people, joined as the desktop's GROUP_CONCAT */
-    private function names(array $projectIds): array
+    /**
+     * "My tasks": the open tasks the account is responsible for, on the projects the boards list, grouped by project, newest project first.
+     *
+     * @return array{cities: Collection, projects: Collection, total: int, responsible: bool}
+     */
+    public function mine(WebAccount $account): array
     {
-        return array_map(fn ($entry) => implode(',', $entry['names']), $this->people($projectIds));
-    }
-
-    /** @return array<int, array{names: list<string>, mobile: ?string}> */
-    private function people(array $projectIds): array
-    {
-        $projectRef = $this->tables->relation('person_microproject', 'MicroProject_ID');
-        $personRef = $this->tables->relation('person_microproject', 'Person_ID');
-        $links = $this->tables->query('person_microproject')->whereIn('p.'.$projectRef['resolved_column'], $projectIds)->where('p.'.$projectRef['state_column'], 'resolved')
-            ->where('p.'.$personRef['state_column'], 'resolved')->orderBy('p.id')->get();
-        $links = $links->sortBy(fn ($link) => ['مستفيد' => 0, 'شريك' => 1][$link->c_PersonType ?? ''] ?? 2)->values();
-        $people = $links->isEmpty() ? collect() : $this->tables->query('person')->whereIn('p.id', $links->pluck($personRef['resolved_column'])->unique()->all())->get()->keyBy('id');
-        $result = [];
-        foreach ($links as $link) {
-            $person = $people->get((int) $link->{$personRef['resolved_column']});
-            $project = (int) $link->{$projectRef['resolved_column']};
-            if ($person === null) {
+        $permitted = $this->cities($account);
+        if ($permitted->isEmpty()) {
+            $this->audit->record($account->id, 'access.denied', 'denied');
+            abort(403);
+        }
+        $this->audit->record($account->id, 'tasks.mine', 'succeeded');
+        $en = app()->isLocale('en');
+        $ids = $permitted->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $assigned = DB::table('account_city_tasks')->where('account_id', $account->id)->whereIn('city_id', $ids)->whereNull('revoked_at')->get(['city_id', 'task_definition_id']);
+        $funded = $this->fundedStates();
+        $rows = collect();
+        foreach ($assigned->groupBy('city_id') as $city => $list) {
+            // Only tasks of the permitted board columns that the account may still tick.
+            $tickable = $this->tasks->tickable($account, (int) $city);
+            $defs = $list->pluck('task_definition_id')->map(fn ($id) => (int) $id)->intersect($tickable)->values()->all();
+            if ($defs === []) {
                 continue;
             }
-            $name = trim(($person->c_P_FirstName ?? '').' '.($person->c_P_LastName ?? '').' ابن/ة '.($person->c_P_FatherName ?? ''));
-            $result[$project]['names'] ??= [];
-            if (! in_array($name, $result[$project]['names'], true)) {
-                $result[$project]['names'][] = $name;
-            }
-            $result[$project]['mobile'] ??= ($person->c_P_Mobile ?? '') !== '' ? (string) $person->c_P_Mobile : null;
+            $found = DB::table('project_tasks as t')->join('task_definitions as d', 'd.id', '=', 't.task_definition_id')->join('projects as p', 'p.id', '=', 't.project_id')->join('cities as ci', 'ci.id', '=', 'p.city_id')
+                ->where('p.city_id', (int) $city)->whereNull('p.deleted_at')->whereNull('t.deleted_at')->where('t.state', 0)->whereIn('t.task_definition_id', $defs)->where('d.state', 1)
+                ->whereExists(fn (Builder $s) => $s->selectRaw('1')->from('project_state_history as h')->whereColumn('h.project_id', 'p.id')->where('h.is_current', true)->whereNull('h.deleted_at')
+                    ->when(true, fn ($q) => $q->where(fn ($w) => $w->where('d.type', 'a')->orWhereIn('h.project_state_id', $funded ?: [0]))))
+                ->orderByDesc('p.project_number')->orderBy('d.sort_order')
+                ->get(['t.id as cell', 'p.id as project', 'p.project_number', 'p.name', 'ci.code', 'ci.name_en as city_en', 'ci.name_ar as city_ar', 'd.name_ar', 'd.name_en', 'd.type']);
+            $rows = $rows->concat($found);
         }
+        $names = DB::table('project_applicants as a')->join('people as pe', 'pe.id', '=', 'a.person_id')->whereIn('a.project_id', $rows->pluck('project')->unique()->all() ?: [0])->whereNull('a.deleted_at')
+            ->orderByRaw("CASE WHEN a.role = 'مستفيد' THEN 0 ELSE 1 END")->orderBy('a.id')->get(['a.project_id', 'pe.first_name', 'pe.last_name'])->groupBy('project_id')
+            ->map(fn ($g) => trim(($g->first()->first_name ?? '').' '.($g->first()->last_name ?? '')));
+        $projects = $rows->groupBy('project')->map(function ($group) use ($names, $en) {
+            $first = $group->first();
 
-        return $result;
-    }
+            return (object) [
+                'id' => (int) $first->project, 'display' => ProjectNumberAllocator::display((string) $first->code, (int) $first->project_number), 'name' => $first->name,
+                'city' => $en ? $first->city_en : $first->city_ar, 'beneficiary' => $names[$first->project] ?? '',
+                'tasks' => $group->map(fn ($t) => (object) ['cell' => (int) $t->cell, 'label' => $en && $t->name_en ? $t->name_en : $t->name_ar, 'kind' => $t->type])->values(),
+            ];
+        })->values();
 
-    /** A contains-pattern for `LIKE … ESCAPE '!'`, which behaves the same on MySQL and SQLite. */
-    private function like(string $value): string
-    {
-        return '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value).'%';
+        return ['permitted' => $permitted, 'projects' => $projects, 'total' => $rows->count(), 'responsible' => $assigned->isNotEmpty()];
     }
 }

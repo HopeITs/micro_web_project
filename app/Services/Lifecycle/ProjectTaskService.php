@@ -7,6 +7,7 @@ namespace App\Services\Lifecycle;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
+use App\Services\Staff\NoticeService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +19,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class ProjectTaskService
 {
-    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private LifecycleService $lifecycle) {}
+    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private LifecycleService $lifecycle, private NoticeService $notices) {}
+
+    /** The task whose completion tells the city's communication staff that the purchases are finished (desktop header "مشتريات"). */
+    public const PURCHASES_NAME = 'مشتريات';
 
     public function canView(WebAccount $account, int $city): bool
     {
@@ -81,6 +85,16 @@ final class ProjectTaskService
             return;
         }
         DB::table('project_tasks')->where('id', $task->id)->update(['state' => $done ? 1 : 0, 'task_date' => now(), 'updated_at' => now()]);
+        if ($task->name_ar === self::PURCHASES_NAME) {
+            // Finished purchases notify the communication staff; reopening the task clears those notices again (desktop TaskBoard).
+            if ($done) {
+                $names = DB::table('project_applicants as a')->join('people as pe', 'pe.id', '=', 'a.person_id')->where('a.project_id', $projectId)->whereNull('a.deleted_at')->orderBy('a.id')
+                    ->get(['pe.first_name', 'pe.last_name'])->map(fn ($p) => trim($p->first_name.' '.$p->last_name))->unique()->implode(',');
+                $this->notices->broadcast($city, 0, $project, 'communication', NoticeService::PURCHASES, now()->toDateString(), $names, 'انتهاء المشتريات', $account->id);
+            } else {
+                $this->notices->setSeenForProject($project, NoticeService::PURCHASES, 1);
+            }
+        }
         $this->audit->record($account->id, 'tasks.toggled', 'succeeded', $city, subjectType: 'application_entity', subjectId: $projectId,
             details: [['field' => 'task', 'before' => $task->name_ar.' — '.__($done ? 'lifecycle.tasks.open' : 'lifecycle.tasks.done', [], 'ar'), 'after' => $task->name_ar.' — '.__($done ? 'lifecycle.tasks.done' : 'lifecycle.tasks.open', [], 'ar')]]);
     }

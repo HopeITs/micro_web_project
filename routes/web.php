@@ -59,7 +59,8 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
             Route::get('/applications/{project}/edit', [ApplicationController::class, 'edit'])->whereNumber('project')->name('applications.edit');
             Route::get('/applications/{project}/annex', [ApplicationController::class, 'annex'])->whereNumber('project')->name('applications.annex');
-            // M4.7 checklist and assessment (ChecklistService rechecks assessments.view / assessments.manage).
+            // M4.7 checklist and assessment (ChecklistService rechecks assessments.view / assessments.manage); the general list is the sidebar page.
+            Route::get('/checklists', [\App\Http\Controllers\ChecklistListController::class, 'index'])->name('checklists.index');
             Route::get('/applications/{project}/checklist', [ChecklistController::class, 'show'])->whereNumber('project')->name('checklists.show');
             Route::get('/applications/{project}/checklist/print', [ChecklistController::class, 'print'])->whereNumber('project')->name('checklists.print');
 

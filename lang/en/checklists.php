@@ -2,6 +2,13 @@
 
 return [
     'title' => 'Checklist and assessment', 'intro' => "The beneficiary's visits, test and training, the team and committee opinions, and the need assessment. Each yes/no question opens its details below it.",
+    'list' => [
+        'title' => 'Checklists', 'intro' => 'Every checklist recorded in your cities. Open one to edit it, or start a new checklist by choosing the project by its number or the beneficiary name.',
+        'add' => 'New checklist', 'q' => 'Search', 'q_placeholder' => 'Project number, beneficiary or project name', 'filter' => 'Show', 'clear' => 'Clear', 'total' => ':count results',
+        'none' => 'No matching checklists', 'none_hint' => 'Start a new checklist with the button above, or change the search.',
+        'number' => 'Project no.', 'beneficiary' => 'Beneficiary', 'project' => 'Project', 'state' => 'State', 'city' => 'City',
+        'home_visit' => 'Home visit', 'project_visit' => 'Shop visit', 'team' => 'Team meeting', 'committee' => 'Committee meeting',
+    ],
     'sections' => ['visits' => 'Visits', 'experience' => 'Experience and training', 'need' => 'Need assessment', 'decision' => 'Notes and decision'],
     'lists' => ['key_people' => 'Key persons', 'team' => 'Team opinion', 'committee' => 'Committee opinion'],
     'fields' => [

@@ -7,7 +7,7 @@ return [
     'new' => 'New case', 'edit_title' => 'Edit the case', 'edit' => 'Edit', 'save' => 'Save', 'cancel' => 'Cancel', 'delete' => 'Delete',
     'recorded' => 'Recorded cases (:count)', 'none' => 'No special cases for this project.', 'none_hint' => 'Record the first case with the form above.',
     'hidden_type' => 'hidden',
-    'saved' => 'The case was recorded. You can add a new one.', 'deleted' => 'The case was deleted.',
+    'saved' => 'The case was recorded. The form is ready for another case on this project.', 'add_another' => 'Add another case to this project', 'deleted' => 'The case was deleted.',
     'delete_confirm' => 'Are you sure you want to delete this case? The deletion cannot be undone.',
     'fields' => ['date' => 'Date', 'recorder' => 'Recorded by', 'type' => 'Type', 'reason' => 'Reason', 'description' => 'Details', 'action' => 'Action taken'],
     'errors' => [
@@ -20,6 +20,7 @@ return [
     'columns' => ['city' => 'City', 'number' => 'Project number', 'beneficiary' => 'Beneficiary', 'father' => "Father's name", 'career' => 'Career', 'category' => 'Category', 'subcategory' => 'Sub-category',
         'date' => 'Date', 'recorder' => 'Recorded by', 'type' => 'Type', 'reason' => 'Reason', 'description' => 'Details', 'action' => 'Action taken'],
     'list' => [
+        'add' => 'New special case',
         'title' => 'Special cases', 'intro' => 'Every special case in the cities you may read, newest first.',
         'from' => 'From', 'to' => 'To', 'state' => 'Project state', 'all' => 'All', 'q' => 'Search', 'q_placeholder' => 'Reason, details, action, beneficiary or project number',
         'total' => ':count cases', 'clear' => 'Clear filters', 'none' => 'No matching cases.', 'none_hint' => 'Change or clear the filters.',

@@ -57,6 +57,7 @@ return [
     // F3 Ctrl+K search
     'cmdk_trigger' => 'ابحث عن شخص أو مشروع أو صفحة', 'cmdk_title' => 'البحث السريع', 'cmdk_placeholder' => 'اسم، رقم وطني، رقم مشروع مثل DAM-1001، أو صفحة…',
     'cmdk_recent' => 'فتحتها مؤخراً', 'cmdk_commands' => 'إجراءات', 'cmdk_projects' => 'المشاريع', 'cmdk_people' => 'الأشخاص', 'cmdk_pages' => 'الصفحات',
+    'picker_placeholder' => 'رقم المشروع (مثل DAM-1041) أو اسم المستفيد', 'picker_choose' => 'اختر المشروع', 'picker_hint' => 'اكتب رقم المشروع أو جزءاً من اسم المستفيد أو اسم المشروع.', 'picker_none' => 'لا يوجد مشروع مطابق في المدن التي تملك فيها صلاحية الإضافة.',
     'cmdk_none_title' => 'لا توجد نتائج', 'cmdk_none' => 'جرّب جزءاً من الاسم، أو الرقم الوطني، أو رقم المشروع.', 'cmdk_move' => 'للتنقل', 'cmdk_open' => 'للفتح', 'cmdk_close' => 'للإغلاق',
     'cmd_new_application' => 'طلب جديد', 'cmd_new_person' => 'إضافة شخص', 'cmd_national_check' => 'فحص رقم وطني', 'cmd_change_password' => 'تغيير كلمة المرور',
     'path_group_intake' => 'تسجيل', 'path_group_assessment' => 'دراسة', 'path_group_decision' => 'قرار (مؤجل)', 'path_group_funding' => 'تمويل', 'path_group_followup' => 'متابعة', 'path_group_closing' => 'انتهاء', 'path_group_stopped' => 'متوقف',

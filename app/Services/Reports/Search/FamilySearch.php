@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Reports\Search;
 
+use App\Support\ArabicSearch;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
- * "Family Members" (`Search_Form.FamilyMember_bind`): every person with their family book, relation, residence state, work and project
- * link. As in the desktop's left joins, a person with several family links or projects appears once for each combination, and a person
- * with none appears once with those columns blank.
+ * "Family members" (desktop `FamilyMember_bind`): every person with the family book, relation, residence state, work and the project of the
+ * family's provider. As in the desktop's left joins a person with several family links or projects appears once for each. No project
+ * filters apply (the rows are people); the text box searches names, the national number, the family number and the person number.
  */
 final class FamilySearch extends SearchMode
 {
@@ -19,86 +21,98 @@ final class FamilySearch extends SearchMode
         return 'family';
     }
 
-    protected function capabilities(): array
+    public function group(): string
+    {
+        return 'applications';
+    }
+
+    public function capabilities(): array
     {
         return ['people.view'];
     }
 
-    public function filters(): array
+    public function filterKind(): string
     {
-        return ['q'];
+        return 'none';
     }
 
-    public function headings(): array
+    public function hasProject(): bool
     {
-        return ['City', 'Person number', 'Family book number', 'Person', 'Father', 'Mother', 'Relation', 'National number', 'Sex', 'Date of birth', 'Residence state', 'Works', 'Work', 'Project number', 'Family number'];
+        return false;
+    }
+
+    public function columns(): array
+    {
+        return ['person_number', 'family_number', 'person', 'father', 'mother', 'relation', 'national_number', 'sex', 'birth_date', 'person_state', 'works', 'work', 'project_number'];
     }
 
     public function numeric(): array
     {
-        return [1, 2, 13, 14];
+        return [1];
     }
 
-    protected function query(array $cityIds, array $filters): Builder
+    public function sensitive(): array
     {
-        $family = fn (string $key) => $this->tables->relation('person_family', $key);
-        $link = fn (string $key) => $this->tables->relation('person_microproject', $key);
-        $scope = fn (string $alias, string $parent) => fn ($join) => $join->on($alias.'.city_id', '=', $parent.'.city_id')->on($alias.'.source_id', '=', $parent.'.source_id');
-        $personState = $this->tables->relation('person', 'P_State_ID');
+        return [7];
+    }
 
-        $query = $this->tables->query('person')->whereIn('p.city_id', $cityIds)
-            ->leftJoin('op_person_family as pf', fn ($j) => $scope('pf', 'p')($j->on('pf.'.$family('Person_ID')['resolved_column'], '=', 'p.id')->where('pf.'.$family('Person_ID')['state_column'], 'resolved')))
-            ->leftJoin('op_family as f', fn ($j) => $scope('f', 'pf')($j->on('f.id', '=', 'pf.'.$family('Family_ID')['resolved_column'])->where('pf.'.$family('Family_ID')['state_column'], 'resolved')))
-            ->leftJoin('op_person_microproject as l', fn ($j) => $scope('l', 'p')($j->on('l.'.$link('Person_ID')['resolved_column'], '=', 'p.id')->where('l.'.$link('Person_ID')['state_column'], 'resolved')))
-            ->leftJoin('op_microproject as m', fn ($j) => $scope('m', 'l')($j->on('m.id', '=', 'l.'.$link('MicroProject_ID')['resolved_column'])->where('l.'.$link('MicroProject_ID')['state_column'], 'resolved')))
-            ->addSelect([
-                'p.'.$personState['resolved_column'].' as person_state_id', 'pf.'.$family('Relation_ID')['resolved_column'].' as relation_id',
-                'pf.c_HasWork as has_work', 'pf.c_Work_Name as work_name', 'pf.c_Family_ID as legacy_family_id', 'f.c_F_Number as family_book', 'm.c_MP_ID as project_number',
-            ]);
+    public function linkColumn(): int
+    {
+        return 3;
+    }
 
-        $search = trim((string) ($filters['q'] ?? ''));
-        if ($search !== '') {
-            $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_substr($search, 0, 200)).'%';
-            $query->where(function (Builder $q) use ($like, $search) {
-                foreach (['p.c_P_FirstName', 'p.c_P_LastName', 'p.c_P_FatherName', 'p.c_P_MotherName', 'p.c_P_NationalNumber', 'f.c_F_Number'] as $column) {
-                    $q->orWhereRaw($column." LIKE ? ESCAPE '!'", [$like]);
-                }
-                if (ctype_digit($search) && strlen($search) <= 10) {
-                    $q->orWhere('p.c_P_ID', (int) $search);
+    public function query(array $cityIds, array $filters): Builder
+    {
+        $q = DB::table('family_members as fm')->join('people as pe', 'pe.id', '=', 'fm.person_id')->join('families as f', 'f.id', '=', 'fm.family_id')
+            ->join('cities as ci', 'ci.id', '=', 'pe.city_id')
+            ->leftJoin('project_applicants as a', fn ($j) => $j->on('a.person_id', '=', DB::raw('COALESCE(fm.provider_person_id, fm.person_id)'))->whereNull('a.deleted_at'))
+            ->leftJoin('projects as p', fn ($j) => $j->on('p.id', '=', 'a.project_id')->whereNull('p.deleted_at'))
+            ->whereIn('pe.city_id', $cityIds === [] ? [0] : $cityIds)->whereNull('fm.deleted_at')->whereNull('pe.deleted_at')->whereNull('f.deleted_at')
+            ->addSelect(['fm.id as member_id', 'p.id as project_id', 'pe.city_id', 'pe.id as person_id', 'p.project_number', 'ci.code', 'ci.name_ar as city_ar', 'ci.name_en as city_en',
+                'f.family_number', 'pe.first_name', 'pe.last_name', 'pe.father_name', 'pe.mother_name', 'pe.national_number', 'pe.sex', 'pe.birth_date', 'fm.has_work', 'fm.work_name']);
+        $this->lookup($q, 'relations', 'rl', 'fm.relation_id', 'relation');
+        $this->lookup($q, 'person_states', 'ps', 'pe.person_state_id', 'pstate');
+
+        $term = (string) ($filters['q'] ?? '');
+        if ($term !== '') {
+            $q->where(function ($w) use ($term) {
+                foreach (array_slice(preg_split('/\s+/u', $term, -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 5) as $word) {
+                    $w->where(function ($n) use ($word) {
+                        foreach (['pe.first_name', 'pe.last_name', 'pe.father_name', 'pe.mother_name'] as $column) {
+                            ArabicSearch::orWhereLike($n, $column, $word);
+                        }
+                        $n->orWhere('pe.national_number', 'like', '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%')
+                            ->orWhere('f.family_number', 'like', '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%');
+                        if (ctype_digit($word) && strlen($word) <= 10) {
+                            $n->orWhere('pe.id', (int) $word);
+                        }
+                    });
                 }
             });
         }
 
-        return $query;
+        return $q;
     }
 
-    protected function order(Builder $query): Builder
+    public function order(Builder $query): Builder
     {
-        return $query->orderBy('p.city_id')->orderBy('p.id')->orderBy('pf.id')->orderBy('l.id');
+        return $query->orderBy('pe.city_id')->orderBy('pe.id')->orderBy('fm.id')->orderBy('a.id');
     }
 
-    protected function lines(Collection $rows): array
+    public function lines(Collection $rows): array
     {
-        $cityIds = $rows->pluck('city_id')->unique()->map(fn ($id) => (int) $id)->all();
-        $relations = $this->catalog('relation', $cityIds);
-        $states = $this->catalog('personstate', $cityIds);
-        $english = ! app()->isLocale('ar');
-        $label = fn (?object $row) => (string) ($row === null ? '' : ($english ? ($row->c_Name_en ?? $row->c_Name) : ($row->c_Name ?? $row->c_Name_en)));
+        $sex = ['male' => __('search.sex.male'), 'female' => __('search.sex.female')];
 
-        return $rows->map(fn ($row) => [
-            $row->city_name_en, $row->c_P_ID, $row->family_book, trim(($row->c_P_FirstName ?? '').' '.($row->c_P_LastName ?? '')), $row->c_P_FatherName, $row->c_P_MotherName,
-            $label($relations->get((int) ($row->relation_id ?? 0))), $row->c_P_NationalNumber, $row->c_P_Sex, $this->day($row->c_P_DOB ?? null),
-            $label($states->get((int) ($row->person_state_id ?? 0))),
-            match ((string) ($row->has_work ?? '')) {
-                '1' => 'Yes', '0' => 'No', default => ''
-            }, $row->work_name, $row->project_number, $row->legacy_family_id,
+        return $rows->map(fn ($r) => [
+            $r->person_id, (string) $r->family_number, $this->personName($r), (string) $r->father_name, (string) $r->mother_name, $this->name($r, 'relation'),
+            (string) $r->national_number, $sex[$r->sex] ?? '', $this->day($r->birth_date), $this->name($r, 'pstate'),
+            $r->has_work === null ? '' : ((int) $r->has_work === 1 ? __('search.yes') : __('search.no')), (string) $r->work_name,
+            $r->project_id === null ? '' : $this->number($r),
         ])->all();
     }
 
-    private function day(mixed $value): ?string
+    public function target(object $row): ?array
     {
-        $text = $value === null ? '' : substr((string) $value, 0, 10);
-
-        return $text === '' || str_starts_with($text, '0000') ? null : $text;
+        return ['person', (int) $row->person_id];
     }
 }

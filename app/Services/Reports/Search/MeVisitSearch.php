@@ -4,88 +4,82 @@ declare(strict_types=1);
 
 namespace App\Services\Reports\Search;
 
+use App\Services\Reports\ProjectReportFilters;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
- * "Monitoring Visits (1 to 5)" (`Search_Form.bind_NewVisits`): every M&E visit with its project and people (one line per project the visited
- * person is linked to), net profit, result and evaluation. The visitors' names are not shown (the desktop `user` table is not part of
- * the web data model); their marks are: the first and the last recorded visitor, which are the same when only one is recorded.
+ * "Monitoring visits (1 to 5)" (desktop `bind_NewVisits`): every M&E visit with its project and the visited person, net profit, result and
+ * the evaluation (the active `me_result_ranges` row holding the result), plus the marks of the first and the last recorded visitor (the same
+ * when only one is recorded). Switch "last visit only": the highest visit number of each person.
  */
 final class MeVisitSearch extends SearchMode
 {
-    use FiltersProjects;
-    use ReadsProjects;
-
     public function key(): string
     {
         return 'me-visits';
     }
 
-    protected function capabilities(): array
+    public function group(): string
     {
-        return ['me_visits.view', 'applications.view'];
+        return 'field';
     }
 
-    public function filters(): array
+    public function capabilities(): array
     {
-        return ['q', 'state', 'donor', 'group', 'request'];
+        return ['visits.view', 'me_visits.view'];
     }
 
-    public function headings(): array
+    public function hasLastSwitch(): bool
     {
-        return ['City', 'Project number', 'Beneficiary', 'Career', 'Visit date', 'Visit number', 'Visit type', 'Net profit', 'Result', 'Evaluation', 'Visitor 1 mark', 'Visitor 2 mark', 'Donor', 'Category', 'Sub category'];
+        return true;
+    }
+
+    public function columns(): array
+    {
+        return ['number', 'beneficiary', 'career', 'visit_date', 'visit_number', 'visit_kind', 'profit', 'result', 'evaluation', 'visitor1_mark', 'visitor2_mark', 'donor', 'category', 'subcategory'];
     }
 
     public function numeric(): array
     {
-        return [1, 5, 7, 8, 10, 11];
+        return [1, 5, 7, 8];
     }
 
-    protected function query(array $cityIds, array $filters): Builder
+    public function query(array $cityIds, array $filters): Builder
     {
-        $person = $this->relationOf('mevisit', 'Person_ID');
-        $linkPerson = $this->tables->relation('person_microproject', 'Person_ID');
-        $linkProject = $this->tables->relation('person_microproject', 'MicroProject_ID');
-        $query = $this->tables->query('mevisit')->whereIn('p.city_id', $cityIds)
-            ->leftJoin('op_person as pe', fn ($j) => $this->scoped('pe', 'p')($j->on('pe.id', '=', 'p.'.$person['resolved_column'])->where('p.'.$person['state_column'], 'resolved')))
-            ->leftJoin('op_person_microproject as l', fn ($j) => $this->scoped('l', 'pe')($j->on('l.'.$linkPerson['resolved_column'], '=', 'pe.id')->where('l.'.$linkPerson['state_column'], 'resolved')))
-            ->leftJoin('op_microproject as m', fn ($j) => $this->scoped('m', 'l')($j->on('m.id', '=', 'l.'.$linkProject['resolved_column'])->where('l.'.$linkProject['state_column'], 'resolved')))
-            ->addSelect(['m.c_MP_ID as project_number', 'pe.c_P_FirstName', 'pe.c_P_LastName', 'pe.c_P_FatherName'])
-            ->whereRaw('('.$this->currentStateSql().') is not null');
-        $this->selectProjectRefs($query, 'm', ['career_id' => 'Career_ID', 'category_id' => 'Category_ID', 'subcategory_id' => 'SubCategory_ID', 'donor_id' => 'MP_Donor']);
-        $this->applyProjectFilters($query, $cityIds, $filters);
+        $q = $this->joinProject(DB::table('me_visits as m')->whereNull('m.deleted_at'), 'm.project_id', $cityIds)
+            ->leftJoin('people as pe', fn ($j) => $j->on('pe.id', '=', 'm.person_id')->whereNull('pe.deleted_at'))
+            ->addSelect([...$this->baseColumns(), 'm.id as visit_id', 'm.visit_date', 'm.visit_number', 'm.kind', 'm.profit', 'm.result', 'pe.first_name', 'pe.last_name', 'pe.father_name']);
+        $this->lookup($q, 'careers', 'cr', 'p.career_id', 'career');
+        $this->lookup($q, 'donors', 'dn', 'p.donor_id', 'donor');
+        $this->lookup($q, 'project_categories', 'pc', 'p.project_category_id', 'category');
+        $this->lookup($q, 'project_subcategories', 'ps', 'p.project_subcategory_id', 'subcategory');
+        if ($filters['last'] ?? false) {
+            $q->whereNotExists(fn ($n) => $n->selectRaw('1')->from('me_visits as m2')->whereColumn('m2.person_id', 'm.person_id')->whereNull('m2.deleted_at')
+                ->where(fn ($w) => $w->whereColumn('m2.visit_number', '>', 'm.visit_number')->orWhere(fn ($same) => $same->whereColumn('m2.visit_number', 'm.visit_number')->whereColumn('m2.id', '>', 'm.id'))));
+        }
 
-        return $query;
+        return ProjectReportFilters::apply($q, $filters);
     }
 
-    protected function order(Builder $query): Builder
+    public function order(Builder $query): Builder
     {
-        return $query->orderBy('m.c_MP_ID')->orderBy('p.city_id')->orderBy('p.id')->orderBy('l.id');
+        return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('m.id');
     }
 
-    protected function lines(Collection $rows): array
+    public function lines(Collection $rows): array
     {
-        $cities = $rows->pluck('city_id')->unique()->map(fn ($id) => (int) $id)->all();
-        $careers = $this->catalog('career', $cities);
-        $categories = $this->catalog('category', $cities);
-        $subs = $this->catalog('subcategory', $cities);
-        $donors = $this->catalog('donor', $cities);
-        $visitRef = $this->relationOf('mevisit_user', 'Visit_ID');
-        $marks = $this->tables->query('mevisit_user')->whereIn('p.'.$visitRef['resolved_column'], $rows->pluck('id')->unique()->all())->where('p.'.$visitRef['state_column'], 'resolved')
-            ->orderBy('p.id')->get()->groupBy(fn ($m) => (int) $m->{$visitRef['resolved_column']});
-        $ranges = $this->tables->query('meresultranges')->whereIn('p.city_id', $cities)->orderBy('p.id')->get();
+        $marks = DB::table('me_visit_visitors')->whereIn('me_visit_id', $rows->pluck('visit_id')->all() ?: [0])->whereNull('deleted_at')->orderBy('id')->get(['me_visit_id', 'mark'])->groupBy('me_visit_id');
+        $ranges = DB::table('me_result_ranges')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
 
-        return $rows->map(function ($row) use ($careers, $categories, $subs, $donors, $marks, $ranges) {
-            $visitMarks = $marks->get((int) $row->id, collect());
-            $result = $row->c_Result;
-            $range = $result === null || $result === '' ? null : $ranges->first(fn ($r) => (int) $r->city_id === (int) $row->city_id && (float) $result >= (float) $r->c_Min && (float) $result <= (float) $r->c_Max);
+        return $rows->map(function ($r) use ($marks, $ranges) {
+            $mine = $marks->get($r->visit_id, collect());
+            $range = $r->result === null ? null : $ranges->first(fn ($x) => (int) $r->result >= (int) $x->min_value && (int) $r->result <= (int) $x->max_value);
 
-            return [
-                $row->city_name_en, $row->project_number, $this->personName($row, true), $this->nameOf($careers, $row->career_id), $this->day($row->c_Date ?? null), $row->c_Number,
-                strtolower((string) $row->c_Kind) === 'v' ? 'Vehicles' : 'Other projects', $row->c_Profit, $result, $range === null ? '' : $range->c_Evaluation.'/'.$range->c_Evaluation_en,
-                $visitMarks->first()->c_Mark ?? '', $visitMarks->last()->c_Mark ?? '', $this->nameOf($donors, $row->donor_id), $this->nameOf($categories, $row->category_id), $this->nameOf($subs, $row->subcategory_id),
-            ];
+            return [$this->number($r), $this->personName($r, true), $this->name($r, 'career'), $this->day($r->visit_date), (string) $r->visit_number,
+                strtolower((string) $r->kind) === 'v' ? __('search.me_kind.v') : __('search.me_kind.o'), $r->profit ?? '', $r->result ?? '', $this->pick($range),
+                (string) ($mine->first()->mark ?? ''), (string) ($mine->last()->mark ?? ''), $this->name($r, 'donor'), $this->name($r, 'category'), $this->name($r, 'subcategory')];
         })->all();
     }
 }

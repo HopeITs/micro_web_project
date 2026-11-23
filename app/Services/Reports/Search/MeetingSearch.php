@@ -4,76 +4,94 @@ declare(strict_types=1);
 
 namespace App\Services\Reports\Search;
 
+use App\Services\Reports\ProjectReportFilters;
+use App\Support\ArabicSearch;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
- * "Profession Meetings" (`Search_Form.bind_ProfessionMeetings`): meetings with career, category, place and attendance, newest first,
- * filtered by meeting date. The registrars' names are not shown: the desktop `user` table is not part of the web data model.
+ * "Profession meetings" (desktop `bind_ProfessionMeetings`): meetings with career, category, place and attendance, newest first. Filters: category,
+ * sub category, career (the meeting's own, or any of its extra careers) and the meeting date range; the text box searches the place and the names of
+ * the career, the sub category and the category. There is no project, so the project filters are not offered.
  */
 final class MeetingSearch extends SearchMode
 {
-    use ReadsProjects;
-
     public function key(): string
     {
         return 'meetings';
     }
 
-    protected function capabilities(): array
+    public function group(): string
+    {
+        return 'field';
+    }
+
+    public function capabilities(): array
     {
         return ['profession_meetings.view'];
     }
 
-    public function filters(): array
+    public function filterKind(): string
     {
-        return ['meeting'];
+        return 'meeting';
     }
 
-    public function headings(): array
+    public function hasProject(): bool
     {
-        return ['City', 'Meeting number', 'Meeting date', 'Career', 'Career (Arabic)', 'Category', 'Sub category', 'Place', 'Invited', 'Attended', 'Absent'];
+        return false;
+    }
+
+    public function columns(): array
+    {
+        return ['meeting_id', 'meeting_date', 'career', 'category', 'subcategory', 'place', 'invited', 'attended', 'absent'];
     }
 
     public function numeric(): array
     {
-        return [1, 8, 9, 10];
+        return [1, 7, 8, 9];
     }
 
-    protected function query(array $cityIds, array $filters): Builder
+    public function target(object $row): ?array
     {
-        $query = $this->tables->query('profession_meeting')->whereIn('p.city_id', $cityIds)
-            ->addSelect(['p.'.$this->relationOf('profession_meeting', 'Career_ID')['resolved_column'].' as career_id', 'p.'.$this->relationOf('profession_meeting', 'SubCategory_ID')['resolved_column'].' as subcategory_id']);
-        foreach ([['meeting_from', '>='], ['meeting_to', '<=']] as [$key, $operator]) {
-            if (($filters[$key] ?? '') !== '') {
-                $query->where('p.c_MeetingDate', $operator, $filters[$key]);
+        return ['meeting', (int) $row->meeting_id];
+    }
+
+    public function query(array $cityIds, array $filters): Builder
+    {
+        $f = ProjectReportFilters::clean($filters);
+        $q = DB::table('profession_meetings as m')->join('cities as ci', 'ci.id', '=', 'm.city_id')->whereNull('m.deleted_at')->whereIn('m.city_id', $cityIds === [] ? [0] : $cityIds)
+            ->addSelect(['m.id as meeting_id', 'm.city_id', DB::raw('NULL as project_id'), 'ci.code', 'ci.name_ar as city_ar', 'ci.name_en as city_en', 'm.meeting_date', 'm.place', 'm.invited_count', 'm.attendance_count', 'm.absence_count']);
+        $this->lookup($q, 'careers', 'cr', 'm.career_id', 'career');
+        $this->lookup($q, 'project_subcategories', 'ps', 'm.project_subcategory_id', 'subcategory');
+        $this->lookup($q, 'project_categories', 'pc', 'ps.project_category_id', 'category');
+        $f['career'] !== [] && $q->where(fn ($w) => $w->whereIn('m.career_id', $f['career'])->orWhereExists(fn ($e) => $e->selectRaw('1')->from('profession_meeting_careers as mc')
+            ->whereColumn('mc.profession_meeting_id', 'm.id')->whereNull('mc.deleted_at')->whereIn('mc.career_id', $f['career'])));
+        $f['subcategory'] !== [] && $q->whereIn('m.project_subcategory_id', $f['subcategory']);
+        $f['category'] !== [] && $q->whereIn('ps.project_category_id', $f['category']);
+        $f['meeting_from'] !== '' && $q->where('m.meeting_date', '>=', $f['meeting_from']);
+        $f['meeting_to'] !== '' && $q->where('m.meeting_date', '<=', $f['meeting_to']);
+        if ($f['q'] !== '') {
+            foreach (array_slice(preg_split('/\s+/u', $f['q'], -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 5) as $word) {
+                $q->where(function ($w) use ($word) {
+                    foreach (['m.place', 'cr.name_ar', 'cr.name_en', 'ps.name_ar', 'ps.name_en', 'pc.name_ar', 'pc.name_en'] as $column) {
+                        ArabicSearch::orWhereLike($w, $column, $word);
+                    }
+                });
             }
         }
 
-        return $query;
+        return $q;
     }
 
-    protected function order(Builder $query): Builder
+    public function order(Builder $query): Builder
     {
-        return $query->orderByDesc('p.c_MeetingDate')->orderByDesc('p.c_ID')->orderBy('p.id');
+        return $query->orderByDesc('m.meeting_date')->orderByDesc('m.id');
     }
 
-    protected function lines(Collection $rows): array
+    public function lines(Collection $rows): array
     {
-        $cities = $rows->pluck('city_id')->unique()->map(fn ($id) => (int) $id)->all();
-        $careers = $this->catalog('career', $cities);
-        $subs = $this->catalog('subcategory', $cities);
-        $categories = $this->catalog('category', $cities);
-        $categoryRef = $this->tables->relation('subcategory', 'Category_ID')['resolved_column'];
-
-        return $rows->map(function ($row) use ($careers, $subs, $categories, $categoryRef) {
-            $sub = $subs->get((int) ($row->subcategory_id ?? 0));
-
-            return [
-                $row->city_name_en, $row->c_ID, $this->day($row->c_MeetingDate ?? null), $this->nameOf($careers, $row->career_id, 'c_Name_en'), $this->nameOf($careers, $row->career_id),
-                $sub === null ? '' : $this->nameOf($categories, $sub->{$categoryRef} ?? null), (string) ($sub->c_Name ?? ''), $row->c_Place ?? '',
-                (int) ($row->c_InvitedCount ?? 0), (int) ($row->c_AttendanceCount ?? 0), (int) ($row->c_AbsenceCount ?? 0),
-            ];
-        })->all();
+        return $rows->map(fn ($r) => [$r->meeting_id, $this->day($r->meeting_date), $this->name($r, 'career'), $this->name($r, 'category'), $this->name($r, 'subcategory'),
+            (string) $r->place, (int) ($r->invited_count ?? 0), (int) ($r->attendance_count ?? 0), (int) ($r->absence_count ?? 0)])->all();
     }
 }

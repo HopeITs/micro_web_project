@@ -4,76 +4,69 @@ declare(strict_types=1);
 
 namespace App\Services\Reports\Search;
 
+use App\Services\Reports\ProjectReportFilters;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 
 /**
- * "Special Cases" (`Search_Form.bind_SpecialCases`): every special-case review with its project and people (one line per linked person, as
- * in the desktop's joins). The reviewer's name is not shown: the desktop `user` table is not part of the web data model.
+ * "Special cases" (desktop `bind_SpecialCases`): the same rows and columns as the special cases list (App\Services\Field\SpecialCaseListService:
+ * case date, recorder, type, reason, description, action, the beneficiary and the project's career and categories), with the common project
+ * filters. (The list's own query is private to that service, so this mode repeats its joins and takes the filters from ProjectReportFilters.)
  */
 final class SpecialCaseSearch extends SearchMode
 {
-    use FiltersProjects;
-    use ReadsProjects;
-
     public function key(): string
     {
         return 'special-cases';
     }
 
-    protected function capabilities(): array
+    public function group(): string
+    {
+        return 'field';
+    }
+
+    public function capabilities(): array
     {
         return ['special_cases.view', 'applications.view'];
     }
 
-    public function filters(): array
+    public function columns(): array
     {
-        return ['q', 'state', 'donor', 'group', 'request'];
+        return ['number', 'beneficiary', 'father', 'career', 'category', 'subcategory', 'case_date', 'recorder', 'case_type', 'reason', 'description', 'action'];
     }
 
-    public function headings(): array
+    public function target(object $row): ?array
     {
-        return ['City', 'Project number', 'Beneficiary', 'Father', 'Career', 'Category', 'Sub category', 'Review date', 'Review type', 'Reason', 'Description', 'Action'];
+        return ['special-cases', (int) $row->project_id];
     }
 
-    public function numeric(): array
+    public function query(array $cityIds, array $filters): Builder
     {
-        return [1];
+        $q = $this->projectBase($cityIds)->join('special_cases as s', fn ($j) => $j->on('s.project_id', '=', 'p.id')->whereNull('s.deleted_at'))
+            ->leftJoin('web_accounts as w', 'w.id', '=', 's.account_id')
+            ->addSelect([...$this->baseColumns(), 's.id as case_id', 's.case_date', 's.reason', 's.description', 's.action', 'w.username as recorder']);
+        $this->lookup($q, 'special_case_types', 't', 's.special_case_type_id', 'type');
+        $this->lookup($q, 'careers', 'cr', 'p.career_id', 'career');
+        $this->lookup($q, 'project_categories', 'pc', 'p.project_category_id', 'category');
+        $this->lookup($q, 'project_subcategories', 'ps', 'p.project_subcategory_id', 'subcategory');
+
+        return ProjectReportFilters::apply($q, $filters);
     }
 
-    protected function query(array $cityIds, array $filters): Builder
+    public function order(Builder $query): Builder
     {
-        $project = $this->relationOf('specialcase', 'MicroProject_ID');
-        $linkProject = $this->tables->relation('person_microproject', 'MicroProject_ID');
-        $linkPerson = $this->tables->relation('person_microproject', 'Person_ID');
-        $query = $this->tables->query('specialcase')->whereIn('p.city_id', $cityIds)
-            ->join('op_microproject as m', fn ($j) => $this->scoped('m', 'p')($j->on('m.id', '=', 'p.'.$project['resolved_column'])->where('p.'.$project['state_column'], 'resolved')))
-            ->leftJoin('op_person_microproject as l', fn ($j) => $this->scoped('l', 'm')($j->on('l.'.$linkProject['resolved_column'], '=', 'm.id')->where('l.'.$linkProject['state_column'], 'resolved')))
-            ->leftJoin('op_person as pe', fn ($j) => $this->scoped('pe', 'l')($j->on('pe.id', '=', 'l.'.$linkPerson['resolved_column'])->where('l.'.$linkPerson['state_column'], 'resolved')))
-            ->addSelect(['m.c_MP_ID as project_number', 'pe.c_P_FirstName', 'pe.c_P_LastName', 'pe.c_P_FatherName', 'p.'.$this->relationOf('specialcase', 'Type_ID')['resolved_column'].' as type_id'])
-            ->whereRaw('('.$this->currentStateSql().') is not null');
-        $this->selectProjectRefs($query, 'm', ['career_id' => 'Career_ID', 'category_id' => 'Category_ID', 'subcategory_id' => 'SubCategory_ID']);
-        $this->applyProjectFilters($query, $cityIds, $filters);
-
-        return $query;
+        return $query->orderByDesc('s.case_date')->orderBy('p.city_id')->orderByDesc('s.id');
     }
 
-    protected function order(Builder $query): Builder
+    public function lines(Collection $rows): array
     {
-        return $query->orderByDesc('p.c_Date')->orderBy('p.city_id')->orderBy('p.id')->orderBy('l.id');
-    }
+        $people = $this->applicants($rows->pluck('project_id')->all());
 
-    protected function lines(Collection $rows): array
-    {
-        $cities = $rows->pluck('city_id')->unique()->map(fn ($id) => (int) $id)->all();
-        $types = $this->catalog('specialcasetype', $cities);
-        $careers = $this->catalog('career', $cities);
-        $categories = $this->catalog('category', $cities);
-        $subs = $this->catalog('subcategory', $cities);
+        return $rows->map(function ($r) use ($people) {
+            $first = $people[$r->project_id]['first'] ?? null;
 
-        return $rows->map(fn ($row) => [
-            $row->city_name_en, $row->project_number, $this->personName($row), $row->c_P_FatherName, $this->nameOf($careers, $row->career_id), $this->nameOf($categories, $row->category_id),
-            $this->nameOf($subs, $row->subcategory_id), $this->day($row->c_Date ?? null), $this->nameOf($types, $row->type_id), $row->c_Reason, $row->c_Description, $row->c_Action,
-        ])->all();
+            return [$this->number($r), $this->personName($first), (string) ($first->father_name ?? ''), $this->name($r, 'career'), $this->name($r, 'category'), $this->name($r, 'subcategory'),
+                $this->day($r->case_date), (string) $r->recorder, $this->name($r, 'type'), (string) $r->reason, (string) $r->description, (string) $r->action];
+        })->all();
     }
 }

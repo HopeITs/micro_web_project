@@ -94,8 +94,8 @@ final class ApplicationFields
         'has_illness' => ['grid' => 'illnesses'],
         'has_assets' => ['grid' => 'assets'],
         'has_aid_sources' => ['grid' => 'aid_sources', 'fields' => ['aid_source_note']],
-        'has_help' => ['grid' => 'aid_received'],
         'has_debts' => ['fields' => ['debts_amount', 'debts_note']],
+        'has_help' => ['grid' => 'aid_received'],
     ];
 
     /** Whether a grid row is governed by its question (all rows, or those matching `only`). */

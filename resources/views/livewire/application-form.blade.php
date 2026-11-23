@@ -151,6 +151,13 @@
             </div>
             @endif
 
+            {{-- Desktop family block: the family table comes before the loss, illness and property questions. --}}
+            @if($group === 'family')
+                @foreach(array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
+                    @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
+                @endforeach
+            @endif
+
             {{-- Each yes/no question with what it opens, right under it. --}}
             @foreach(array_intersect_key($switches, $fields) as $switch => $rule)
                 @php($yes = ($form['applicant'][$switch] ?? '') === '1')
@@ -184,21 +191,20 @@
                         @endif
                     @endif
                 </div>
+                {{-- Desktop work block: "works now", its table, then the years of experience, then education and courses. --}}
+                @if($plain !== [] && $group === 'work' && $switch === 'has_work')
+                <div class="hc-form-grid">
+                @foreach($plain as $field => $spec)
+                    <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
+                        @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
+                    </x-hc.field>
+                @endforeach
+                </div>
+                @endif
             @endforeach
-
-            {{-- Desktop work block: the "works now" question and its table come first, the years of experience after them. --}}
-            @if($plain !== [] && $group === 'work')
-            <div class="hc-form-grid">
-            @foreach($plain as $field => $spec)
-                <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
-                    @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
-                </x-hc.field>
-            @endforeach
-            </div>
-            @endif
 
             {{-- Tables of the section that no question governs. --}}
-            @foreach(array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
+            @foreach($group === 'family' ? [] : array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
                 @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
             @endforeach
         </x-hc.section>

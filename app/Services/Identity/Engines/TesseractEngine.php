@@ -43,6 +43,11 @@ final class TesseractEngine implements IdentityEngine
         }
     }
 
+    public function passes(): int
+    {
+        return (int) config('identity_reader.passes');
+    }
+
     public function extract(string $bytes, string $mime, int $pass): array
     {
         $lines = [];

@@ -51,7 +51,7 @@ final class IdCardReader
         $engine->enabled() || throw new IdentityReadException('disabled');
         $reads = [];
         $tokens = ['in' => 0, 'out' => 0];
-        for ($pass = 1; $pass <= (int) config('identity_reader.passes'); $pass++) {
+        for ($pass = 1; $pass <= $engine->passes(); $pass++) {
             $response = $engine->extract($bytes, $mime, $pass);
             $reads[] = self::normalize($response['input']);
             $tokens['in'] += $response['input_tokens'];
@@ -122,13 +122,26 @@ final class IdCardReader
                 return [$number === '' ? null : mb_substr($number, 0, 60), $confidence, null];
             case 'registration_place':
             case 'id_issue_text':
-                return [mb_substr($value, 0, 100), $confidence, null];
+                return [mb_substr($value, 0, 100), self::scriptMismatch($value, $type) ? 'low' : $confidence, self::scriptMismatch($value, $type) ? 'script_mismatch' : null];
             default:
                 // Names: letters, marks, spaces, hyphens and apostrophes only (no digits or stray symbols from the print).
                 $name = trim(preg_replace('/\s+/u', ' ', preg_replace('/[^\p{L}\p{M}\s\'\-]+/u', '', $value) ?? '') ?? '');
 
-                return [$name === '' ? null : mb_substr($name, 0, 100), $name !== $value ? 'low' : $confidence, $name !== $value ? 'name_symbols' : null];
+                $warning = $name !== $value ? 'name_symbols' : (self::scriptMismatch($name, $type) ? 'script_mismatch' : null);
+
+                return [$name === '' ? null : mb_substr($name, 0, 100), $warning === null ? $confidence : 'low', $warning];
         }
+    }
+
+    /**
+     * Latin letters where the print is Arabic: mixed with Arabic letters in one value, or in any value of a Syrian ID card or family book. A model can
+     * mix scripts ("زيidan") with full confidence and repeat it on a second reading, so this is checked here.
+     */
+    private static function scriptMismatch(string $value, string $type): bool
+    {
+        $latin = preg_match('/\p{Latin}/u', $value) === 1;
+
+        return $latin && (preg_match('/\p{Arabic}/u', $value) === 1 || in_array($type, ['national_id', 'family_book'], true));
     }
 
     /**

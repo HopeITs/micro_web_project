@@ -31,6 +31,11 @@ final class ClaudeEngine implements IdentityEngine
         return filled(config('identity_reader.api_key'));
     }
 
+    public function passes(): int
+    {
+        return (int) config('identity_reader.passes');
+    }
+
     public function extract(string $bytes, string $mime, int $pass): array
     {
         $block = $mime === 'application/pdf'

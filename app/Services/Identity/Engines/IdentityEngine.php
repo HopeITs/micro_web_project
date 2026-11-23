@@ -26,6 +26,9 @@ interface IdentityEngine
     /** Whether the engine is set up (a key, or the program found). */
     public function enabled(): bool;
 
+    /** How many independent readings one press makes. */
+    public function passes(): int;
+
     /**
      * One reading. `$pass` (1-3) lets an engine vary how it reads, so that independent readings can be compared.
      *

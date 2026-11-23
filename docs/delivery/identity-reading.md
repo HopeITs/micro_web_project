@@ -10,12 +10,13 @@ Owner request and decisions, 23 November 2026: fill the new identity columns of 
 4. The document is read **twice, independently** (`ID_READER_PASSES`, 1–3; Tesseract varies how it segments the page, the models get a different prompt). A field that differs between the readings is marked «تحتاج مراجعة» with the other candidates kept as clickable alternatives. A field is ticked by default only when the readings agree, the engine is sure and the checks pass; doubtful fields are unticked.
 5. Staff compare each value with the image, edit any of them, tick what to apply and press **حفظ المحدد على الشخص**. The values are written through `PeopleService::update`: the person form's validation, the duplicate check of the national number (with «save anyway») and the audit details of v1.3 (the national number only as «changed»). Nothing is written before that.
 
-## The three engines (`ID_READER_DRIVER`)
+## The engines (`ID_READER_DRIVER`)
 
 | Engine | Cost | Where the scan goes | Notes |
 |---|---|---|---|
 | `tesseract` | free | stays on the server | OCR program. The least accurate on Arabic print and tilted or dim photos; clear digits (the national number, dates) are usually read well, names and places need the most review. Names are never marked «مؤكدة». |
 | `ollama` | free | stays on the server | A vision model run by Ollama (default `qwen2.5vl:7b`). Understands the picture better than OCR, but needs a strong machine (16 GB RAM or more; a graphics card helps a lot) and is slow on an ordinary PC. Arabic quality varies between models: try it on real cards first. |
+| `ensemble` | free | stays on the server | **Tesseract and the model together** (three readings: Tesseract, the model, Tesseract again). A value they disagree on is flagged for review. This catches a model's confident mistake that a second reading by the same model would repeat (see the trial below). Slower than Tesseract alone (the model's reading dominates) and needs both installed. |
 | `claude` (default) | paid per reading | sent to the cloud service, only when staff press "read" | Needs `ANTHROPIC_API_KEY`. Limited to `ID_READER_DAILY_LIMIT` readings per account per day. |
 
 PDF scans: the models and Tesseract read images, so a PDF is turned into page images (the first two pages) with Poppler's `pdftoppm`; without it a PDF is refused with a clear message and an image works. The cloud engine reads PDFs itself.
@@ -27,6 +28,17 @@ PDF scans: the models and Tesseract read images, so a PDF is turned into page im
 - **Ollama:** install it from ollama.com, then run `ollama pull qwen2.5vl:7b` (several gigabytes). The defaults `OLLAMA_URL=http://127.0.0.1:11434` and `OLLAMA_MODEL=qwen2.5vl:7b` can stay. Another vision model can be tried through `OLLAMA_MODEL`.
 - Restart the site's server after editing `.env` (it does not reload it).
 
+### First trial (23 November 2026, one synthetic card, this PC)
+
+An invented card drawn by the developer (clear Arabic print, invented data, **not a real card**) read with the free engines. It checks the plumbing and the engines' reading of printed Arabic, not their accuracy on your cards.
+
+| Engine | Time | Result |
+|---|---|---|
+| `tesseract` | 1.6 s (two readings) | 8 of 10 fields right, names and places «medium» as designed, date and national number «high»; the issuing line (المنح, a stylised word) came out empty instead of wrong. |
+| `ollama` (`qwen2.5vl:7b`, CPU) | 148 s (two readings) | Read the issuing line, **but made two mistakes marked «high» and repeated by its second reading**: a surname with Latin letters mixed in (`زيidan`) and the registry digits reversed (`حلب 5/1234` for `حلب 1234/5`). |
+| `ensemble` | 41 s | The reversed registry was flagged «needs review» with the other reading kept, the national number and the date stayed «high», the issuing line was flagged because the engines disagreed. |
+
+What it taught: (1) a model's own confidence cannot be trusted alone, so two readings by the same model are not enough, and the local script check (Latin letters among Arabic ones are doubtful) and the comparison between different engines are what catch such errors; (2) Tesseract is fast and good at digits and printed Arabic but misses stylised words, the model is slow on a PC without a graphics card but reads those words; (3) staff review stays the safety net. One card proves nothing about accuracy: use `identity:test` on ten real cards before choosing.
 ### Choosing between them: test on real cards first
 
 On the server console, with a scan you may handle (nothing is saved, logged or audited; the values are printed to the terminal):
@@ -34,9 +46,10 @@ On the server console, with a scan you may handle (nothing is saved, logged or a
 ```
 php artisan identity:test "C:\path\to\scan.jpg" --driver=tesseract
 php artisan identity:test "C:\path\to\scan.jpg" --driver=ollama
+php artisan identity:test "C:\path\to\scan.jpg" --driver=ensemble
 ```
 
-Run both on the same ten real cards, write down which values are wrong for each, and choose by the number of wrong values and the time it takes. Staff review every value before saving whatever the engine.
+Run them on the same ten real cards, write down which values are wrong for each, and choose by the number of wrong values and the time it takes. Staff review every value before saving whatever the engine.
 
 ## On the online server
 
@@ -65,12 +78,14 @@ Then in the site's `.env`: `ID_READER_DRIVER=tesseract` (the defaults `TESSERACT
 
 **What to ask a hosting provider:** SSH access with `sudo` (or root); permission to install packages; `proc_open` allowed in PHP; the amount of memory (4 GB is enough for Tesseract, 16 GB or more is needed for Ollama on CPU) and whether a GPU is offered; outbound internet only if the cloud engine is wanted.
 
+The `ensemble` mode needs both, so its requirement on a server is Ollama's.
+
 **Recommendation:** start with Tesseract on the server (it fits any ordinary VPS, costs nothing, the scan stays with you) and keep staff review as the safety net. Move to Ollama only if the trial on real cards shows Tesseract is not good enough *and* the hosting has the machine for it (or the office-computer option above is acceptable).
 ## Settings (`.env`)
 
 | Key | Meaning |
 |---|---|
-| `ID_READER_DRIVER` | `claude` (default), `ollama` or `tesseract`. **The feature is off until the chosen engine is set up** (the page says what is missing). |
+| `ID_READER_DRIVER` | `claude` (default), `ollama`, `tesseract` or `ensemble`. **The feature is off until the chosen engine is set up** (the page says what is missing). |
 | `ANTHROPIC_API_KEY`, `ID_READER_MODEL`, `ID_READER_DAILY_LIMIT` | The cloud engine: key, model (default `claude-sonnet-5-5`), readings per account per day (default 60). |
 | `OLLAMA_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT` | The Ollama server and model. |
 | `TESSERACT_BIN`, `TESSERACT_LANG` (default `ara+eng`), `PDFTOPPM_BIN` | The programs for Tesseract and for PDF pages. |

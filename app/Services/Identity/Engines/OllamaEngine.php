@@ -35,6 +35,11 @@ final class OllamaEngine implements IdentityEngine
         return filled(config('identity_reader.ollama.url')) && filled(config('identity_reader.ollama.model'));
     }
 
+    public function passes(): int
+    {
+        return (int) config('identity_reader.passes');
+    }
+
     public function extract(string $bytes, string $mime, int $pass): array
     {
         $images = array_map('base64_encode', PageImages::of($bytes, $mime));

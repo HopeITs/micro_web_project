@@ -197,6 +197,45 @@ class IdentityEnginesTest extends TestCase
 
     // ---------------------------------------------------------------- the review page
 
+    public function test_the_ensemble_flags_what_the_model_got_wrong_with_full_confidence(): void
+    {
+        // The real trial: the model mixed scripts in the surname and reversed the digits of the registry, both "high", and repeated nothing a second reading could catch.
+        config(['identity_reader.driver' => 'ensemble']);
+        $this->fakeTesseract($this->cardTsv());
+        Http::fake(['127.0.0.1:11434/*' => Http::response($this->ollamaAnswer([
+            'last_name' => ['value' => 'زيidan', 'confidence' => 'high'], 'registration_place' => ['value' => 'حلب 5/1234', 'confidence' => 'high'],
+        ]))]);
+
+        $reader = app(IdCardReader::class);
+        $this->assertTrue($reader->enabled());
+        $result = $reader->read(base64_decode(self::PNG), 'image/png');
+
+        $this->assertSame(3, $result['passes']);
+        Http::assertSentCount(1);
+        $lastName = $result['fields']['last_name'];
+        $this->assertSame('low', $lastName['confidence']);
+        $this->assertSame('زيدان', $lastName['value'], 'the value both Tesseract readings found is proposed');
+        $this->assertSame(['زيidan'], $lastName['alternatives']);
+        $place = $result['fields']['registration_place'];
+        $this->assertSame('low', $place['confidence']);
+        $this->assertSame('حلب 1234/5', $place['value']);
+        $this->assertSame(['حلب 5/1234'], $place['alternatives']);
+        // What the engines agree on stays as sure as the weakest reading: names are "medium" for Tesseract, the number "high".
+        $this->assertSame('01020304050', $result['fields']['national_number']['value']);
+        $this->assertSame('high', $result['fields']['national_number']['confidence']);
+        $this->assertSame('medium', $result['fields']['father_name']['confidence']);
+    }
+
+    public function test_the_ensemble_needs_both_engines(): void
+    {
+        config(['identity_reader.driver' => 'ensemble']);
+        Process::fake(['*' => Process::result('', 'not found', 127)]);
+        $this->assertFalse(app(IdCardReader::class)->enabled());
+        $this->fakeTesseract($this->cardTsv());
+        config(['identity_reader.ollama.url' => '']);
+        $this->assertFalse(app(IdCardReader::class)->enabled());
+    }
+
     public function test_a_local_engine_has_no_daily_limit_logs_its_own_model_and_says_the_image_stays(): void
     {
         config(['identity_reader.driver' => 'ollama', 'identity_reader.passes' => 1]);
@@ -217,7 +256,7 @@ class IdentityEnginesTest extends TestCase
         $admin = WebAccount::where('username', 'super.admin')->firstOrFail();
         Process::fake(['*' => Process::result('', '', 127)]);
 
-        foreach (['claude' => 'ANTHROPIC_API_KEY', 'tesseract' => 'برنامج Tesseract غير موجود'] as $driver => $text) {
+        foreach (['claude' => 'ANTHROPIC_API_KEY', 'tesseract' => 'برنامج Tesseract غير موجود', 'ensemble' => 'Tesseract وOllama'] as $driver => $text) {
             config(['identity_reader.driver' => $driver]);
             Livewire::actingAs($admin)->test(IdentityReview::class, ['personId' => $person->id, 'attachmentId' => $attachment])->assertSee('القراءة غير مفعّلة')->assertSee($text);
         }

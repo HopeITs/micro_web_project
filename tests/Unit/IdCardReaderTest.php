@@ -60,6 +60,17 @@ class IdCardReaderTest extends TestCase
         $this->assertNull(IdCardReader::normalize($this->input(['sex' => 'x']))['fields']['sex']['value']);
     }
 
+    public function test_latin_letters_among_arabic_ones_are_doubtful_even_when_the_model_is_sure(): void
+    {
+        $mixed = IdCardReader::normalize($this->input(['last_name' => 'زيidan']))['fields']['last_name'];
+        $this->assertSame('low', $mixed['confidence']);
+        $this->assertSame('script_mismatch', $mixed['warning']);
+        $this->assertSame('low', IdCardReader::normalize($this->input(['registration_place' => 'Aleppo 1234/5']))['fields']['registration_place']['confidence']);
+        // A Latin name is normal on a passport, and an Arabic name with digits in a place is normal on a card.
+        $this->assertSame('high', IdCardReader::normalize($this->input(['first_name' => 'Nabil', 'last_name' => 'Zaidan'], 'passport'))['fields']['first_name']['confidence']);
+        $this->assertSame('high', IdCardReader::normalize($this->input())['fields']['registration_place']['confidence']);
+    }
+
     public function test_a_missing_or_malformed_field_is_empty_and_doubtful(): void
     {
         $input = $this->input();

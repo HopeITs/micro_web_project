@@ -21,9 +21,12 @@
     @case('choice')
         <select class="hc-select" id="{{ $id }}" {{ $wire }}="{{ $model }}"><option value="">—</option>@foreach($spec['options'] as $code)<option value="{{ $code }}">{{ __('people.choices.'.$field.'.'.$code) }}</option>@endforeach</select>
         @break
+    @case('member')
+        <select class="hc-select" id="{{ $id }}" wire:model.live="{{ $model }}">@foreach($options as $o)<option value="{{ $o->id }}">{{ $o->label }}</option>@endforeach</select>
+        @break
     @case('lookup')
         @php($dependent = $live || isset($spec['parent']) || ($parents ?? false))
-        @if(count($options) > 8)
+        @if(count($options) > 8 && ! ($plainSelect ?? false))
             {{-- Long list: type to search inside the field. Rebuilt when a parent narrows the list. --}}
             @php($key = $id.'-'.md5(collect($options)->pluck('id')->implode(',')))
             @if($dependent)

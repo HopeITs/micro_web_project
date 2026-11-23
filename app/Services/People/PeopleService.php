@@ -309,6 +309,10 @@ final class PeopleService
                             ? $value = round((float) str_replace(',', '', (string) $raw), 2) : $error = __('people.errors.number');
                     }
                     break;
+                case 'member':
+                    // Who the row is about: "self" (the beneficiary) or a family member's person id; checked against the family when saved.
+                    $value = $empty ? 'self' : (($raw === 'self' || ctype_digit((string) $raw)) ? (string) $raw : 'self');
+                    break;
                 case 'bool':
                     $value = $empty ? null : in_array($raw, [true, 1, '1', 'yes', 'true'], true);
                     break;

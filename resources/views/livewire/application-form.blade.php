@@ -111,6 +111,69 @@
         @php($fields = $projectGroups[$group] ?? [])
         @continue($fields === [])
         @php($step++)
+        @if($group === 'premises')
+        {{-- Project-specific information (desktop t20): premises, project power sources, capacity, approvals, then the proposed budget. --}}
+        <x-hc.section :title="__('applications.sections.premises')" :step="$step">
+            <div class="hc-form-grid">
+            @foreach(array_intersect_key($fields, array_flip(['place_type_id', 'place_address', 'place_note'])) as $field => $spec)
+                <x-hc.field :label="__('applications.fields.'.$field)" :for="'pr-'.$field" :error="$errors->first('form.project.'.$field)">
+                    @include('people._input', ['model' => 'form.project.'.$field, 'id' => 'pr-'.$field, 'options' => $options[$field] ?? collect()])
+                </x-hc.field>
+            @endforeach
+            </div>
+            @if(in_array('project_power_sources', $grids, true))
+                @include('applications._grid', ['kind' => 'project_power_sources', 'options' => $gridOptions['project_power_sources']])
+            @endif
+            <div class="hc-field" style="margin-block:16px 8px">
+                <span class="hc-label">{{ __('applications.fields.amper_number') }}</span>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px">
+                    <input class="hc-input ltr" style="max-width:140px" type="text" inputmode="numeric" dir="ltr" id="pr-amper_number" wire:model="form.project.amper_number" aria-label="{{ __('applications.fields.amper_number') }}">
+                    <div class="hc-choice" role="radiogroup" aria-label="{{ __('applications.fields.amper_type') }}">
+                        @foreach(['1', '0'] as $unit)<label><input type="radio" value="{{ $unit }}" wire:model="form.project.amper_type">{{ __('applications.amper_units.'.$unit) }}</label>@endforeach
+                    </div>
+                </div>
+                @error('form.project.amper_number')<p class="hc-error">{{ $message }}</p>@enderror @error('form.project.amper_type')<p class="hc-error">{{ $message }}</p>@enderror
+            </div>
+            <h3 class="hc-label" style="margin-block:16px 8px">{{ __('applications.approvals') }}</h3>
+            @foreach(['agreement_1', 'agreement_2', 'agreement_3', 'agreement_4', 'agreement_5'] as $agreement)
+                <div class="hc-question" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding-block:6px;border-block-end:1px solid var(--line)">
+                    <span style="flex:1;min-width:240px">{{ __('applications.fields.'.$agreement) }}</span>
+                    <div class="hc-choice" role="radiogroup" aria-label="{{ __('applications.fields.'.$agreement) }}">
+                        <label><input type="radio" value="1" wire:model="form.project.{{ $agreement }}">{{ __('people.yes') }}</label>
+                        <label><input type="radio" value="0" wire:model="form.project.{{ $agreement }}">{{ __('people.no') }}</label>
+                    </div>
+                </div>
+            @endforeach
+            @if(in_array('materials', $grids, true))
+                <?php
+                    $budgetTotal = '0'; $budgetLocal = '0';
+                    $num = fn ($v) => is_numeric(str_replace(',', '', (string) $v)) ? str_replace(',', '', (string) $v) : '0';
+                    foreach ($form['grids']['materials'] ?? [] as $m) {
+                        $budgetTotal = bcadd($budgetTotal, bcmul($num($m['quantity'] ?? ''), $num($m['price'] ?? ''), 4), 4);
+                        $budgetLocal = bcadd($budgetLocal, $num($m['local_contribution'] ?? ''), 4);
+                    }
+                    $money = fn ($v) => rtrim(rtrim(number_format((float) $v, 4, '.', ','), '0'), '.');
+                ?>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-block:16px 0">
+                    @if($canAttachBudget)<label class="hc-btn hc-btn-secondary" style="cursor:pointer;margin:0"><x-hc.icon name="plus" :size="16"/> {{ __('applications.budget.attach') }}<input type="file" wire:model="budgetFile" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx"></label>@endif
+                    <span wire:loading wire:target="budgetFile" class="muted">…</span>
+                    @if($budgetFile)<span>{{ __('applications.budget.pending', ['name' => $budgetFile->getClientOriginalName()]) }}</span>@endif
+                    @if($budgetAttachments !== [])
+                        <x-hc.badge tone="brand">{{ __('applications.budget.attached') }}</x-hc.badge>
+                        @foreach($budgetAttachments as $att)<a class="row-link" href="{{ route('attachments.file', ['locale' => $locale, 'attachment' => $att->id]) }}" target="_blank">{{ __('applications.budget.view') }}: {{ $att->original_name }}</a>@endforeach
+                    @endif
+                    @error('budgetFile')<span class="hc-error">{{ $message }}</span>@enderror
+                </div>
+                <p class="hc-hint" style="margin:4px 0 0">{{ __('applications.budget.hint') }}</p>
+                @include('applications._grid', ['kind' => 'materials', 'options' => $gridOptions['materials']])
+                <div class="hc-card" style="padding:12px 16px;margin-block-start:8px;display:flex;flex-wrap:wrap;gap:6px 28px">
+                    <span>{{ __('applications.budget.total') }}: <strong class="num">{{ $money($budgetTotal) }}</strong></span>
+                    <span>{{ __('applications.budget.local') }}: <strong class="num">{{ $money($budgetLocal) }}</strong></span>
+                    <span>{{ __('applications.budget.remaining') }}: <strong class="num">{{ $money(bcsub($budgetTotal, $budgetLocal, 4)) }}</strong></span>
+                </div>
+            @endif
+        </x-hc.section>
+        @else
         <x-hc.section :title="__('applications.sections.'.$group)" :step="$step">
             <div class="hc-form-grid">
             @foreach($fields as $field => $spec)
@@ -125,6 +188,7 @@
             @endforeach
         </x-hc.section>
 
+        @endif
         @else
         {{-- The beneficiary's story, work, family and support, each with its grids --}}
         @php($fields = $applicantGroups[$group] ?? [])
@@ -141,20 +205,47 @@
             @endif
             {{-- Plain fields of the section (fields governed by a question appear under that question instead). --}}
             @php($plain = array_diff_key($fields, $switches, array_flip($governedFields)))
-            @if($plain !== [] && $group !== 'work')
-            <div class="hc-form-grid">
-            @foreach($plain as $field => $spec)
+            {{-- Story (desktop t2): story, goal, the goal checkboxes, how it is reached, applicant notes. --}}
+            @php($chunks = $group === 'story' ? [array_intersect_key($plain, array_flip(['loss_story', 'goal'])), 'goals', array_diff_key($plain, array_flip(['loss_story', 'goal']))] : [$plain])
+            @foreach($chunks as $chunk)
+            @if($chunk === 'goals')
+                @if(in_array('goals', $grids, true))
+                @php($chosen = collect($form['grids']['goals'] ?? [])->pluck('goal_id')->map(fn ($g) => (string) $g)->all())
+                <div class="hc-field" style="margin-block:12px">
+                    <span class="hc-label">{{ __('applications.grids.goals') }} <span class="muted">({{ count($chosen) }})</span></span>
+                    <div class="hc-choice" role="group" aria-label="{{ __('applications.grids.goals') }}" style="display:flex;flex-wrap:wrap;gap:8px 20px">
+                        @foreach($goalOptions as $g)
+                            <label style="min-width:220px"><input type="checkbox" wire:key="goal-{{ $g->id }}" wire:click="toggleGoal({{ $g->id }})" @checked(in_array((string) $g->id, $chosen, true))>{{ $g->label }}</label>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+            @elseif($chunk !== [] && $group !== 'work')
+            <div class="hc-form-grid" @if($group === 'story') style="grid-template-columns:1fr" @endif>
+            @foreach($chunk as $field => $spec)
                 <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
                     @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
                 </x-hc.field>
             @endforeach
             </div>
             @endif
+            @endforeach
 
             {{-- Desktop family block: the family table comes before the loss, illness and property questions. --}}
             @if($group === 'family')
                 @foreach(array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
                     @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
+                    @if($kind === 'family')
+                    <div class="hc-card" style="padding:12px 16px;margin-block:8px" aria-label="{{ __('applications.family_stats.title') }}">
+                        <strong>{{ __('applications.family_stats.title') }}</strong>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px 24px;margin-block-start:6px">
+                            @foreach(['total', 'active', 'inactive', 'working', 'not_working', 'studying', 'not_studying'] as $stat)
+                                <span>{{ __('applications.family_stats.'.$stat) }}: <strong class="num">{{ $familyStats[$stat] }}</strong></span>
+                            @endforeach
+                        </div>
+                        <p class="hc-hint" style="margin:6px 0 0">{{ __('applications.family_stats.hint') }}</p>
+                    </div>
+                    @endif
                 @endforeach
             @endif
 
@@ -204,39 +295,13 @@
             @endforeach
 
             {{-- Tables of the section that no question governs. --}}
-            @foreach($group === 'family' ? [] : array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
+            @foreach($group === 'family' ? [] : array_diff($sectionGrids($group), array_keys($gridSwitches), ['goals']) as $kind)
                 @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
             @endforeach
         </x-hc.section>
         @endif
         @endforeach
 
-        {{-- 4. Project analysis: the 10 manual scores of the full form (desktop Application_Form "تحليل المشروع") --}}
-        @php($scores = $form['scores'] ?? [])
-        @if($scoreCriteria->isNotEmpty() && ($stage === 'full' || collect($scores)->contains(fn ($s) => ($s['value'] ?? '') !== '' || ($s['notes'] ?? '') !== '')))
-            @php($step++)
-            <x-hc.section :title="__('applications.sections.scores')" :step="$step">
-                <p class="hc-hint" style="margin-block:0 12px">{{ __('applications.scores.hint') }}</p>
-                <div class="hc-table-wrap"><table class="hc-table stack">
-                    <thead><tr><th>{{ __('applications.scores.criterion') }}</th><th>{{ __('applications.scores.answer') }}</th><th>{{ __('applications.scores.notes') }}</th></tr></thead>
-                    <tbody>
-                    @foreach($scoreCriteria as $c)
-                        <tr wire:key="sc-{{ $c->id }}">
-                            <th scope="row" data-label="{{ __('applications.scores.criterion') }}" style="font-weight:600">{{ $c->label }}</th>
-                            <td data-label="{{ __('applications.scores.answer') }}" style="min-width:240px">
-                                <div class="hc-choice" role="radiogroup" aria-label="{{ $c->label }}">
-                                    @foreach($c->options as $o)<label><input type="radio" value="{{ $o->value }}" wire:model.live="form.scores.{{ $c->id }}.value">{{ $o->label }}</label>@endforeach
-                                </div>
-                                @error('form.scores.'.$c->id.'.value')<p class="hc-error">{{ $message }}</p>@enderror
-                            </td>
-                            <td data-label="{{ __('applications.scores.notes') }}" style="min-width:180px"><input class="hc-input" wire:model="form.scores.{{ $c->id }}.notes" aria-label="{{ __('applications.scores.notes') }} · {{ $c->label }}" maxlength="2000"></td>
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table></div>
-                <p style="margin-block:12px 0;font-weight:600">{{ __('applications.scores.total', ['total' => \App\Services\Applications\ProjectScores::total($scores)]) }}</p>
-            </x-hc.section>
-        @endif
     </div>
 
     <x-hc.action-bar>

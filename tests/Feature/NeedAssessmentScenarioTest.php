@@ -182,32 +182,6 @@ class NeedAssessmentScenarioTest extends TestCase
         $this->assertSame(0, DB::table('project_scores')->where('project_id', $project)->count());
     }
 
-    public function test_application_form_saves_and_shows_the_project_scores(): void
-    {
-        [$project] = $this->application([], ['has_work' => false]);
-        $criteria = DB::table('score_criteria')->orderBy('sort_order')->orderBy('id')->pluck('id')->all();
-        $this->actingAs(WebAccount::where('username', 'role.data-entry')->firstOrFail());
-        $this->get('/ar/applications/'.$project.'/edit')->assertOk()->assertSee('تحليل المشروع')->assertSee('القرض المطلوب كاف');
-
-        $form = Livewire::test(ApplicationForm::class, ['projectId' => $project])
-            ->set('form.scores.'.$criteria[0].'.value', '9')->call('save')->assertHasErrors('form.scores.'.$criteria[0].'.value');
-        $this->assertSame(0, DB::table('project_scores')->where('project_id', $project)->count(), 'nothing is written on errors');
-        $form->set('form.scores.'.$criteria[0].'.value', '1')->set('form.scores.'.$criteria[1].'.value', '0')->set('form.scores.'.$criteria[2].'.value', '1')
-            ->set('form.scores.'.$criteria[2].'.notes', '5 سنوات')->assertSee('المجموع: 2')->call('save')->assertHasNoErrors()->assertRedirect();
-        $saved = DB::table('project_scores')->where('project_id', $project)->whereNull('deleted_at')->get()->keyBy('score_criterion_id');
-        $this->assertCount(3, $saved);
-        $this->assertSame(1, (int) $saved[$criteria[0]]->value);
-        $this->assertSame('5 سنوات', $saved[$criteria[2]]->notes);
-
-        // Saving again unchanged keeps the rows; a change replaces them (the desktop deleted and re-inserted them).
-        Livewire::test(ApplicationForm::class, ['projectId' => $project])->assertSet('form.scores.'.$criteria[0].'.value', '1')->call('save')->assertHasNoErrors();
-        $this->assertSame(0, DB::table('project_scores')->where('project_id', $project)->whereNotNull('deleted_at')->count());
-        Livewire::test(ApplicationForm::class, ['projectId' => $project])->set('form.scores.'.$criteria[1].'.value', '')->call('save')->assertHasNoErrors();
-        $this->assertSame(2, DB::table('project_scores')->where('project_id', $project)->whereNull('deleted_at')->count());
-
-        $this->get('/ar/projects/'.$project)->assertOk()->assertSee('تحليل المشروع')->assertSee('5 سنوات')->assertSee('المجموع: 2');
-    }
-
     public function test_roles_who_see_and_edit_the_scores_and_need_assessment(): void
     {
         [$project] = $this->application([], ['has_work' => false]);
@@ -227,8 +201,7 @@ class NeedAssessmentScenarioTest extends TestCase
 
         // Administrator edits both.
         $this->actingAs(WebAccount::where('username', 'super.admin')->firstOrFail());
-        $this->get('/ar/applications/'.$project.'/edit')->assertOk()->assertSee('تحليل المشروع')->assertSee('المجموع: 1');
-        Livewire::test(ApplicationForm::class, ['projectId' => $project])->assertSet('form.scores.'.$criterion.'.notes', 'ملاحظة الموظف');
+        $this->get('/ar/applications/'.$project.'/edit')->assertOk();
         $this->get('/ar/applications/'.$project.'/checklist')->assertOk()->assertSee('قياس الحاجة');
     }
 }

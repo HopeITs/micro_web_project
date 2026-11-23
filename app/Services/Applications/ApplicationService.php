@@ -65,7 +65,6 @@ final class ApplicationService
             'person_id' => null, 'person' => self::strings(PersonFields::personFlat(), []), 'family_number' => '',
             'applicant' => self::strings(ApplicationFields::flat(ApplicationFields::APPLICANT, 'full'), []),
             'grids' => array_fill_keys(array_keys(ApplicationFields::GRIDS), []), 'removed' => array_fill_keys(array_keys(ApplicationFields::GRIDS), []),
-            'scores' => $this->scores->load(null),
         ];
         $state['project']['request_date'] = now()->format('Y-m-d');
 
@@ -85,7 +84,6 @@ final class ApplicationService
             'person_id' => $person ? (int) $person->id : null, 'person' => self::strings(PersonFields::personFlat(), (array) ($person ?? [])),
             'family_number' => '', 'applicant' => self::strings(ApplicationFields::flat(ApplicationFields::APPLICANT, 'full'), (array) ($link ?? [])),
             'grids' => [], 'removed' => array_fill_keys(array_keys(ApplicationFields::GRIDS), []),
-            'scores' => $this->scores->load($projectId),
         ];
         $family = $person ? $this->familyOf((int) $person->id) : null;
         $state['family_number'] = $family ? (string) $family->family_number : '';
@@ -158,12 +156,36 @@ final class ApplicationService
             if ($personId === null) {
                 return [];
             }
-            $rows = DB::table($grid['table'])->where('person_id', $personId)->whereNull('deleted_at')->orderBy('id')->get();
+            $scope = in_array($kind, ApplicationFields::MEMBER_GRIDS, true) ? $this->memberScope($personId) : [$personId];
+            $kind === 'family_work' && $scope = array_values(array_diff($scope, [$personId]));
+            $rows = DB::table($grid['table'])->whereIn('person_id', $scope)->whereNull('deleted_at')->orderBy('id')->get();
         } else {
             $rows = DB::table($grid['table'])->where('project_id', $projectId)->whereNull('deleted_at')->orderBy('id')->get();
         }
 
-        return $rows->map(fn ($r) => ['id' => (int) $r->id] + self::strings($grid['fields'], (array) $r))->values()->all();
+        return $rows->map(function ($r) use ($grid, $owner, $kind, $personId) {
+            $row = ['id' => (int) $r->id] + self::strings($grid['fields'], (array) $r);
+            if ($owner === 'person' && in_array($kind, ApplicationFields::MEMBER_GRIDS, true)) {
+                $row['person_id'] = (int) $r->person_id === $personId ? 'self' : (string) $r->person_id;
+            }
+
+            return $row;
+        })->values()->all();
+    }
+
+    /** Rows of a person grid for a registered beneficiary (used when one is picked in the form). @return list<array> */
+    public function personGridRows(string $kind, int $personId): array
+    {
+        return $this->gridRows($kind, 0, $personId, null);
+    }
+
+    /** The beneficiary and the people of their family: whom a loss, illness, property or aid row can be about. @return list<int> */
+    public function memberScope(int $personId): array
+    {
+        $family = $this->familyOf($personId);
+        $members = $family ? DB::table('family_members')->where('family_id', $family->id)->whereNull('deleted_at')->pluck('person_id')->map(fn ($id) => (int) $id)->all() : [];
+
+        return array_values(array_unique([$personId, ...$members]));
     }
 
     // ---------------------------------------------------------------- reading
@@ -239,8 +261,11 @@ final class ApplicationService
             $grids[$kind] = [];
             foreach (array_values($state['grids'][$kind] ?? []) as $i => $row) {
                 $values = $collect(fn () => $this->people->validate($grid['fields'], $row, $city, [], "grids.$kind.$i."));
-                if ($values !== [] && array_filter($values, fn ($v) => $v !== null) === []) {
+                if ($values !== [] && array_filter(array_diff_key($values, ['person_id' => 0]), fn ($v) => $v !== null) === []) {
                     continue; // an untouched empty row
+                }
+                if ($kind === 'family_work' && ($values['person_id'] ?? 'self') === 'self') {
+                    $errors["grids.family_work.$i.person_id"] = [__('validation.required', ['attribute' => __('applications.fields.person_id')])];
                 }
                 $grids[$kind][] = ['id' => isset($row['id']) && $row['id'] ? (int) $row['id'] : null] + $values;
             }
@@ -251,8 +276,8 @@ final class ApplicationService
                 continue;
             }
             foreach (isset($rule['grid']) ? array_values($state['grids'][$rule['grid']] ?? []) : [] as $i => $row) {
-                if (ApplicationFields::governed($switch, $row) && array_filter(array_diff_key($row, ['id' => 0]), fn ($v) => $v !== '' && $v !== null) !== []) {
-                    $errors["grids.{$rule['grid']}.$i.".array_key_first(ApplicationFields::grid($rule['grid'])['fields'])] = [__('applications.errors.switch_no', ['question' => __('applications.fields.'.$switch)])];
+                if (ApplicationFields::governed($switch, $row) && array_filter(array_diff_key($row, ['id' => 0, 'person_id' => 0]), fn ($v) => $v !== '' && $v !== null) !== []) {
+                    $errors["grids.{$rule['grid']}.$i.".array_key_first(array_diff_key(ApplicationFields::grid($rule['grid'])['fields'], ['person_id' => 0]))] = [__('applications.errors.switch_no', ['question' => __('applications.fields.'.$switch)])];
                 }
             }
             foreach ($rule['fields'] ?? [] as $field) {
@@ -425,11 +450,25 @@ final class ApplicationService
 
                     continue;
                 }
+                $scope = [$personId];
+                if (in_array($kind, ApplicationFields::MEMBER_GRIDS, true)) {
+                    // The row is about the beneficiary ("self") or one of their family; anyone else is refused.
+                    $about = (string) ($row['person_id'] ?? 'self');
+                    unset($row['person_id']);
+                    $scope = $this->memberScope($personId);
+                    $target = $about === 'self' ? $personId : (int) $about;
+                    in_array($target, $scope, true) || abort(404);
+                    $kind !== 'family_work' || $target !== $personId || abort(404);
+                    $row['person_id'] = $target;
+                    $ownerColumn = [];
+                }
                 if ($id === null) {
+                    $kind === 'family_work' && $row['status'] = 'yes';
                     DB::table($grid['table'])->insert($row + $ownerColumn + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
                     $count($kind, 0);
                 } else {
-                    $mine = DB::table($grid['table'])->where('id', $id)->where($ownerColumn)->whereNull('deleted_at');
+                    $mine = DB::table($grid['table'])->where('id', $id)->whereNull('deleted_at');
+                    $ownerColumn !== [] ? $mine->where($ownerColumn) : $mine->whereIn('person_id', $scope);
                     $old = (clone $mine)->first() ?? abort(404);
                     if (AccountAuditTrail::changes($old, $row) !== null) {
                         $count($kind, 1);
@@ -446,7 +485,7 @@ final class ApplicationService
             $query = DB::table(ApplicationFields::grid($kind)['table'])->whereIn('id', array_map('intval', $ids))->whereNull('deleted_at');
             match ($owner) {
                 'family' => $query->where('family_id', $family?->id ?? 0)->where('person_id', '<>', $personId),
-                'person' => $query->where('person_id', $personId),
+                'person' => $query->whereIn('person_id', in_array($kind, ApplicationFields::MEMBER_GRIDS, true) ? $this->memberScope($personId) : [$personId]),
                 default => $query->where('project_id', $projectId),
             };
             $gone = $query->update(['deleted_at' => $now, 'updated_at' => $now]);

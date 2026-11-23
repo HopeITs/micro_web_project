@@ -5,6 +5,12 @@
 @endphp
 <div>
     @if($notice)<x-hc.alert type="success" style="margin-block-end:16px">{{ $notice }}</x-hc.alert>@endif
+    @if($locked && $meetingId)
+        <div class="hc-toolbar" style="margin-block-end:12px;gap:8px">
+            <x-hc.button variant="secondary" size="sm" icon="file" :href="route('meetings.print', ['locale' => app()->getLocale(), 'meeting' => $meetingId, 'kind' => 'minutes'])" target="_blank">{{ __('paper_meeting.print_minutes') }}</x-hc.button>
+            <x-hc.button variant="secondary" size="sm" icon="file" :href="route('meetings.print', ['locale' => app()->getLocale(), 'meeting' => $meetingId, 'kind' => 'survey'])" target="_blank">{{ __('paper_meeting.print_survey') }}</x-hc.button>
+        </div>
+    @endif
     @if($locked)<x-hc.alert type="info" style="margin-block-end:16px">{{ __('field.meeting.locked') }}
         @if($canReopen)<x-hc.button size="sm" variant="secondary" wire:click="reopen" wire:confirm="{{ __('field.meeting.reopen_confirm') }}">{{ __('field.meeting.reopen') }}</x-hc.button>@endif</x-hc.alert>@endif
     @if($errors->any())

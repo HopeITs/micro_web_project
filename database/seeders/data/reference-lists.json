@@ -5756,6 +5756,13 @@
                 "name_en": "Detention",
                 "sort_order": 0,
                 "category": "أوراق قانونية - Legal"
+            },
+            {
+                "legacy_id": 13,
+                "name_ar": "مقترح الميزانية",
+                "name_en": "Budget proposal",
+                "sort_order": 0,
+                "category": "أوراق مالية - Financial"
             }
         ],
         "special_case_types": [

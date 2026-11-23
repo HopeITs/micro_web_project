@@ -21,6 +21,11 @@ use Livewire\Component;
  */
 class ApplicationForm extends Component
 {
+    use \Livewire\WithFileUploads;
+
+    /** The budget file chosen next to the budget; it is attached to the project when the application is saved. */
+    public mixed $budgetFile = null;
+
     #[Locked]
     public ?int $projectId = null;
 
@@ -268,6 +273,12 @@ class ApplicationForm extends Component
             if ($grid['owner'] === 'project') {
                 continue;
             }
+            if ($grid['owner'] === 'person') {
+                $this->form['grids'][$kind] = app(ApplicationService::class)->personGridRows($kind, $id);
+                $this->form['removed'][$kind] = [];
+
+                continue;
+            }
             $definition = ApplicationFields::grid($kind);
             $rows = $grid['owner'] === 'family'
                 ? ($family ? DB::table('family_members as m')->join('people as p', 'p.id', '=', 'm.person_id')->where('m.family_id', $family->id)->where('m.person_id', '<>', $id)->whereNull('m.deleted_at')->whereNull('p.deleted_at')->orderBy('m.id')
@@ -304,6 +315,9 @@ class ApplicationForm extends Component
         $this->dirty = true;
         isset(ApplicationFields::GRIDS[$kind]) || abort(404);
         $row = ['id' => null] + array_fill_keys(array_keys(ApplicationFields::grid($kind)['fields']), '');
+        if (array_key_exists('person_id', $row)) {
+            $row['person_id'] = $kind === 'family_work' ? '' : 'self';
+        }
         $switch = ApplicationFields::gridSwitches()[$kind] ?? null;
         if ($switch !== null && ($this->form['applicant'][$switch] ?? '') !== '1') {
             $only = ApplicationFields::SWITCHES[$switch]['only'] ?? null;
@@ -316,6 +330,22 @@ class ApplicationForm extends Component
             }
         }
         $this->form['grids'][$kind][] = $row;
+    }
+
+    /** Ticks or unticks one of the beneficiary's loan goals (desktop checkbox list). */
+    public function toggleGoal(int $goalId): void
+    {
+        DB::table('goals')->where('id', $goalId)->where('is_active', true)->exists() || abort(404);
+        $rows = $this->form['grids']['goals'] ?? [];
+        foreach ($rows as $i => $row) {
+            if ((string) ($row['goal_id'] ?? '') === (string) $goalId) {
+                $this->removeRow('goals', (int) $i);
+
+                return;
+            }
+        }
+        $this->dirty = true;
+        $this->form['grids']['goals'][] = ['id' => null, 'goal_id' => (string) $goalId];
     }
 
     public function removeRow(string $kind, int $index): void
@@ -375,9 +405,67 @@ class ApplicationForm extends Component
 
             return;
         }
+        if ($this->budgetFile !== null) {
+            try {
+                $type = (int) DB::table('attachment_types')->where('name_en', 'Budget proposal')->value('id');
+                app(\App\Services\Attachments\AttachmentService::class)->upload(auth()->user(), 'project', $id, $type, [$this->budgetFile]);
+            } catch (ValidationException|\Illuminate\Auth\Access\AuthorizationException|\Symfony\Component\HttpKernel\Exception\HttpException) {
+                session()->flash('warning', __('applications.budget.failed'));
+            }
+        }
         app(ApplicationDraftStore::class)->discard(auth()->user(), $this->draftId);
         session()->flash('status', $this->projectId ? __('applications.updated') : __('applications.created'));
         $this->redirectRoute('projects.show', ['locale' => app()->getLocale(), 'project' => $id]);
+    }
+
+    /** Whom a loss, illness, property or aid row can be about: the beneficiary and the saved members of their family, with the relation. */
+    private function memberOptions(): \Illuminate\Support\Collection
+    {
+        $en = app()->getLocale() === 'en';
+        $person = (object) $this->form['person'];
+        $name = trim(implode(' ', array_filter([$person->first_name ?? '', $person->father_name ?? '', $person->last_name ?? ''])));
+        $list = collect([(object) ['id' => 'self', 'label' => $name !== '' ? $name : __('applications.beneficiary_self'), 'relation' => __('applications.beneficiary_self'), 'group' => null]]);
+        if ($this->form['person_id'] === null) {
+            return $list;
+        }
+        $familyId = DB::table('family_members')->where('person_id', $this->form['person_id'])->whereNull('deleted_at')->orderBy('id')->value('family_id');
+        if ($familyId === null) {
+            return $list;
+        }
+        $rows = DB::table('family_members as m')->join('people as p', 'p.id', '=', 'm.person_id')->leftJoin('relations as r', 'r.id', '=', 'm.relation_id')
+            ->where('m.family_id', $familyId)->where('m.person_id', '<>', $this->form['person_id'])->whereNull('m.deleted_at')->whereNull('p.deleted_at')->orderBy('m.id')
+            ->get(['p.id', 'p.first_name', 'p.father_name', 'p.last_name', 'r.name_ar as relation_ar', 'r.name_en as relation_en']);
+
+        return $list->concat($rows->map(fn ($m) => (object) [
+            'id' => (string) $m->id, 'label' => trim(implode(' ', array_filter([$m->first_name, $m->father_name, $m->last_name]))),
+            'relation' => ($en && $m->relation_en ? $m->relation_en : $m->relation_ar) ?? '', 'group' => null,
+        ]));
+    }
+
+    /** Family figures from the family table: size, active by residence status, working, studying. @return array<string, int> */
+    private function familyStats(): array
+    {
+        $active = DB::table('person_states')->where('type', 'Active')->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $students = DB::table('education_levels')->where('name_en', 'Student')->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $rows = collect($this->form['grids']['family'] ?? []);
+        $count = fn (callable $f): int => $rows->filter($f)->count();
+        $total = $rows->count();
+        $isActive = fn ($r) => in_array((string) ($r['person_state_id'] ?? ''), $active, true);
+        $working = $count(fn ($r) => ($r['has_work'] ?? '') === '1');
+        $studying = $count(fn ($r) => in_array((string) ($r['education_level_id'] ?? ''), $students, true));
+
+        return ['total' => $total, 'active' => $count($isActive), 'inactive' => $total - $count($isActive), 'working' => $working, 'not_working' => $total - $working, 'studying' => $studying, 'not_studying' => $total - $studying];
+    }
+
+    /** The saved budget files of the project (type "Budget proposal"), for the link next to the budget. @return list<object> */
+    private function budgetAttachments(): array
+    {
+        if ($this->projectId === null) {
+            return [];
+        }
+
+        return DB::table('attachments as a')->join('attachment_types as t', 't.id', '=', 'a.attachment_type_id')->where('a.project_id', $this->projectId)->where('t.name_en', 'Budget proposal')
+            ->whereNull('a.deleted_at')->orderByDesc('a.id')->get(['a.id', 'a.original_name'])->all();
     }
 
     public function render(): View
@@ -395,6 +483,12 @@ class ApplicationForm extends Component
         foreach (ApplicationFields::grids($stage) as $kind) {
             $gridOptions[$kind] = $people->optionsFor(ApplicationFields::grid($kind)['fields'], $city);
         }
+        $memberList = $this->memberOptions();
+        foreach (ApplicationFields::MEMBER_GRIDS as $kind) {
+            if (isset($gridOptions[$kind])) {
+                $gridOptions[$kind]['person_id'] = $kind === 'family_work' ? $memberList->reject(fn ($o) => $o->id === 'self')->prepend((object) ['id' => '', 'label' => __('people.choose'), 'relation' => '', 'group' => null])->values() : $memberList;
+            }
+        }
         $duplicates = $people->duplicates($account, $city, $this->form['person'], $this->form['person_id']);
         // The person's own current applications are not a duplicate warning on their own application.
         if ($this->projectId !== null) {
@@ -408,11 +502,10 @@ class ApplicationForm extends Component
             'applicantGroups' => array_map(fn ($g) => array_filter($g, fn ($s) => $stage === 'full' || ! ($s['full'] ?? false)), ApplicationFields::APPLICANT),
             'personGroups' => array_map(fn ($g) => array_diff_key($g, $stage === 'full' ? [] : array_flip(ApplicationFields::PERSON_FULL_ONLY)), array_diff_key(PersonFields::PERSON, ['other' => 1])),
             'options' => $options, 'personOptions' => $personOptions, 'gridOptions' => $gridOptions, 'grids' => ApplicationFields::grids($stage),
-            'duplicates' => $duplicates,
+            'duplicates' => $duplicates, 'familyStats' => $this->familyStats(), 'goalOptions' => $people->options('goals'), 'budgetAttachments' => $this->budgetAttachments(), 'canAttachBudget' => app(\App\Services\Attachments\AttachmentService::class)->uploadTypes(auth()->user(), $city)->contains('name_en', 'Budget proposal'),
             'holders' => $this->form['person_id'] ? collect() : $people->familyHolders($city, (string) $this->form['family_number']),
             'picks' => $this->form['person_id'] === null && $this->projectId === null ? $people->pick($account, $city, $this->personSearch) : collect(),
             'suggested' => $this->projectId === null ? app(ProjectNumberAllocator::class)->suggest($city) : null,
-            'scoreCriteria' => app(ProjectScores::class)->criteria(),
         ]);
     }
 }

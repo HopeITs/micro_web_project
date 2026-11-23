@@ -43,10 +43,6 @@ final class ApplicationFields
         ],
         'extra' => [
             'profit_description' => ['kind' => 'textarea'],
-            'income_kind' => ['kind' => 'text', 'max' => 100, 'full' => true],
-            'income_kind_note' => ['kind' => 'text', 'max' => 255, 'full' => true],
-            'street_id' => ['kind' => 'lookup', 'table' => 'streets', 'city' => true, 'full' => true],
-            'note' => ['kind' => 'textarea', 'full' => true],
         ],
     ];
 
@@ -132,6 +128,8 @@ final class ApplicationFields
      */
     public const GRIDS = [
         'family' => ['owner' => 'family', 'section' => 'family'],
+        // The work of family members (desktop FP_Exp grid): current jobs of the people of the family.
+        'family_work' => ['owner' => 'person', 'full' => true, 'section' => 'family'],
         'work_experiences' => ['owner' => 'person', 'section' => 'work'],
         'educations' => ['owner' => 'person', 'full' => true, 'section' => 'work'],
         'courses' => ['owner' => 'person', 'full' => true, 'section' => 'work'],
@@ -144,10 +142,10 @@ final class ApplicationFields
         'goals' => ['owner' => 'person', 'section' => 'story', 'full' => true],
         'materials' => ['owner' => 'project', 'section' => 'premises', 'full' => true, 'table' => 'project_materials', 'fields' => [
             'name' => ['kind' => 'textarea'],
+            'comments' => ['kind' => 'textarea'],
             'quantity' => ['kind' => 'decimal'],
             'price' => ['kind' => 'decimal'],
             'local_contribution' => ['kind' => 'decimal'],
-            'comments' => ['kind' => 'textarea'],
         ]],
         'project_power_sources' => ['owner' => 'project', 'section' => 'premises', 'full' => true, 'table' => 'project_power_sources', 'fields' => [
             'power_source_id' => ['kind' => 'lookup', 'table' => 'power_sources'],
@@ -155,10 +153,10 @@ final class ApplicationFields
             'cost' => ['kind' => 'decimal'],
             'responsibility' => ['kind' => 'textarea'],
         ]],
-        'risks' => ['owner' => 'project', 'section' => 'premises', 'full' => true, 'table' => 'project_risks', 'fields' => [
-            'risk_id' => ['kind' => 'lookup', 'table' => 'risks', 'required' => true],
-        ]],
     ];
+
+    /** Person grids whose rows say who they are about (desktop Name / Relation columns): the beneficiary or one of the family. */
+    public const MEMBER_GRIDS = ['losses', 'illnesses', 'assets', 'aid_sources', 'family_work'];
 
     /** The family grid: the member as a person and as a family row. */
     public const FAMILY_PERSON = ['first_name', 'father_name', 'last_name', 'sex', 'birth_date', 'national_number', 'person_state_id'];
@@ -174,8 +172,15 @@ final class ApplicationFields
 
             return ['table' => 'family_members', 'fields' => $person + PersonFields::MEMBER];
         }
+        if ($kind === 'family_work') {
+            $work = PersonFields::DETAILS['work_experiences'];
+
+            return ['table' => $work['table'], 'fields' => ['person_id' => ['kind' => 'member']] + array_intersect_key($work['fields'], array_flip(['occupation_id', 'work_type_id', 'salary']))];
+        }
         if ($grid['owner'] === 'person') {
-            return PersonFields::DETAILS[$kind];
+            $details = PersonFields::DETAILS[$kind];
+            // The desktop grid names who the row is about: the beneficiary or a family member.
+            return in_array($kind, self::MEMBER_GRIDS, true) ? ['table' => $details['table'], 'fields' => ['person_id' => ['kind' => 'member']] + $details['fields']] : $details;
         }
 
         return ['table' => $grid['table'], 'fields' => $grid['fields']];

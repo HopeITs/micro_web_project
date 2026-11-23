@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'print' => 'Print',
+    'print' => 'Print', 'meeting_draft' => 'A draft meeting cannot be printed. Mark it final first.',
     'print_application' => 'Print application',
     'back' => 'Back',
     'review_title' => 'Redraw review',

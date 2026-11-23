@@ -259,6 +259,77 @@ class ApplicationFormScenarioTest extends TestCase
         $this->assertSame(1, DB::table('person_work_experiences')->where('person_id', $person)->where('status', 'no')->count());
     }
 
+    public function test_health_rows_name_the_beneficiary_or_a_family_member_and_family_work_needs_a_member(): void
+    {
+        $this->damascusClerk();
+        $service = app(ApplicationService::class);
+        $state = $service->blank(auth()->user(), $this->city('DAM'));
+        $state['person'] = array_merge($state['person'], ['first_name' => 'سامر', 'last_name' => 'تجربة', 'father_name' => 'أحمد', 'sex' => 'male']);
+        $state['project']['name'] = 'وصف';
+        $state['family_number'] = 'F-'.random_int(1000, 9999);
+        $state['grids']['family'] = [['id' => null, 'first_name' => 'ليلى', 'last_name' => 'تجربة', 'father_name' => 'سامر', 'sex' => 'female', 'birth_date' => '', 'national_number' => '', 'person_state_id' => '', 'relation_id' => $this->id('relations'), 'education_level_id' => '', 'education_specialty_id' => '', 'has_work' => '', 'work_name' => '']];
+        $project = $service->save(auth()->user(), $state, null, true);
+
+        $loaded = $service->load(auth()->user(), $project);
+        $member = (int) DB::table('people')->where('first_name', 'ليلى')->orderByDesc('id')->value('id');
+        $beneficiary = (int) $loaded['person_id'];
+        $illness = ['id' => null, 'illness_id' => $this->id('illnesses'), 'note' => '', 'has_medical_aid' => '', 'donor_text' => '', 'aid_source_id' => '', 'aid_period_id' => '', 'medical_need_id' => ''];
+        $loaded['applicant']['has_illness'] = '1';
+        $loaded['grids']['illnesses'] = [['person_id' => (string) $member] + $illness, ['person_id' => 'self'] + $illness];
+        $service->save(auth()->user(), $loaded, $project, true);
+        $this->assertSame(1, DB::table('person_illnesses')->where('person_id', $member)->whereNull('deleted_at')->count());
+        $this->assertSame(1, DB::table('person_illnesses')->where('person_id', $beneficiary)->whereNull('deleted_at')->count());
+
+        $again = $service->load(auth()->user(), $project);
+        $this->assertEqualsCanonicalizing([(string) $member, 'self'], array_column($again['grids']['illnesses'], 'person_id'));
+
+        // A person outside the family is refused; family work needs a member, never the beneficiary.
+        $again['grids']['illnesses'][0]['person_id'] = (string) DB::table('people')->where('id', '<>', $member)->where('id', '<>', $beneficiary)->value('id');
+        try {
+            $service->save(auth()->user(), $again, $project, true);
+            $this->fail('saved a row about someone outside the family');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(404, $e->getStatusCode());
+        }
+        $work = ['person_id' => 'self', 'occupation_id' => $this->id('occupations'), 'work_type_id' => '', 'salary' => '1000'];
+        $again = $service->load(auth()->user(), $project);
+        $again['grids']['family_work'] = [['id' => null] + $work];
+        try {
+            $service->save(auth()->user(), $again, $project, true);
+            $this->fail('saved family work about the beneficiary');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('grids.family_work.0.person_id', $e->errors());
+        }
+        $again['grids']['family_work'] = [['id' => null, 'person_id' => (string) $member] + $work];
+        $service->save(auth()->user(), $again, $project, true);
+        $this->assertSame('yes', DB::table('person_work_experiences')->where('person_id', $member)->value('status'));
+    }
+
+    public function test_goals_are_ticked_and_the_budget_total_and_stats_show(): void
+    {
+        $this->damascusClerk();
+        $goal = (int) DB::table('goals')->where('is_active', true)->orderBy('id')->value('id');
+        $form = $this->newPreliminary()->call('setStage', 'full')->call('toggleGoal', $goal)->assertCount('form.grids.goals', 1)
+            ->call('toggleGoal', $goal)->assertCount('form.grids.goals', 0);
+        $form->call('addRow', 'materials')->set('form.grids.materials.0.quantity', '3')->set('form.grids.materials.0.price', '1500')->set('form.grids.materials.0.local_contribution', '500')
+            ->assertSee('4,500')->assertSee(__('applications.fields.agreement_1', [], 'ar'))
+            ->assertDontSee(__('applications.sections.scores', [], 'ar'))->assertDontSee(__('applications.grids.risks', [], 'ar'));
+        $form->call('addRow', 'family')->assertSee(__('applications.family_stats.title', [], 'ar'));
+    }
+
+    public function test_budget_file_is_attached_to_the_project_on_saving(): void
+    {
+        $this->actingAs(WebAccount::where('username', 'super.admin')->firstOrFail());
+        Storage::fake('local');
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('budget.pdf', "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n");
+        $this->newPreliminary()->set('budgetFile', $file)->call('save')->assertHasNoErrors(); fwrite(STDERR, 'DBG '.json_encode([session('warning'), session('status')], JSON_UNESCAPED_UNICODE)."
+");
+        $project = (int) DB::table('projects')->latest('id')->value('id');
+        $row = DB::table('attachments as a')->join('attachment_types as t', 't.id', '=', 'a.attachment_type_id')->where('a.project_id', $project)->first(['a.original_name', 't.name_en']);
+        $this->assertSame('budget.pdf', $row?->original_name);
+        $this->assertSame('Budget proposal', $row?->name_en);
+    }
+
     public function test_a_no_answer_cannot_be_saved_with_its_rows(): void
     {
         $this->damascusClerk();

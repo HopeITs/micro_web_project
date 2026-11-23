@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'print' => 'طباعة',
+    'print' => 'طباعة', 'meeting_draft' => 'لا يمكن طباعة مسودة. اجعل اللقاء نهائياً أولاً.',
     'print_application' => 'طباعة الاستمارة',
     'back' => 'عودة',
     'review_title' => 'مراجعة الرسم',

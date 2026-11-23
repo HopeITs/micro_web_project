@@ -3,7 +3,9 @@
 namespace App\Livewire;
 
 use App\Services\AccountAccess;
+use App\Services\Applications\ApplicationService;
 use App\Services\Attachments\AttachmentService;
+use App\Services\People\PeopleService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -113,9 +115,9 @@ class AttachmentsPanel extends Component
 
         // "Read the identity document": for staff who may change the person (the beneficiary of a project, or the person themselves).
         $identityPerson = null;
-        if ($visible && app(\App\Services\People\PeopleService::class)->canManage($account, $city)) {
+        if ($visible && app(PeopleService::class)->canManage($account, $city)) {
             $identityPerson = $person ? $this->ownerId : DB::table('project_applicants')->where('project_id', $this->ownerId)->whereNull('deleted_at')
-                ->orderByRaw('CASE WHEN role = ? THEN 0 ELSE 1 END', [\App\Services\Applications\ApplicationService::BENEFICIARY])->orderBy('id')->value('person_id');
+                ->orderByRaw('CASE WHEN role = ? THEN 0 ELSE 1 END', [ApplicationService::BENEFICIARY])->orderBy('id')->value('person_id');
         }
 
         return view('livewire.attachments-panel', [

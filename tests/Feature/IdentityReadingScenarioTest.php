@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\AttachmentsPanel;
 use App\Livewire\IdentityReview;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountProvisioner;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\RoleAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +30,7 @@ class IdentityReadingScenarioTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         Storage::fake('local');
-        config(['identity_reader.api_key' => 'test-key', 'identity_reader.passes' => 2, 'identity_reader.daily_limit' => 60]);
+        config(['identity_reader.api_key' => 'test-key', 'identity_reader.endpoint' => 'https://api.anthropic.com/v1/messages', 'identity_reader.passes' => 2, 'identity_reader.daily_limit' => 60]);
     }
 
     private function city(string $code): int
@@ -49,7 +51,7 @@ class IdentityReadingScenarioTest extends TestCase
         $path = 'attachments/DAM/person-'.$person->id.'/scan-'.$extension.'.'.$extension;
         Storage::disk('local')->put($path, $extension === 'pdf' ? "%PDF-1.4\n%fake" : base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
         $attachment = DB::table('attachments')->insertGetId([
-            'city_id' => $this->city('DAM'), 'person_id' => $person->id, 'attachment_type_id' => $type, 'original_name' => 'id.'.$extension, 'stored_path' => $path, 'extension' => $extension,
+            'city_id' => $this->city('DAM'), 'person_id' => $person->id, 'attachment_type_id' => $type, 'original_name' => 'id.'.$extension, 'stored_path' => $path, 'extension' => $extension, 'legacy_source' => 'image',
             'uploaded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -196,7 +198,7 @@ class IdentityReadingScenarioTest extends TestCase
         [$person] = $this->personWithScan();
         $this->get('/ar/people/'.$person->id.'/identity')->assertRedirect();
 
-        $this->post('/ar/login', ['login' => \Database\Seeders\RoleAccountsSeeder::email('super.admin') ?? 'super.admin', 'password' => 'password'])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => RoleAccountsSeeder::email('super.admin') ?? 'super.admin', 'password' => 'password'])->assertRedirect('/ar');
         $this->get('/ar/people/'.$person->id.'/identity')->assertOk()->assertSee('قراءة الهوية من المرفق');
         $this->get('/en/people/'.$person->id)->assertOk()->assertSee('Read identity document');
         $this->post('/ar/logout');
@@ -213,13 +215,27 @@ class IdentityReadingScenarioTest extends TestCase
         $this->get('/ar/people/'.$person->id.'/identity')->assertStatus(403);
     }
 
+    public function test_the_scan_may_be_framed_by_this_site_for_the_review_and_nothing_else_is_opened_up(): void
+    {
+        [$person, $attachment] = $this->personWithScan('pdf');
+        $this->post('/ar/login', ['login' => RoleAccountsSeeder::email('super.admin') ?? 'super.admin', 'password' => 'password'])->assertRedirect('/ar');
+
+        $file = $this->get(route('attachments.file', ['locale' => 'ar', 'attachment' => $attachment]))->assertOk();
+        $this->assertSame('SAMEORIGIN', $file->headers->get('X-Frame-Options'));
+        $this->assertStringContainsString("frame-ancestors 'self'", (string) $file->headers->get('Content-Security-Policy'));
+        $page = $this->get('/ar/people/'.$person->id)->assertOk();
+        $this->assertSame('DENY', $page->headers->get('X-Frame-Options'));
+        $this->assertStringContainsString("frame-ancestors 'none'", (string) $page->headers->get('Content-Security-Policy'));
+        $this->assertSame('DENY', $this->get('/ar/attachments')->headers->get('X-Frame-Options'));
+    }
+
     public function test_the_attachments_panel_offers_the_reader_only_for_readable_files(): void
     {
         [$person, $attachment] = $this->personWithScan();
-        DB::table('attachments')->insert(['city_id' => $this->city('DAM'), 'person_id' => $person->id, 'original_name' => 'note.txt', 'stored_path' => 'x/note.txt', 'extension' => 'txt', 'uploaded_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('attachments')->insert(['city_id' => $this->city('DAM'), 'person_id' => $person->id, 'original_name' => 'note.txt', 'stored_path' => 'x/note.txt', 'extension' => 'txt', 'legacy_source' => 'image', 'uploaded_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
         Storage::disk('local')->put('x/note.txt', 'hello');
 
-        $html = Livewire::actingAs($this->admin())->test(\App\Livewire\AttachmentsPanel::class, ['owner' => 'person', 'ownerId' => $person->id])->html();
+        $html = Livewire::actingAs($this->admin())->test(AttachmentsPanel::class, ['owner' => 'person', 'ownerId' => $person->id])->html();
         $link = route('people.identity', ['locale' => 'ar', 'person' => $person->id, 'attachment' => $attachment]);
         $this->assertStringContainsString(htmlspecialchars($link, ENT_QUOTES), $html);
         $this->assertSame(1, substr_count($html, 'people/'.$person->id.'/identity'));

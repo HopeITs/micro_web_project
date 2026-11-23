@@ -133,6 +133,8 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/people/export/{token}', \App\Http\Controllers\PeopleExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('people.export');
             Route::get('/people/{person}', [PeopleController::class, 'show'])->whereNumber('person')->name('people.show');
             Route::get('/people/{person}/edit', [PeopleController::class, 'edit'])->whereNumber('person')->name('people.edit');
+            // Reading the identity document from an attachment (IdentityReviewService rechecks people.manage and the attachment's own permissions).
+            Route::get('/people/{person}/identity', [PeopleController::class, 'identity'])->whereNumber('person')->name('people.identity');
 
             // M4.11 attachments (AttachmentService rechecks the owner, attachments.download and the category grant on every file).
             Route::get('/attachments', [\App\Http\Controllers\AttachmentFileController::class, 'index'])->name('attachments.index');

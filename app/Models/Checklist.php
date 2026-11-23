@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Base\CityModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Table `checklists` (city, from desktop `checklist`).
@@ -84,5 +85,10 @@ class Checklist extends CityModel
     public function rejectionMessageSenderAccount(): BelongsTo
     {
         return $this->belongsTo(WebAccount::class, 'rejection_message_sender_account_id');
+    }
+
+    public function skillsTests(): HasMany
+    {
+        return $this->hasMany(SkillsTest::class, 'checklist_id');
     }
 }

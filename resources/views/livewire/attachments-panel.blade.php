@@ -83,6 +83,7 @@
                         <td data-label="{{ __('attachments.uploaded') }}"><span class="num">{{ $r->uploaded_at ? substr((string) $r->uploaded_at, 0, 10) : '—' }}</span>@if($r->uploader) <span class="muted">· {{ $r->uploader }}</span>@endif</td>
                         <td data-label="{{ __('attachments.size') }}" class="num"><span dir="ltr">{{ $size($r->size) }}</span></td>
                         <td style="white-space:nowrap">
+                            @if($identityPerson && $r->available && in_array(strtolower((string) $r->extension), \App\Services\Identity\IdentityReviewService::READABLE, true))<x-hc.button size="sm" variant="ghost" icon="id" :href="route('people.identity', ['locale' => $locale, 'person' => $identityPerson, 'attachment' => $r->id])">{{ __('identity.attach_button') }}</x-hc.button>@endif
                             @if($r->available)<x-hc.button size="sm" variant="ghost" icon="install" :href="$url.'?download=1'">{{ __('attachments.download') }}</x-hc.button>@endif
                             @if($types->isNotEmpty())
                                 <x-hc.button size="sm" variant="ghost" icon="x" wire:click="delete({{ $r->id }})" wire:confirm="{{ __('attachments.confirm_delete') }}" style="color:var(--danger, #b42318)">{{ __('attachments.delete') }}</x-hc.button>

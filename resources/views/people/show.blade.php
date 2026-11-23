@@ -7,6 +7,7 @@
             'lookup' => $labels[$field] ?? null,
             'bool' => $v === null ? null : ($v ? __('people.yes') : __('people.no')),
             'sex' => $v ? __('people.'.$v) : null,
+            'choice' => $v ? __('people.choices.'.$field.'.'.$v) : null,
             'date' => $v ? substr((string) $v, 0, 10) : null,
             default => filled($v) ? $v : null,
         };
@@ -23,6 +24,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             @if($person->national_number)<x-hc.button icon="id" variant="ghost" :href="route('people.national', ['locale' => $locale, 'person' => $person->id])">{{ __('national.from_person') }}</x-hc.button>@endif
             @if($editable)<x-hc.button icon="settings" variant="secondary" :href="route('people.edit', ['locale' => $locale, 'person' => $person->id])">{{ __('people.edit_title') }}</x-hc.button>@endif
+            @if($editable)<x-hc.button icon="id" variant="secondary" :href="route('people.identity', ['locale' => $locale, 'person' => $person->id])">{{ __('identity.button') }}</x-hc.button>@endif
             @if(app(\App\Services\Applications\ApplicationService::class)->canWrite(auth()->user(), (int) $person->city_id))
                 <x-hc.button icon="plus" :href="route('applications.create', ['locale' => $locale, 'person' => $person->id])">{{ __('applications.new') }}</x-hc.button>
             @endif

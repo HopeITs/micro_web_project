@@ -237,4 +237,64 @@ class Project extends CityModel
     {
         return $this->hasMany(Attachment::class, 'project_id');
     }
+
+    public function projectVehicles(): HasMany
+    {
+        return $this->hasMany(ProjectVehicle::class, 'project_id');
+    }
+
+    public function projectSolarSystems(): HasMany
+    {
+        return $this->hasMany(ProjectSolarSystem::class, 'project_id');
+    }
+
+    public function projectEquipmentItems(): HasMany
+    {
+        return $this->hasMany(ProjectEquipmentItem::class, 'project_id');
+    }
+
+    public function projectDeedTerms(): HasMany
+    {
+        return $this->hasMany(ProjectDeedTerm::class, 'project_id');
+    }
+
+    public function saleContracts(): HasMany
+    {
+        return $this->hasMany(SaleContract::class, 'project_id');
+    }
+
+    public function partnershipContracts(): HasMany
+    {
+        return $this->hasMany(PartnershipContract::class, 'project_id');
+    }
+
+    public function purchaseRequests(): HasMany
+    {
+        return $this->hasMany(PurchaseRequest::class, 'project_id');
+    }
+
+    public function priceQuotes(): HasMany
+    {
+        return $this->hasMany(PriceQuote::class, 'project_id');
+    }
+
+    public function equipmentReceipts(): HasMany
+    {
+        return $this->hasMany(EquipmentReceipt::class, 'project_id');
+    }
+
+    public function equipmentReturns(): HasMany
+    {
+        return $this->hasMany(EquipmentReturn::class, 'project_id');
+    }
+
+    public function disbursementRequests(): HasMany
+    {
+        return $this->hasMany(DisbursementRequest::class, 'project_id');
+    }
+
+    public function skillsTests(): HasMany
+    {
+        return $this->hasMany(SkillsTest::class, 'project_id');
+    }
 }

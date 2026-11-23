@@ -61,4 +61,14 @@ final class PeopleController
 
         return view('people.edit', ['person' => $row]);
     }
+
+    /** Read the identity document from one of the person's attachments (?attachment=) and approve the values beside the image. */
+    public function identity(Request $request, string $locale, int $person, PeopleService $people): View
+    {
+        $attachment = $request->validate(['attachment' => ['nullable', 'integer', 'min:1']])['attachment'] ?? null;
+        $row = $people->person($request->user(), $person);
+        $people->canManage($request->user(), (int) $row->city_id) || abort(403);
+
+        return view('people.identity', ['person' => $row, 'attachment' => $attachment]);
+    }
 }

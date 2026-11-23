@@ -22,13 +22,13 @@ class UnifiedSchemaTest extends TestCase
     public function test_the_schema_file_is_the_approved_version(): void
     {
         $this->assertSame(UnifiedSchema::approved()['sha256'], $this->schema()['sha256']);
-        $this->assertSame('b734681deedda50f8ac4e4c4af3069a01f569a05c5f59525102ff13a3c63459d', UnifiedSchema::approved()['sha256'], 'approved.php changed: record the new approval first');
+        $this->assertSame('5db332961a9cbf1e5ef1f0a67f4167211b32a9b5c858d3397d982958239e2f5d', UnifiedSchema::approved()['sha256'], 'approved.php changed: record the new approval first');
     }
 
     public function test_every_approved_table_and_column_exists(): void
     {
         $tables = $this->schema()['tables'];
-        $this->assertCount(139, $tables);
+        $this->assertCount(157, $tables);
 
         foreach ($tables as $name => $table) {
             $this->assertTrue(Schema::hasTable($name), "missing table {$name}");

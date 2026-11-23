@@ -75,3 +75,17 @@
 - **Approved SHA-256:** `b734681deedda50f8ac4e4c4af3069a01f569a05c5f59525102ff13a3c63459d`, covering [unified-schema-v1.5.json](unified-schema-v1.5.json).
 - **What this allows:** the migrations, models and code for saved views and the AI query log follow v1.5 without asking again.
 - **Note:** the words "مسودة" (draft) inside `unified-schema-v1.5.php` are left as they were, because they are part of the approved JSON; changing them would change the approved SHA.
+
+## Addendum v1.6 — data of the official papers (M4.20)
+
+- **Approved by the user:** 23 November 2026 ("موافق"), after reviewing [m1-schema-review-v1.6.html](m1-schema-review-v1.6.html). `database/schema/approved.php` declares v1.6.
+- **Why:** the owner's decisions of 21 November 2026 for printing every official paper from the site: a nationality field on the person picks the Syrian or non-Syrian version; branch details and signatories per city; one table per kind of paper data.
+- **What it adds:** 18 new city tables and 6 optional columns on `people` (157 tables, 1,751 columns; v1.5 had 139 and 1,509). Nothing existing changes.
+  - `people`: `nationality` (syrian|other), `id_document_type`, `id_document_number`, `id_issue_text`, `identity_info_1`, `identity_info_2`.
+  - Per city: `city_paper_settings` (one row per city), `city_paper_signatories` (director, projects manager, finance manager, purchasing officer, legal representative with identity and validity).
+  - Per project: `project_vehicles`, `project_solar_systems`, `project_equipment_items`, `project_deed_terms`, `sale_contracts`, `partnership_contracts`, `purchase_requests` (+ `purchase_request_items`), `price_quotes` (+ `price_quote_items`), `equipment_receipts`, `equipment_returns` (+ `equipment_return_items`), `disbursement_requests`, `skills_tests` (+ `skills_test_stages`).
+- **Not included:** family members' work type and income (G8) and training tables (G9); training and course attendance sheets are printed from chosen projects without being stored.
+- **Rules:** every new table is city-scoped with soft delete; changes are audited with the v1.3 details; no transfer source (they start empty).
+- **Approved SHA-256:** `5db332961a9cbf1e5ef1f0a67f4167211b32a9b5c858d3397d982958239e2f5d`, covering [unified-schema-v1.6.json](unified-schema-v1.6.json) (157 tables, 1,751 columns).
+- **What this allows:** the migrations and models move to v1.6, and each paper is built on its tables, without asking again.
+- **Note:** the words "مسودة" (draft) inside `unified-schema-v1.6.php` are left as they were, because they are part of the approved JSON; changing them would change the approved SHA.

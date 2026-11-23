@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Local/synthetic seeding only (M2.3): cities, reference lists, invented sample data, one test account
- * per role and (M4.13) special cases recorded by them. Real data comes from the M3 transfer tool, never from seeders.
+ * per role, (M4.13) special cases recorded by them and (M4.14) invented Kobo submissions. Real data comes from the M3 transfer tool, never from seeders.
  */
 final class DatabaseSeeder extends Seeder
 {
@@ -20,5 +20,6 @@ final class DatabaseSeeder extends Seeder
         $this->call(SyntheticStaffSeeder::class);
         $this->call(RoleAccountsSeeder::class);
         $this->call(SyntheticSpecialCasesSeeder::class);
+        $this->call(SyntheticKoboSeeder::class);
     }
 }

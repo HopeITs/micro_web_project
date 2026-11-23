@@ -71,6 +71,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // Smart-search phase 2: the payment schedule as shown (columns, filters, search, sort) from the list's single-use token; DatasetExport rechecks finance.export per city.
             Route::get('/payments/export/{token}', \App\Http\Controllers\PaymentExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('payments.export');
 
+            // M4.14 Kobo, read and review only (KoboReadService / KoboResultsService recheck visits.manage and reports.export per city).
+            Route::get('/kobo', [\App\Http\Controllers\KoboController::class, 'index'])->name('kobo.index');
+            Route::get('/kobo/export', [\App\Http\Controllers\KoboController::class, 'export'])->middleware('throttle:10,1')->name('kobo.export');
+
             // M4.12 visits (VisitService / MonitoringVisitService / VisitScheduleService / VisitResultsService / VisitorStatisticsService recheck the capabilities per city).
             Route::get('/applications/{project}/visits', [\App\Http\Controllers\VisitController::class, 'hub'])->whereNumber('project')->name('visits.hub');
             Route::get('/applications/{project}/visits/{kind}', [\App\Http\Controllers\VisitController::class, 'show'])->whereNumber('project')->where('kind', '[OVR]-(op|cl)')->name('visits.show');

@@ -39,7 +39,7 @@ final class AuditLogService
         'applications' => ['applications', 'application_draft', 'projects'],
         'lifecycle' => ['lifecycle', 'assessments', 'tasks'],
         'finance' => ['finance', 'executive_files', 'purchasing'],
-        'visits' => ['visits', 'me_visits', 'special_cases'],
+        'visits' => ['visits', 'me_visits', 'special_cases', 'kobo'],
         'meetings' => ['profession_meetings'],
         'lookups' => ['lookups'],
         'attachments' => ['attachments'],

@@ -36,7 +36,7 @@ final class Navigation
             ['key' => 'visitor_statistics', 'icon' => 'users', 'route' => 'visits.statistics', 'capability' => 'visits.statistics'],
             // M4.13: the list of all special cases (each project's cases open from its page).
             ['key' => 'special_cases', 'icon' => 'clipboard', 'route' => 'special-cases.index', 'capability' => 'special_cases.view'],
-            ['key' => 'kobo', 'icon' => 'sync', 'capability' => 'visits.manage', 'task' => 'M4.14'],
+            ['key' => 'kobo', 'icon' => 'sync', 'route' => 'kobo.index', 'capability' => 'visits.manage'],
             ['key' => 'meetings', 'icon' => 'meeting', 'route' => 'meetings.index', 'capability' => 'profession_meetings.view'],
         ],
         'tools' => [

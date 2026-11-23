@@ -111,7 +111,15 @@ class AttachmentsPanel extends Component
         $types = $visible ? $service->uploadTypes($account, $city) : collect();
         $person = $this->owner === 'person';
 
+        // "Read the identity document": for staff who may change the person (the beneficiary of a project, or the person themselves).
+        $identityPerson = null;
+        if ($visible && app(\App\Services\People\PeopleService::class)->canManage($account, $city)) {
+            $identityPerson = $person ? $this->ownerId : DB::table('project_applicants')->where('project_id', $this->ownerId)->whereNull('deleted_at')
+                ->orderByRaw('CASE WHEN role = ? THEN 0 ELSE 1 END', [\App\Services\Applications\ApplicationService::BENEFICIARY])->orderBy('id')->value('person_id');
+        }
+
         return view('livewire.attachments-panel', [
+            'identityPerson' => $identityPerson ? (int) $identityPerson : null,
             'visible' => $visible, 'rows' => $list['rows'], 'counts' => $list['counts'], 'hidden' => $list['hidden'],
             'total' => array_sum($list['counts']), 'types' => $types,
             // Filter chips: only the types that hold files the account may see (an empty type would be noise, especially on a phone).

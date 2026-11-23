@@ -28,6 +28,16 @@ final class PersonFields
             'priest_id' => ['kind' => 'lookup', 'table' => 'priests', 'city' => true],
             'second_priest_id' => ['kind' => 'lookup', 'table' => 'priests', 'city' => true],
         ],
+        // v1.6 (official papers): the identity document. The nationality picks the Syrian or non-Syrian version of the legal papers;
+        // the document can be read from its scan (IdCardReader) and is always reviewed by staff before it is saved.
+        'document' => [
+            'nationality' => ['kind' => 'choice', 'options' => ['syrian', 'other']],
+            'id_document_type' => ['kind' => 'choice', 'options' => ['national_id', 'passport', 'residence_permit', 'family_book', 'other']],
+            'id_document_number' => ['kind' => 'text', 'max' => 60],
+            'id_issue_text' => ['kind' => 'text', 'max' => 100],
+            'identity_info_1' => ['kind' => 'text', 'max' => 255],
+            'identity_info_2' => ['kind' => 'text', 'max' => 255],
+        ],
         'contact' => [
             'mobile' => ['kind' => 'text', 'max' => 60],
             'home_phone' => ['kind' => 'text', 'max' => 60],

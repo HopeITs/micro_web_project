@@ -330,6 +330,23 @@ class ApplicationFormScenarioTest extends TestCase
         $this->assertSame('Budget proposal', $row?->name_en);
     }
 
+    public function test_a_health_row_can_name_a_family_member_added_in_the_same_save(): void
+    {
+        $this->damascusClerk();
+        $service = app(ApplicationService::class);
+        $state = $service->blank(auth()->user(), $this->city('DAM'));
+        $state['person'] = array_merge($state['person'], ['first_name' => 'سامر', 'last_name' => 'تجربة', 'sex' => 'male']);
+        $state['project']['name'] = 'وصف';
+        $member = ['id' => null, 'first_name' => 'ليلى', 'last_name' => 'تجربة', 'father_name' => 'سامر', 'sex' => 'female', 'birth_date' => '', 'national_number' => '', 'person_state_id' => '', 'relation_id' => $this->id('relations'), 'education_level_id' => '', 'education_specialty_id' => '', 'has_work' => '', 'work_name' => ''];
+        $state['grids']['family'] = [array_merge($member, ['first_name' => 'فارغ']), $member];
+        $state['applicant']['has_illness'] = '1';
+        $state['grids']['illnesses'] = [['id' => null, 'person_id' => 'row-1', 'illness_id' => $this->id('illnesses'), 'note' => '', 'has_medical_aid' => '', 'donor_text' => '', 'aid_source_id' => '', 'aid_period_id' => '', 'medical_need_id' => '']];
+        $project = $service->save(auth()->user(), $state, null, true);
+        $leila = (int) DB::table('people')->where('first_name', 'ليلى')->value('id');
+        $this->assertSame(1, DB::table('person_illnesses')->where('person_id', $leila)->count());
+        $this->assertNotNull($project);
+    }
+
     public function test_a_no_answer_cannot_be_saved_with_its_rows(): void
     {
         $this->damascusClerk();

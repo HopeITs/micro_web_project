@@ -212,7 +212,6 @@
                 @if(in_array('goals', $grids, true))
                 @php($chosen = collect($form['grids']['goals'] ?? [])->pluck('goal_id')->map(fn ($g) => (string) $g)->all())
                 <div class="hc-field" style="margin-block:12px">
-                    <span class="hc-label">{{ __('applications.grids.goals') }} <span class="muted">({{ count($chosen) }})</span></span>
                     <div class="hc-choice" role="group" aria-label="{{ __('applications.grids.goals') }}" style="display:flex;flex-wrap:wrap;gap:8px 20px">
                         @foreach($goalOptions as $g)
                             <label style="min-width:220px"><input type="checkbox" wire:key="goal-{{ $g->id }}" wire:click="toggleGoal({{ $g->id }})" @checked(in_array((string) $g->id, $chosen, true))>{{ $g->label }}</label>

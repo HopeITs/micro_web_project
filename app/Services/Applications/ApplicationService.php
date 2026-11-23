@@ -267,7 +267,7 @@ final class ApplicationService
                 if ($kind === 'family_work' && ($values['person_id'] ?? 'self') === 'self') {
                     $errors["grids.family_work.$i.person_id"] = [__('validation.required', ['attribute' => __('applications.fields.person_id')])];
                 }
-                $grids[$kind][] = ['id' => isset($row['id']) && $row['id'] ? (int) $row['id'] : null] + $values;
+                $grids[$kind][] = ['id' => isset($row['id']) && $row['id'] ? (int) $row['id'] : null] + ($kind === 'family' ? ['_index' => $i] : []) + $values;
             }
         }
         // A "No" answer cannot be saved together with the rows or fields it closes (ApplicationFields::SWITCHES).
@@ -424,6 +424,7 @@ final class ApplicationService
             $counts[$kind][$i]++;
         };
         $family = $this->familyOf($personId);
+        $familyIndex = []; // position of a family row in the form => its person id, for rows about a member added in the same save
         foreach ($grids as $kind => $rows) {
             $grid = ApplicationFields::grid($kind);
             $owner = ApplicationFields::GRIDS[$kind]['owner'];
@@ -432,12 +433,15 @@ final class ApplicationService
                 $id = $row['id'];
                 unset($row['id']);
                 if ($owner === 'family') {
+                    $stateIndex = $row['_index'] ?? null;
+                    unset($row['_index']);
                     $personValues = array_intersect_key($row, array_flip(ApplicationFields::FAMILY_PERSON));
                     $memberValues = array_intersect_key($row, PersonFields::MEMBER);
                     if ($id === null) {
                         $member = (int) DB::table('people')->insertGetId($personValues + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
                         DB::table('family_members')->insert($memberValues + ['city_id' => $city, 'family_id' => $family->id, 'person_id' => $member, 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now]);
                         $count($kind, 0);
+                        $stateIndex === null || $familyIndex[$stateIndex] = $member;
                     } else {
                         $memberRow = DB::table('family_members')->where('id', $id)->where('family_id', $family->id)->whereNull('deleted_at')->first() ?? abort(404);
                         $personBefore = DB::table('people')->where('id', $memberRow->person_id)->first();
@@ -446,6 +450,7 @@ final class ApplicationService
                         }
                         DB::table('people')->where('id', $memberRow->person_id)->update($personValues + ['updated_at' => $now]);
                         DB::table('family_members')->where('id', $id)->update($memberValues + ['updated_at' => $now]);
+                        $stateIndex === null || $familyIndex[$stateIndex] = (int) $memberRow->person_id;
                     }
 
                     continue;
@@ -456,7 +461,7 @@ final class ApplicationService
                     $about = (string) ($row['person_id'] ?? 'self');
                     unset($row['person_id']);
                     $scope = $this->memberScope($personId);
-                    $target = $about === 'self' ? $personId : (int) $about;
+                    $target = $about === 'self' ? $personId : (str_starts_with($about, 'row-') ? ($familyIndex[(int) substr($about, 4)] ?? abort(404)) : (int) $about);
                     in_array($target, $scope, true) || abort(404);
                     $kind !== 'family_work' || $target !== $personId || abort(404);
                     $row['person_id'] = $target;

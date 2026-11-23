@@ -24,7 +24,7 @@
                         @else
                         @include('people._input', ['model' => "form.grids.$kind.$i.$field", 'id' => "g-$kind-$i-$field", 'options' => $options[$field] ?? collect(),
                             'spec' => ($previousOnly ?? false) && $field === 'status' ? array_merge($spec, ['options' => ['no']]) : $spec,
-                            'live' => in_array($field, $gates, true), 'plainSelect' => true])
+                            'live' => in_array($field, $gates, true) || in_array($kind, ['materials', 'family'], true), 'plainSelect' => true])
                         @endif
                         @error("form.grids.$kind.$i.$field")<p class="hc-error">{{ $message }}</p>@enderror
                     </td>

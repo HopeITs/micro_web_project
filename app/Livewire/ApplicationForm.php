@@ -425,23 +425,28 @@ class ApplicationForm extends Component
         $person = (object) $this->form['person'];
         $name = trim(implode(' ', array_filter([$person->first_name ?? '', $person->father_name ?? '', $person->last_name ?? ''])));
         $list = collect([(object) ['id' => 'self', 'label' => $name !== '' ? $name : __('applications.beneficiary_self'), 'relation' => __('applications.beneficiary_self'), 'group' => null]]);
-        if ($this->form['person_id'] === null) {
-            return $list;
+        $relations = DB::table('relations')->get(['id', 'name_ar', 'name_en'])->keyBy('id');
+        $relation = fn ($id) => $id !== '' && $id !== null && isset($relations[(int) $id]) ? ($en && $relations[(int) $id]->name_en ? $relations[(int) $id]->name_en : $relations[(int) $id]->name_ar) : '';
+        if ($this->form['person_id'] !== null) {
+            $familyId = DB::table('family_members')->where('person_id', $this->form['person_id'])->whereNull('deleted_at')->orderBy('id')->value('family_id');
+            $rows = $familyId === null ? collect() : DB::table('family_members as m')->join('people as p', 'p.id', '=', 'm.person_id')
+                ->where('m.family_id', $familyId)->where('m.person_id', '<>', $this->form['person_id'])->whereNull('m.deleted_at')->whereNull('p.deleted_at')->orderBy('m.id')
+                ->get(['p.id', 'p.first_name', 'p.father_name', 'p.last_name', 'm.relation_id']);
+            $list = $list->concat($rows->map(fn ($m) => (object) [
+                'id' => (string) $m->id, 'label' => trim(implode(' ', array_filter([$m->first_name, $m->father_name, $m->last_name]))),
+                'relation' => $relation($m->relation_id), 'group' => null,
+            ]));
         }
-        $familyId = DB::table('family_members')->where('person_id', $this->form['person_id'])->whereNull('deleted_at')->orderBy('id')->value('family_id');
-        if ($familyId === null) {
-            return $list;
+        // Members typed in the family table but not saved yet are chosen by their row; they are linked when the application is saved.
+        foreach (array_values($this->form['grids']['family'] ?? []) as $i => $row) {
+            if (empty($row['id'])) {
+                $label = trim(implode(' ', array_filter([$row['first_name'] ?? '', $row['father_name'] ?? '', $row['last_name'] ?? ''])));
+                $list->push((object) ['id' => 'row-'.$i, 'label' => $label !== '' ? $label : '#'.($i + 1), 'relation' => $relation($row['relation_id'] ?? ''), 'group' => null]);
+            }
         }
-        $rows = DB::table('family_members as m')->join('people as p', 'p.id', '=', 'm.person_id')->leftJoin('relations as r', 'r.id', '=', 'm.relation_id')
-            ->where('m.family_id', $familyId)->where('m.person_id', '<>', $this->form['person_id'])->whereNull('m.deleted_at')->whereNull('p.deleted_at')->orderBy('m.id')
-            ->get(['p.id', 'p.first_name', 'p.father_name', 'p.last_name', 'r.name_ar as relation_ar', 'r.name_en as relation_en']);
 
-        return $list->concat($rows->map(fn ($m) => (object) [
-            'id' => (string) $m->id, 'label' => trim(implode(' ', array_filter([$m->first_name, $m->father_name, $m->last_name]))),
-            'relation' => ($en && $m->relation_en ? $m->relation_en : $m->relation_ar) ?? '', 'group' => null,
-        ]));
+        return $list;
     }
-
     /** Family figures from the family table: size, active by residence status, working, studying. @return array<string, int> */
     private function familyStats(): array
     {
@@ -467,7 +472,6 @@ class ApplicationForm extends Component
         return DB::table('attachments as a')->join('attachment_types as t', 't.id', '=', 'a.attachment_type_id')->where('a.project_id', $this->projectId)->where('t.name_en', 'Budget proposal')
             ->whereNull('a.deleted_at')->orderByDesc('a.id')->get(['a.id', 'a.original_name'])->all();
     }
-
     public function render(): View
     {
         $service = $this->service();

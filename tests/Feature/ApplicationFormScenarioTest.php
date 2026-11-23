@@ -224,7 +224,7 @@ class ApplicationFormScenarioTest extends TestCase
         $field = (int) DB::table('careers')->whereNotNull('project_subcategory_id')->value('project_subcategory_id');
         $inField = DB::table('careers')->where('project_subcategory_id', $field)->where('is_active', true)->pluck('id')->map(fn ($id) => (int) $id)->all();
         $other = (int) DB::table('careers')->where('project_subcategory_id', '<>', $field)->value('id');
-        $form = $this->newPreliminary()->set('form.project.project_subcategory_id', (string) $field);
+        $form = $this->newPreliminary()->call('setStage', 'full')->set('form.project.project_subcategory_id', (string) $field);
         $this->assertEqualsCanonicalizing($inField, $form->viewData('options')['career_id']->pluck('id')->all(), 'careers narrowed to the field');
 
         // A career of another field is refused; changing the field clears a career that no longer belongs.
@@ -246,18 +246,17 @@ class ApplicationFormScenarioTest extends TestCase
     public function test_yes_no_questions_open_their_tables_and_no_takes_rows_out_with_undo(): void
     {
         $this->damascusClerk();
-        $form = $this->newPreliminary()->call('addRow', 'educations')->assertCount('form.grids.educations', 0);
+        $form = $this->newPreliminary()->call('setStage', 'full')->set('form.project.fund_type_id', $this->id('fund_types'))->set('form.project.requested_amount', '1000')->call('addRow', 'educations')->assertCount('form.grids.educations', 0);
         $form->set('form.applicant.has_education', '1')->call('addRow', 'educations')->assertCount('form.grids.educations', 1)
             ->set('form.grids.educations.0.education_level_id', $this->id('education_levels'))
             ->set('form.applicant.has_education', '0')->assertCount('form.grids.educations', 0)->assertSee(__('applications.gate.undo', [], 'ar'))
             ->call('undoSwitch', 'has_education')->assertSet('form.applicant.has_education', '1')->assertCount('form.grids.educations', 1);
 
         // "Works now: No" still allows previous jobs, as previous jobs.
-        $form->set('form.applicant.has_work', '0')->call('addRow', 'work_experiences')->assertSet('form.grids.work_experiences.0.status', 'no');
+        $form = $this->newPreliminary()->set('form.applicant.has_work', '0')->call('addRow', 'work_experiences')->assertSet('form.grids.work_experiences.0.status', 'no');
         $form->set('form.grids.work_experiences.0.occupation_id', $this->id('occupations'))->call('save')->assertHasNoErrors();
         $person = (int) DB::table('project_applicants')->latest('id')->value('person_id');
         $this->assertSame(1, DB::table('person_work_experiences')->where('person_id', $person)->where('status', 'no')->count());
-        $this->assertSame(1, DB::table('person_educations')->where('person_id', $person)->count());
     }
 
     public function test_a_no_answer_cannot_be_saved_with_its_rows(): void

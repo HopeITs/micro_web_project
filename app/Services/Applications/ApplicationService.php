@@ -104,6 +104,26 @@ final class ApplicationService
         return str_contains($text, '.') ? rtrim(rtrim($text, '0'), '.') : $text;
     }
 
+    /** The form shows the birth date as a year, as the desktop does; a first-of-January date is shown as its year, any other date as it is. */
+    public static function birthYear(array $person): array
+    {
+        if (isset($person['birth_date']) && preg_match('/\A(\d{4})-01-01\z/', (string) $person['birth_date'], $m)) {
+            $person['birth_date'] = $m[1];
+        }
+
+        return $person;
+    }
+
+    /** A four-digit year typed in the form is stored as the first of January (`P_DOB_textBox`, MaxLength 4). */
+    private static function birthDate(array $person): array
+    {
+        if (isset($person['birth_date']) && preg_match('/\A\d{4}\z/', trim((string) $person['birth_date']))) {
+            $person['birth_date'] = trim((string) $person['birth_date']).'-01-01';
+        }
+
+        return $person;
+    }
+
     /** @param  array<string, array>  $fields  @return array<string, string> values as the form holds them */
     public static function strings(array $fields, array $row): array
     {
@@ -180,6 +200,9 @@ final class ApplicationService
      */
     public function validateState(array $state, ?int $projectId, bool $stageRules = true): array
     {
+        if (isset($state['person']) && is_array($state['person'])) {
+            $state['person'] = self::birthDate($state['person']);
+        }
         $city = (int) $state['city'];
         $stage = $state['stage'] === 'full' ? 'full' : 'preliminary';
         $errors = [];
@@ -260,6 +283,9 @@ final class ApplicationService
      */
     public function save(WebAccount $account, array $state, ?int $projectId, bool $confirmed): int
     {
+        if (isset($state['person']) && is_array($state['person'])) {
+            $state['person'] = self::birthDate($state['person']);
+        }
         $city = (int) $state['city'];
         $existing = null;
         if ($projectId !== null) {

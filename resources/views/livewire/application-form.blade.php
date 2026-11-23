@@ -52,7 +52,14 @@
         @endif
         @if($errors->any() && ! $errors->has('confirm'))<x-hc.alert type="danger">{{ __('applications.errors.fix', ['count' => count($errors->all())]) }}</x-hc.alert>@endif
 
-        {{-- 1. Beneficiary --}}
+        {{-- Sections in the order of the desktop Application_New_Form (Main_panel top to bottom): the project block, the story (full only),
+             the applicant's personal information, work, project premises (full only), family, support, and the profit description. --}}
+        @php
+            $blocks = [['project', 'project'], ['applicant', 'story'], ['person', null], ['applicant', 'work'], ['project', 'premises'], ['applicant', 'family'], ['applicant', 'aid'], ['project', 'extra']];
+        @endphp
+        @foreach($blocks as [$type, $group])
+        @if($type === 'person')
+        {{-- Beneficiary --}}
         @php($step++)
         <x-hc.section :title="__('applications.sections.beneficiary')" :step="$step">
             @if($form['person_id'] === null && $projectId === null)
@@ -80,100 +87,122 @@
             @endif
             @error('confirm')<x-hc.alert type="danger" style="margin-block-end:12px">{{ $message }}</x-hc.alert>@enderror
 
-            @foreach($personGroups as $group => $fields)
-                @continue($group === 'military' && ($form['person']['sex'] ?? '') !== 'male')
+            @foreach($personGroups as $pgroup => $fields)
+                @continue($pgroup === 'military' && ($form['person']['sex'] ?? '') !== 'male')
                 @continue($fields === [])
-                <h3 class="hc-label" style="margin-block:12px 8px">{{ __('people.groups.'.$group) }}</h3>
+                <h3 class="hc-label" style="margin-block:12px 8px">{{ __('people.groups.'.$pgroup) }}</h3>
                 <div class="hc-form-grid">
                 @foreach($fields as $field => $spec)
-                    <x-hc.field :label="__('people.fields.'.$field)" :for="'ap-'.$field" :required="$spec['required'] ?? false" :error="$errors->first('form.person.'.$field)">
-                        @include('people._input', ['model' => 'form.person.'.$field, 'id' => 'ap-'.$field, 'options' => $personOptions[$field] ?? collect(), 'live' => in_array($field, ['first_name', 'last_name', 'father_name', 'national_number'], true)])
+                    <x-hc.field :label="__('people.fields.'.$field)" :for="'ap-'.$field" :required="$spec['required'] ?? false" :error="$errors->first('form.person.'.$field)" :hint="$field === 'birth_date' ? __('forms.year_hint') : null">
+                        @if($field === 'birth_date')
+                            {{-- The desktop takes the year only (P_DOB_textBox, MaxLength 4). --}}
+                            <input class="hc-input ltr" id="ap-birth_date" type="text" inputmode="numeric" dir="ltr" maxlength="10" placeholder="YYYY" wire:model="form.person.birth_date" autocomplete="off">
+                        @else
+                            @include('people._input', ['model' => 'form.person.'.$field, 'id' => 'ap-'.$field, 'options' => $personOptions[$field] ?? collect(), 'live' => in_array($field, ['first_name', 'last_name', 'father_name', 'national_number'], true)])
+                        @endif
                     </x-hc.field>
                 @endforeach
-                @if($group === 'identity')
-                    <x-hc.field :label="__('people.family_number')" for="a-family" :error="$errors->first('family_number')" :hint="$form['person_id'] ? __('applications.family_from_person') : __('people.family_number_hint')">
-                        <input class="hc-input ltr" id="a-family" wire:model.live.debounce.400ms="form.family_number" maxlength="50" autocomplete="off" @disabled($form['person_id'] !== null && $form['family_number'] !== '')>
-                    </x-hc.field>
-                @endif
                 </div>
             @endforeach
         </x-hc.section>
 
-        {{-- 2. Project --}}
-        @foreach($projectGroups as $group => $fields)
-            @continue($fields === [])
-            @php($step++)
-            <x-hc.section :title="__('applications.sections.'.$group)" :step="$step">
-                <div class="hc-form-grid">
-                @foreach($fields as $field => $spec)
-                    <x-hc.field :label="__('applications.fields.'.$field)" :for="'pr-'.$field" :required="($spec['required'] ?? false) || ($stage === 'full' && in_array($field, ['fund_type_id', 'requested_amount'], true))" :error="$errors->first('form.project.'.$field)"
-                        :hint="isset($spec['parent']) && ($form['project'][$spec['parent']] ?? '') !== '' ? __('applications.filtered_by', ['parent' => __('applications.fields.'.$spec['parent'])]) : null">
-                        @include('people._input', ['model' => 'form.project.'.$field, 'id' => 'pr-'.$field, 'options' => $options[$field] ?? collect(), 'parents' => in_array($field, $parentFields, true)])
-                    </x-hc.field>
-                @endforeach
-                </div>
-                @foreach($sectionGrids($group) as $kind)
-                    @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
-                @endforeach
-            </x-hc.section>
-        @endforeach
+        @elseif($type === 'project')
+        {{-- Project groups --}}
+        @php($fields = $projectGroups[$group] ?? [])
+        @continue($fields === [])
+        @php($step++)
+        <x-hc.section :title="__('applications.sections.'.$group)" :step="$step">
+            <div class="hc-form-grid">
+            @foreach($fields as $field => $spec)
+                <x-hc.field :label="__('applications.fields.'.$field)" :for="'pr-'.$field" :required="($spec['required'] ?? false) || ($stage === 'full' && in_array($field, ['fund_type_id', 'requested_amount'], true))" :error="$errors->first('form.project.'.$field)"
+                    :hint="isset($spec['parent']) && ($form['project'][$spec['parent']] ?? '') !== '' ? __('applications.filtered_by', ['parent' => __('applications.fields.'.$spec['parent'])]) : null">
+                    @include('people._input', ['model' => 'form.project.'.$field, 'id' => 'pr-'.$field, 'options' => $options[$field] ?? collect(), 'parents' => in_array($field, $parentFields, true)])
+                </x-hc.field>
+            @endforeach
+            </div>
+            @foreach($sectionGrids($group) as $kind)
+                @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
+            @endforeach
+        </x-hc.section>
 
-        {{-- 3. The beneficiary's story, work, family and support, each with its grids --}}
-        @foreach($applicantGroups as $group => $fields)
-            @php($step++)
-            <x-hc.section :title="__('applications.sections.'.$group)" :step="$step">
-                {{-- Plain fields of the section (fields governed by a question appear under that question instead). --}}
-                @php($plain = array_diff_key($fields, $switches, array_flip($governedFields)))
-                @if($plain !== [])
-                <div class="hc-form-grid">
-                @foreach($plain as $field => $spec)
-                    <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
-                        @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
-                    </x-hc.field>
-                @endforeach
-                </div>
-                @endif
+        @else
+        {{-- The beneficiary's story, work, family and support, each with its grids --}}
+        @php($fields = $applicantGroups[$group] ?? [])
+        @continue($fields === [] && $sectionGrids($group) === [] && $group !== 'family')
+        @php($step++)
+        <x-hc.section :title="__('applications.sections.'.$group)" :step="$step">
+            {{-- Desktop family block (t21): the family number comes first, then "lives with family" and the family table. --}}
+            @if($group === 'family')
+            <div class="hc-form-grid" style="margin-block-end:12px">
+                <x-hc.field :label="__('people.family_number')" for="a-family" :error="$errors->first('family_number')" :hint="$form['person_id'] ? __('applications.family_from_person') : __('people.family_number_hint')">
+                    <input class="hc-input ltr" id="a-family" wire:model.live.debounce.400ms="form.family_number" maxlength="50" autocomplete="off" @disabled($form['person_id'] !== null && $form['family_number'] !== '')>
+                </x-hc.field>
+            </div>
+            @endif
+            {{-- Plain fields of the section (fields governed by a question appear under that question instead). --}}
+            @php($plain = array_diff_key($fields, $switches, array_flip($governedFields)))
+            @if($plain !== [] && $group !== 'work')
+            <div class="hc-form-grid">
+            @foreach($plain as $field => $spec)
+                <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
+                    @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
+                </x-hc.field>
+            @endforeach
+            </div>
+            @endif
 
-                {{-- Each yes/no question with what it opens, right under it. --}}
-                @foreach(array_intersect_key($switches, $fields) as $switch => $rule)
-                    @php($yes = ($form['applicant'][$switch] ?? '') === '1')
-                    <div class="hc-question" wire:key="q-{{ $switch }}" style="border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin-block-start:12px;{{ $yes ? 'border-color:var(--brand-soft, var(--line))' : '' }}">
-                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">
-                            <label class="hc-label" for="af-{{ $switch }}" style="margin:0;flex:1;min-width:180px">{{ __('applications.fields.'.$switch) }}</label>
-                            <div class="hc-choice" role="radiogroup" aria-label="{{ __('applications.fields.'.$switch) }}">
-                                <label><input type="radio" id="af-{{ $switch }}" value="1" wire:model.live="form.applicant.{{ $switch }}">{{ __('people.yes') }}</label>
-                                <label><input type="radio" value="0" wire:model.live="form.applicant.{{ $switch }}">{{ __('people.no') }}</label>
-                            </div>
+            {{-- Each yes/no question with what it opens, right under it. --}}
+            @foreach(array_intersect_key($switches, $fields) as $switch => $rule)
+                @php($yes = ($form['applicant'][$switch] ?? '') === '1')
+                <div class="hc-question" wire:key="q-{{ $switch }}" style="border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin-block-start:12px;{{ $yes ? 'border-color:var(--brand-soft, var(--line))' : '' }}">
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">
+                        <label class="hc-label" for="af-{{ $switch }}" style="margin:0;flex:1;min-width:180px">{{ __('applications.fields.'.$switch) }}</label>
+                        <div class="hc-choice" role="radiogroup" aria-label="{{ __('applications.fields.'.$switch) }}">
+                            <label><input type="radio" id="af-{{ $switch }}" value="1" wire:model.live="form.applicant.{{ $switch }}">{{ __('people.yes') }}</label>
+                            <label><input type="radio" value="0" wire:model.live="form.applicant.{{ $switch }}">{{ __('people.no') }}</label>
                         </div>
-                        @error('form.applicant.'.$switch)<p class="hc-error">{{ $message }}</p>@enderror
-                        @if(isset($undo[$switch]))
-                            <x-hc.alert type="info" style="margin-block-start:8px">{{ __('applications.gate.taken', ['count' => count($undo[$switch]['rows']) + count($undo[$switch]['fields'])]) }}
-                                <x-hc.button size="sm" variant="ghost" wire:click="undoSwitch('{{ $switch }}')">{{ __('applications.gate.undo') }}</x-hc.button></x-hc.alert>
-                        @endif
-                        @if($yes && ($rule['fields'] ?? []) !== [])
-                            <div class="hc-form-grid" style="margin-block-start:12px">
-                            @foreach(array_intersect_key($fields, array_flip($rule['fields'])) as $field => $spec)
-                                <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
-                                    @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
-                                </x-hc.field>
-                            @endforeach
-                            </div>
-                        @endif
-                        @if(isset($rule['grid']) && in_array($rule['grid'], $grids, true))
-                            @if($yes || isset($rule['only']))
-                                @include('applications._grid', ['kind' => $rule['grid'], 'options' => $gridOptions[$rule['grid']], 'previousOnly' => ! $yes && isset($rule['only'])])
-                            @else
-                                <p class="hc-hint" style="margin-block-start:8px">{{ __('applications.gate.closed') }}</p>
-                            @endif
-                        @endif
                     </div>
-                @endforeach
+                    @error('form.applicant.'.$switch)<p class="hc-error">{{ $message }}</p>@enderror
+                    @if(isset($undo[$switch]))
+                        <x-hc.alert type="info" style="margin-block-start:8px">{{ __('applications.gate.taken', ['count' => count($undo[$switch]['rows']) + count($undo[$switch]['fields'])]) }}
+                            <x-hc.button size="sm" variant="ghost" wire:click="undoSwitch('{{ $switch }}')">{{ __('applications.gate.undo') }}</x-hc.button></x-hc.alert>
+                    @endif
+                    @if($yes && ($rule['fields'] ?? []) !== [])
+                        <div class="hc-form-grid" style="margin-block-start:12px">
+                        @foreach(array_intersect_key($fields, array_flip($rule['fields'])) as $field => $spec)
+                            <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
+                                @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
+                            </x-hc.field>
+                        @endforeach
+                        </div>
+                    @endif
+                    @if(isset($rule['grid']) && in_array($rule['grid'], $grids, true))
+                        @if($yes || isset($rule['only']))
+                            @include('applications._grid', ['kind' => $rule['grid'], 'options' => $gridOptions[$rule['grid']], 'previousOnly' => ! $yes && isset($rule['only'])])
+                        @else
+                            <p class="hc-hint" style="margin-block-start:8px">{{ __('applications.gate.closed') }}</p>
+                        @endif
+                    @endif
+                </div>
+            @endforeach
 
-                {{-- Tables of the section that no question governs. --}}
-                @foreach(array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
-                    @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
-                @endforeach
-            </x-hc.section>
+            {{-- Desktop work block: the "works now" question and its table come first, the years of experience after them. --}}
+            @if($plain !== [] && $group === 'work')
+            <div class="hc-form-grid">
+            @foreach($plain as $field => $spec)
+                <x-hc.field :label="__('applications.fields.'.$field)" :for="'af-'.$field" :error="$errors->first('form.applicant.'.$field)">
+                    @include('people._input', ['model' => 'form.applicant.'.$field, 'id' => 'af-'.$field, 'options' => collect()])
+                </x-hc.field>
+            @endforeach
+            </div>
+            @endif
+
+            {{-- Tables of the section that no question governs. --}}
+            @foreach(array_diff($sectionGrids($group), array_keys($gridSwitches)) as $kind)
+                @include('applications._grid', ['kind' => $kind, 'options' => $gridOptions[$kind]])
+            @endforeach
+        </x-hc.section>
+        @endif
         @endforeach
 
         {{-- 4. Project analysis: the 10 manual scores of the full form (desktop Application_Form "تحليل المشروع") --}}

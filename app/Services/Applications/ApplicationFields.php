@@ -43,10 +43,10 @@ final class ApplicationFields
         ],
         'extra' => [
             'profit_description' => ['kind' => 'textarea'],
-            'income_kind' => ['kind' => 'text', 'max' => 100],
-            'income_kind_note' => ['kind' => 'text', 'max' => 255],
-            'street_id' => ['kind' => 'lookup', 'table' => 'streets', 'city' => true],
-            'note' => ['kind' => 'textarea'],
+            'income_kind' => ['kind' => 'text', 'max' => 100, 'full' => true],
+            'income_kind_note' => ['kind' => 'text', 'max' => 255, 'full' => true],
+            'street_id' => ['kind' => 'lookup', 'table' => 'streets', 'city' => true, 'full' => true],
+            'note' => ['kind' => 'textarea', 'full' => true],
         ],
     ];
 
@@ -61,15 +61,15 @@ final class ApplicationFields
         'work' => [
             'has_work' => ['kind' => 'bool'],
             'work_years' => ['kind' => 'text', 'max' => 255],
-            'has_education' => ['kind' => 'bool'],
-            'has_courses' => ['kind' => 'bool'],
+            'has_education' => ['kind' => 'bool', 'full' => true],
+            'has_courses' => ['kind' => 'bool', 'full' => true],
         ],
         'family' => [
             'lives_with_family' => ['kind' => 'bool'],
             'lives_with_family_note' => ['kind' => 'textarea'],
-            'has_loss' => ['kind' => 'bool'],
-            'has_illness' => ['kind' => 'bool'],
-            'has_assets' => ['kind' => 'bool'],
+            'has_loss' => ['kind' => 'bool', 'full' => true],
+            'has_illness' => ['kind' => 'bool', 'full' => true],
+            'has_assets' => ['kind' => 'bool', 'full' => true],
         ],
         'aid' => [
             'has_aid_sources' => ['kind' => 'bool'],
@@ -77,7 +77,7 @@ final class ApplicationFields
             'has_debts' => ['kind' => 'bool', 'full' => true],
             'debts_amount' => ['kind' => 'textarea', 'full' => true],
             'debts_note' => ['kind' => 'textarea', 'full' => true],
-            'has_help' => ['kind' => 'bool'],
+            'has_help' => ['kind' => 'bool', 'full' => true],
         ],
     ];
 
@@ -133,13 +133,13 @@ final class ApplicationFields
     public const GRIDS = [
         'family' => ['owner' => 'family', 'section' => 'family'],
         'work_experiences' => ['owner' => 'person', 'section' => 'work'],
-        'educations' => ['owner' => 'person', 'section' => 'work'],
-        'courses' => ['owner' => 'person', 'section' => 'work'],
-        'losses' => ['owner' => 'person', 'section' => 'family'],
-        'illnesses' => ['owner' => 'person', 'section' => 'family'],
-        'assets' => ['owner' => 'person', 'section' => 'family'],
+        'educations' => ['owner' => 'person', 'full' => true, 'section' => 'work'],
+        'courses' => ['owner' => 'person', 'full' => true, 'section' => 'work'],
+        'losses' => ['owner' => 'person', 'full' => true, 'section' => 'family'],
+        'illnesses' => ['owner' => 'person', 'full' => true, 'section' => 'family'],
+        'assets' => ['owner' => 'person', 'full' => true, 'section' => 'family'],
         'aid_sources' => ['owner' => 'person', 'section' => 'aid'],
-        'aid_received' => ['owner' => 'person', 'section' => 'aid'],
+        'aid_received' => ['owner' => 'person', 'full' => true, 'section' => 'aid'],
         'power_sources' => ['owner' => 'person', 'section' => 'aid', 'full' => true],
         'goals' => ['owner' => 'person', 'section' => 'story', 'full' => true],
         'materials' => ['owner' => 'project', 'section' => 'premises', 'full' => true, 'table' => 'project_materials', 'fields' => [

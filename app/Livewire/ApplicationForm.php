@@ -75,6 +75,7 @@ class ApplicationForm extends Component
         }
         if ($projectId !== null) {
             $this->form = $service->load($account, $projectId);
+            $this->form['person'] = ApplicationService::birthYear($this->form['person']);
             $service->canWrite($account, (int) $this->form['city']) || abort(403);
             $this->projectId = $projectId;
             $this->savedStage = $this->form['stage'];
@@ -260,7 +261,7 @@ class ApplicationForm extends Component
         $person = $people->person(auth()->user(), $id);
         (int) $person->city_id === (int) $this->form['city'] || abort(404);
         $this->form['person_id'] = $id;
-        $this->form['person'] = ApplicationService::strings(PersonFields::personFlat(), (array) $person);
+        $this->form['person'] = ApplicationService::birthYear(ApplicationService::strings(PersonFields::personFlat(), (array) $person));
         $family = DB::table('family_members as m')->join('families as f', 'f.id', '=', 'm.family_id')->where('m.person_id', $id)->whereNull('m.deleted_at')->orderBy('m.id')->first(['f.id', 'f.family_number']);
         $this->form['family_number'] = $family ? (string) $family->family_number : '';
         foreach (ApplicationFields::GRIDS as $kind => $grid) {
@@ -405,7 +406,7 @@ class ApplicationForm extends Component
             'cities' => $this->projectId === null ? $people->cities($account)->whereIn('id', $service->cities($account))->values() : collect(),
             'projectGroups' => array_map(fn ($g) => array_filter($g, fn ($s) => $stage === 'full' || ! ($s['full'] ?? false)), ApplicationFields::PROJECT),
             'applicantGroups' => array_map(fn ($g) => array_filter($g, fn ($s) => $stage === 'full' || ! ($s['full'] ?? false)), ApplicationFields::APPLICANT),
-            'personGroups' => array_map(fn ($g) => array_diff_key($g, $stage === 'full' ? [] : array_flip(ApplicationFields::PERSON_FULL_ONLY)), PersonFields::PERSON),
+            'personGroups' => array_map(fn ($g) => array_diff_key($g, $stage === 'full' ? [] : array_flip(ApplicationFields::PERSON_FULL_ONLY)), array_diff_key(PersonFields::PERSON, ['other' => 1])),
             'options' => $options, 'personOptions' => $personOptions, 'gridOptions' => $gridOptions, 'grids' => ApplicationFields::grids($stage),
             'duplicates' => $duplicates,
             'holders' => $this->form['person_id'] ? collect() : $people->familyHolders($city, (string) $this->form['family_number']),

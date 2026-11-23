@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Base\CityModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Table `purchases` (city, from desktop `purchasing`).
@@ -35,5 +36,25 @@ class Purchase extends CityModel
     public function purchasingCategory(): BelongsTo
     {
         return $this->belongsTo(PurchasingCategory::class, 'purchasing_category_id');
+    }
+
+    public function projectVehicles(): HasMany
+    {
+        return $this->hasMany(ProjectVehicle::class, 'purchase_id');
+    }
+
+    public function projectSolarSystems(): HasMany
+    {
+        return $this->hasMany(ProjectSolarSystem::class, 'purchase_id');
+    }
+
+    public function projectEquipmentItems(): HasMany
+    {
+        return $this->hasMany(ProjectEquipmentItem::class, 'purchase_id');
+    }
+
+    public function saleContracts(): HasMany
+    {
+        return $this->hasMany(SaleContract::class, 'purchase_id');
     }
 }

@@ -17,7 +17,7 @@ Owner request and decisions, 23 November 2026: fill the new identity columns of 
 | `tesseract` | free | stays on the server | OCR program. The least accurate on Arabic print and tilted or dim photos; clear digits (the national number, dates) are usually read well, names and places need the most review. Names are never marked «مؤكدة». |
 | `ollama` | free | stays on the server | A vision model run by Ollama (default `qwen2.5vl:7b`). Understands the picture better than OCR, but needs a strong machine (16 GB RAM or more; a graphics card helps a lot) and is slow on an ordinary PC. Arabic quality varies between models: try it on real cards first. |
 | `ensemble` | free | stays on the server | **Tesseract and the model together** (three readings: Tesseract, the model, Tesseract again). A value they disagree on is flagged for review. This catches a model's confident mistake that a second reading by the same model would repeat (see the trial below). Slower than Tesseract alone (the model's reading dominates) and needs both installed. |
-| `claude` (default) | paid per reading | sent to the cloud service, only when staff press "read" | Needs `ANTHROPIC_API_KEY`. Limited to `ID_READER_DAILY_LIMIT` readings per account per day. |
+| `claude` | paid per reading | sent to the cloud service, only when staff press "read" | Needs `ANTHROPIC_API_KEY`. Limited to `ID_READER_DAILY_LIMIT` readings per account per day. |
 
 PDF scans: the models and Tesseract read images, so a PDF is turned into page images (the first two pages) with Poppler's `pdftoppm`; without it a PDF is refused with a clear message and an image works. The cloud engine reads PDFs itself.
 
@@ -85,7 +85,7 @@ The `ensemble` mode needs both, so its requirement on a server is Ollama's.
 
 | Key | Meaning |
 |---|---|
-| `ID_READER_DRIVER` | `claude` (default), `ollama`, `tesseract` or `ensemble`. **The feature is off until the chosen engine is set up** (the page says what is missing). |
+| `ID_READER_DRIVER` | `tesseract` (default, the owner's choice for now), `ollama`, `ensemble` or `claude`. **The feature is off until the chosen engine is set up** (the page says what is missing). |
 | `ANTHROPIC_API_KEY`, `ID_READER_MODEL`, `ID_READER_DAILY_LIMIT` | The cloud engine: key, model (default `claude-sonnet-5-5`), readings per account per day (default 60). |
 | `OLLAMA_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT` | The Ollama server and model. |
 | `TESSERACT_BIN`, `TESSERACT_LANG` (default `ara+eng`), `PDFTOPPM_BIN` | The programs for Tesseract and for PDF pages. |

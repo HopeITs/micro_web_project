@@ -10,9 +10,10 @@
  *   tesseract Tesseract OCR on this side (free; the scan never leaves; the least accurate, so staff review matters most)
  *
  * Every reading is logged (who, when, tokens) without its content, whatever the engine. The feature is off until the chosen engine is set up.
+ * The default is tesseract (owner decision 23 Nov 2026): nothing leaves the server unless someone sets another engine.
  */
 return [
-    'driver' => env('ID_READER_DRIVER', 'claude'),
+    'driver' => env('ID_READER_DRIVER', 'tesseract'),
 
     // claude
     'api_key' => env('ANTHROPIC_API_KEY'),

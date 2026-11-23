@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Identity\Engines;
 
-/** Picks the engine named by `identity_reader.driver` (claude, ollama, tesseract or ensemble); anything else is the cloud model, which stays off without its key. */
+/** Picks the engine named by `identity_reader.driver` (claude, ollama, tesseract or ensemble); anything else is the cloud model, which stays off without its key (the configured default is tesseract). */
 final class EngineFactory
 {
     public const DRIVERS = ['claude', 'ollama', 'tesseract', 'ensemble'];

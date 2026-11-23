@@ -6,100 +6,90 @@ namespace App\Services\Reports\Search;
 
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
+use App\Services\Reports\ProjectReportFilters;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
- * "Attachments" (`Search_Form.bind_Images`): the images recorded for each project, by type. This lists what exists only: the file path and
- * the file itself are never in a report (files open through the separate, audited download path).
+ * "Attachments" (desktop `bind_Images`): what is recorded for each project, by attachment type. Only the list: the stored path and the file
+ * itself are never part of a report (files open through the audited download route).
  *
- * As the desktop narrowed image types by role (owner decision of 27 Oct 2026), an account sees only the images whose category it holds the
- * grant for in the city: `attachments.personal`, `attachments.legal` or `attachments.financial`. The same grants decide which images can be
- * downloaded. A type of an unknown category is listed only to an account holding all three.
+ * As the desktop narrowed image types by role (owner decision of 27 Oct 2026, M4.11), an account sees only the attachments whose category it
+ * holds the grant for in the city (`attachments.personal`, `.legal`, `.financial`). A type without a known category needs all three.
  */
 final class AttachmentSearch extends SearchMode
 {
-    use FiltersProjects;
-    use ReadsProjects;
-
     public function key(): string
     {
         return 'attachments';
     }
 
-    protected function capabilities(): array
+    public function group(): string
     {
-        return ['attachments.download', 'projects.view', 'applications.view'];
+        return 'applications';
     }
 
-    /** Cities where the account may list attachments and holds at least one category grant. */
-    public function cities(WebAccount $account): Collection
+    public function capabilities(): array
     {
-        return parent::cities($account)->filter(fn ($city) => $this->grantedCategories($account, (int) $city->id) !== [])->values();
+        return ['projects.view', 'attachments.download'];
     }
 
-    /** @return list<string> the image categories the account may see in the city */
-    private function grantedCategories(WebAccount $account, int $city): array
+    public function columns(): array
+    {
+        return ['number', 'beneficiary', 'career', 'attachment_type', 'category', 'uploaded_at'];
+    }
+
+    public function cityAllowed(WebAccount $account, int $city): bool
+    {
+        return $this->granted($account, $city) !== [];
+    }
+
+    /** @return list<string> the attachment categories the account may see in the city */
+    private function granted(WebAccount $account, int $city): array
     {
         return array_keys(array_filter(AccountAccess::ATTACHMENT_CATEGORIES, fn (string $grant) => $this->access->check($account, $city, $grant)));
     }
 
-    public function filters(): array
+    public function query(array $cityIds, array $filters): Builder
     {
-        return ['q', 'state', 'donor', 'group', 'request'];
-    }
+        $q = $this->joinProject(DB::table('attachments as at')->whereNull('at.deleted_at'), 'at.project_id', $cityIds)
+            ->leftJoin('attachment_types as aty', 'aty.id', '=', 'at.attachment_type_id')
+            ->addSelect([...$this->baseColumns(), 'at.id as attachment_id', 'at.uploaded_at', 'aty.category', 'aty.name_ar as type_ar', 'aty.name_en as type_en']);
+        $this->lookup($q, 'careers', 'cr', 'p.career_id', 'career');
 
-    public function headings(): array
-    {
-        return ['City', 'Project number', 'Beneficiary', 'Career', 'Image type', 'Image type (English)', 'Category'];
-    }
-
-    public function numeric(): array
-    {
-        return [1];
-    }
-
-    protected function query(array $cityIds, array $filters): Builder
-    {
-        $project = $this->relationOf('image', 'MicroProject_ID');
-        $linkProject = $this->tables->relation('person_microproject', 'MicroProject_ID');
-        $linkPerson = $this->tables->relation('person_microproject', 'Person_ID');
-        $query = $this->tables->query('image')->whereIn('p.city_id', $cityIds)
-            ->join('op_microproject as m', fn ($j) => $this->scoped('m', 'p')($j->on('m.id', '=', 'p.'.$project['resolved_column'])->where('p.'.$project['state_column'], 'resolved')))
-            ->leftJoin('op_person_microproject as l', fn ($j) => $this->scoped('l', 'm')($j->on('l.'.$linkProject['resolved_column'], '=', 'm.id')->where('l.'.$linkProject['state_column'], 'resolved')))
-            ->leftJoin('op_person as pe', fn ($j) => $this->scoped('pe', 'l')($j->on('pe.id', '=', 'l.'.$linkPerson['resolved_column'])->where('l.'.$linkPerson['state_column'], 'resolved')))
-            ->addSelect(['m.c_MP_ID as project_number', 'pe.c_P_FirstName', 'pe.c_P_LastName', 'pe.c_P_FatherName', 'p.'.$this->relationOf('image', 'ImageType_ID')['resolved_column'].' as type_id'])
-            ->whereRaw('('.$this->currentStateSql().') is not null');
-        $this->selectProjectRefs($query, 'm', ['career_id' => 'Career_ID']);
-        // Per city, only the image types whose category the account holds the grant for; types of an unknown category need all three grants.
-        $typeRef = $this->relationOf('image', 'ImageType_ID')['resolved_column'];
-        $query->where(function (Builder $any) use ($cityIds, $typeRef) {
+        // Per city, only the types whose category the account holds the grant for; a type of an unknown category needs every grant.
+        $types = DB::table('attachment_types')->get(['id', 'category']);
+        $q->where(function ($any) use ($cityIds, $types) {
+            $any->whereRaw('1 = 0');
             foreach ($cityIds as $city) {
-                $granted = $this->grantedCategories($this->actor, $city);
+                $granted = $this->actor === null ? [] : $this->granted($this->actor, $city);
                 $all = count($granted) === count(AccountAccess::ATTACHMENT_CATEGORIES);
-                $types = $this->catalog('imagetype', [$city])->filter(fn ($type) => in_array((string) ($type->c_Category ?? ''), $granted, true) || ($all && ! isset(AccountAccess::ATTACHMENT_CATEGORIES[(string) ($type->c_Category ?? '')])))->pluck('id')->all();
-                $any->orWhere(fn (Builder $q) => $q->where('p.city_id', $city)->whereIn('p.'.$typeRef, $types === [] ? [0] : $types));
+                $allowed = $types->filter(fn ($t) => in_array((string) $t->category, $granted, true) || ($all && ! isset(AccountAccess::ATTACHMENT_CATEGORIES[(string) $t->category])))->pluck('id')->all();
+                // An attachment without any type is an unknown category too.
+                $any->orWhere(function ($c) use ($city, $allowed, $all) {
+                    $c->where('p.city_id', $city)->where(function ($t) use ($allowed, $all) {
+                        $t->whereIn('at.attachment_type_id', $allowed ?: [0]);
+                        $all && $t->orWhereNull('at.attachment_type_id');
+                    });
+                });
             }
         });
-        $this->applyProjectFilters($query, $cityIds, $filters);
 
-        return $query;
+        return ProjectReportFilters::apply($q, $filters);
     }
 
-    protected function order(Builder $query): Builder
+    public function order(Builder $query): Builder
     {
-        return $query->orderBy('m.c_MP_ID')->orderBy('p.city_id')->orderBy('p.id')->orderBy('l.id');
+        return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('at.id');
     }
 
-    protected function lines(Collection $rows): array
+    public function lines(Collection $rows): array
     {
-        $cities = $rows->pluck('city_id')->unique()->map(fn ($id) => (int) $id)->all();
-        $careers = $this->catalog('career', $cities);
-        $types = $this->catalog('imagetype', $cities);
+        $people = $this->applicants($rows->pluck('project_id')->all());
 
-        return $rows->map(fn ($row) => [
-            $row->city_name_en, $row->project_number, $this->personName($row, true), $this->nameOf($careers, $row->career_id), $this->nameOf($types, $row->type_id), $this->nameOf($types, $row->type_id, 'c_Name_en'),
-            $this->nameOf($types, $row->type_id, 'c_Category'),
+        return $rows->map(fn ($r) => [
+            $this->number($r), $people[$r->project_id]['all'] ?? '', $this->name($r, 'career'), $this->name($r, 'type'), (string) $r->category, $this->day($r->uploaded_at),
         ])->all();
     }
 }

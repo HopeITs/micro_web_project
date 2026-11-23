@@ -30,7 +30,7 @@ class IdentityReadingScenarioTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         Storage::fake('local');
-        config(['identity_reader.api_key' => 'test-key', 'identity_reader.endpoint' => 'https://api.anthropic.com/v1/messages', 'identity_reader.passes' => 2, 'identity_reader.daily_limit' => 60]);
+        config(['identity_reader.driver' => 'claude', 'identity_reader.api_key' => 'test-key', 'identity_reader.endpoint' => 'https://api.anthropic.com/v1/messages', 'identity_reader.passes' => 2, 'identity_reader.daily_limit' => 60]);
     }
 
     private function city(string $code): int

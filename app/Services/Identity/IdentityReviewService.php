@@ -33,6 +33,18 @@ final class IdentityReviewService
         return $this->reader->enabled();
     }
 
+    /** The engine in use: claude, ollama or tesseract. */
+    public function driver(): string
+    {
+        return $this->reader->engine()->name();
+    }
+
+    /** True when the scan is read on this side and never leaves it. */
+    public function isLocal(): bool
+    {
+        return $this->reader->isLocal();
+    }
+
     /** The person, if the account may change them (people.manage in the city); 404/403 otherwise. */
     public function person(WebAccount $account, int $personId): object
     {
@@ -88,9 +100,7 @@ final class IdentityReviewService
         $person = $this->person($account, $personId);
         $scan = $this->scan($account, $personId, $attachmentId);
         $city = (int) $person->city_id;
-        $used = DB::table('ai_queries')->where('account_id', $account->id)->where('dataset', 'identity')->where('status', 'ok')
-            ->where('created_at', '>=', now('UTC')->startOfDay()->format('Y-m-d H:i:s'))->count();
-        if ($used >= (int) config('identity_reader.daily_limit')) {
+        if ($this->remaining($account) === 0) {
             $this->audit->record($account->id, 'identity.read', 'denied', $city, subjectType: 'person_entity', subjectId: $personId, decision: 'attachment:'.$attachmentId);
             throw new IdentityReadException('limit');
         }
@@ -114,9 +124,12 @@ final class IdentityReviewService
         return $result;
     }
 
-    /** How many readings the account has left today. */
-    public function remaining(WebAccount $account): int
+    /** How many readings the account has left today (null: no limit, the engine runs on this side and costs nothing). */
+    public function remaining(WebAccount $account): ?int
     {
+        if ($this->reader->isLocal()) {
+            return null;
+        }
         $used = DB::table('ai_queries')->where('account_id', $account->id)->where('dataset', 'identity')->where('status', 'ok')
             ->where('created_at', '>=', now('UTC')->startOfDay()->format('Y-m-d H:i:s'))->count();
 
@@ -153,7 +166,7 @@ final class IdentityReviewService
         // The reading itself is never stored: the log keeps who, when, how long and how many tokens.
         DB::table('ai_queries')->insert([
             'account_id' => $account->id, 'dataset' => 'identity', 'prompt' => '[identity document scan]', 'spec' => null, 'status' => $status,
-            'model' => (string) config('identity_reader.model'), 'input_tokens' => $input, 'output_tokens' => $output,
+            'model' => $this->reader->engine()->model(), 'input_tokens' => $input, 'output_tokens' => $output,
             'duration_ms' => (int) round((microtime(true) - $started) * 1000), 'created_at' => now('UTC')->format('Y-m-d H:i:s.u'),
         ]);
     }

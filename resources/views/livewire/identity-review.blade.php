@@ -17,7 +17,7 @@
     </div>
 
     @if(! $enabled)
-        <x-hc.alert type="warning" :title="__('identity.disabled_title')" style="margin-block-end:16px">{{ __('identity.disabled_text') }}</x-hc.alert>
+        <x-hc.alert type="warning" :title="__('identity.disabled_title')" style="margin-block-end:16px">{{ __('identity.disabled.'.$driver) }}</x-hc.alert>
     @endif
     @if($errorKey)<x-hc.alert type="danger" style="margin-block-end:16px">{{ __('identity.errors.'.$errorKey) }}</x-hc.alert>@endif
     @if($problems !== [])
@@ -43,11 +43,11 @@
         </x-hc.card>
 
         <x-hc.card :title="__('identity.title')">
-            <p class="muted" style="font-size:.85rem;margin-block:0 10px">{{ __('identity.privacy') }}</p>
+            <p class="muted" style="font-size:.85rem;margin-block:0 10px">{{ $local ? __('identity.privacy_local') : __('identity.privacy') }} <strong>{{ __('identity.engines.'.$driver) }}</strong></p>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-block-end:12px">
                 <x-hc.button type="button" icon="id" wire:click="read" wire:loading.attr="disabled" wire:target="read" :disabled="! $enabled || $remaining === 0">{{ $reading === [] ? __('identity.read') : __('identity.read_again') }}</x-hc.button>
                 <span class="muted" wire:loading wire:target="read">{{ __('identity.reading') }}</span>
-                <span class="muted" style="font-size:.85rem">{{ __('identity.remaining', ['count' => $remaining]) }}</span>
+                @if($remaining !== null)<span class="muted" style="font-size:.85rem">{{ __('identity.remaining', ['count' => $remaining]) }}</span>@endif
             </div>
 
             @if($reading !== [])

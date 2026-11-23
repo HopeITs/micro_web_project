@@ -146,6 +146,8 @@ final class IdentityReview extends Component
             'person' => $person,
             'scans' => $service->scans(auth()->user(), $this->personId),
             'enabled' => $service->enabled(),
+            'driver' => $service->driver(),
+            'local' => $service->isLocal(),
             'remaining' => $service->remaining(auth()->user()),
             'currentValues' => collect([...IdCardReader::FIELDS, 'nationality', 'id_document_type'])->mapWithKeys(fn ($f) => [$f => $this->current($person, $f)])->all(),
         ]);

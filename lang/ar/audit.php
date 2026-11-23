@@ -51,11 +51,11 @@ return [
         'created' => 'إضافة', 'updated' => 'تعديل', 'saved' => 'حفظ', 'deleted' => 'حذف', 'restored' => 'استعادة', 'hidden' => 'إخفاء', 'shown' => 'إظهار',
         'exported' => 'تصدير', 'printed' => 'طباعة', 'toggled' => 'تغيير', 'seen' => 'قراءة', 'sent' => 'إرسال', 'noted' => 'ملاحظة على', 'rescheduled' => 'إعادة جدولة',
         'schedule' => 'فتح جدول', 'results' => 'فتح نتائج', 'donor_assigned' => 'تحديد مانح', 'group_created' => 'إنشاء مجموعة', 'loan_saved' => 'حفظ القرض', 'payments_saved' => 'حفظ الدفعات',
-        'download_started' => 'بدء تنزيل', 'download_succeeded' => 'تنزيل', 'download_failed' => 'فشل تنزيل', 'download_denied' => 'تنزيل مرفوض',
+        'download_started' => 'بدء تنزيل', 'download_succeeded' => 'تنزيل', 'download_failed' => 'فشل تنزيل', 'download_denied' => 'تنزيل مرفوض', 'downloaded' => 'تنزيل',
     ],
     'nouns' => [
         'applications' => 'طلب', 'projects' => 'مشروع', 'people' => 'شخص', 'lookups' => 'قيمة قائمة', 'assessments' => 'Checklist', 'finance' => 'المالية',
         'executive_files' => 'الملفات التنفيذية', 'purchasing' => 'المشتريات', 'special_cases' => 'حالة خاصة', 'visits' => 'زيارة', 'me_visits' => 'زيارة M&E',
-        'profession_meetings' => 'اجتماع مهنة', 'tasks' => 'مهمة', 'notifications' => 'تنبيه', 'accounts' => 'الحسابات', 'reports' => 'تقرير', 'attachments' => 'مرفق',
+        'profession_meetings' => 'اجتماع مهنة', 'tasks' => 'مهمة', 'notifications' => 'تنبيه', 'accounts' => 'الحسابات', 'reports' => 'تقرير', 'attachments' => 'مرفق', 'papers' => 'ورقة رسمية',
     ],
 ];

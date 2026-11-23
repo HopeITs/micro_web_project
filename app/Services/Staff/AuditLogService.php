@@ -43,11 +43,11 @@ final class AuditLogService
         'meetings' => ['profession_meetings'],
         'lookups' => ['lookups'],
         'attachments' => ['attachments'],
-        'reports' => ['reports', 'logs', 'national', 'notifications'],
+        'reports' => ['reports', 'logs', 'national', 'notifications', 'papers'],
     ];
 
     /** Last part of an event name meaning the account only looked (no change). */
-    private const VIEW_ACTIONS = ['view', 'list', 'listed', 'board', 'search', 'statistics', 'viewed', 'schedule', 'exported', 'checked', 'printed'];
+    private const VIEW_ACTIONS = ['view', 'list', 'listed', 'board', 'search', 'statistics', 'viewed', 'schedule', 'exported', 'checked', 'printed', 'downloaded'];
 
     private const SECURITY_PREFIXES = ['login', 'logout', 'password', 'account', 'legacy', 'capability', 'access'];
 

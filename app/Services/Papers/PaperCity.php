@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Papers;
+
+/**
+ * The letterhead details each paper prints in its footer (M4.20). Until the per-city settings table of the schema addendum v1.4
+ * exists, these are the addresses and mobile numbers printed on the owner's papers (21 Nov 2026):
+ *  - Idlib prints the Aleppo address (Idlib is part of Aleppo; only the signing place differs);
+ *  - Al Wadi prints the Homs address (its papers are the Homs papers; the Wadi office address is an open question).
+ */
+final class PaperCity
+{
+    /** City code => footer address and mobile number, as English text exactly as the papers print them. */
+    private const FOOTER = [
+        'ALP' => ['address' => 'Syria - Aleppo Villat Street', 'mobile' => '+963 993 310 227'],
+        'DAM' => ['address' => 'Syria - Damascus Bab Sharqi, Kasabeh Alley', 'mobile' => '+963 989 162 100'],
+        'HMS' => ['address' => 'Syria - Homs Hamidieh, Al-Ozon St', 'mobile' => '+963 950 018 430'],
+        'LAT' => ['address' => 'Syria - Latakia Souq Al-Tejjar', 'mobile' => '+963 950 018 484'],
+        'WAD' => ['address' => 'Syria - Homs Hamidieh, Al-Ozon St', 'mobile' => '+963 950 018 430'],
+    ];
+
+    /** @return array{address: string, mobile: string} */
+    public static function footer(string $cityCode): array
+    {
+        return self::FOOTER[$cityCode] ?? self::FOOTER['ALP'];
+    }
+
+    /** The places a paper may be signed in for a city: Aleppo also offers Idlib (owner decision 21 Nov 2026). */
+    public static function places(string $cityCode): array
+    {
+        return $cityCode === 'ALP' ? ['ALP', 'IDL'] : [$cityCode];
+    }
+
+    /** The Arabic or English name of a signing place. */
+    public static function placeName(string $place): string
+    {
+        return __('papers.cities.'.$place);
+    }
+}

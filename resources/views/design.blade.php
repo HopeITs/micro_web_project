@@ -60,6 +60,15 @@
                 <x-hc.chip :count="200">الكل</x-hc.chip><x-hc.chip :count="50" :active="true">أولي</x-hc.chip><x-hc.chip :count="150">كامل</x-hc.chip><x-hc.chip :count="4">لي فقط</x-hc.chip>
             </div>
         </x-hc.card>
+        <x-hc.card title="الرسوم البيانية" subtitle="x-hc.chart: type، labels، datasets، height؛ Chart.js يُحمَّل عند الحاجة، والألوان من رموز --chart-1..8، وجدول نصي بديل لقارئات الشاشة.">
+            @php($chartLabels = ['دمشق', 'حلب', 'حمص', 'اللاذقية'])
+            <div class="hc-grid hc-grid-2">
+                <x-hc.chart type="bar" :labels="$chartLabels" :datasets="[['label' => 'مشاريع ممولة', 'data' => [42, 31, 18, 12]]]" title="مشاريع ممولة حسب المدينة" :height="260"/>
+                <x-hc.chart type="stacked" :labels="$chartLabels" :datasets="[['label' => 'ممول', 'data' => [42, 31, 18, 12]], ['label' => 'قيد الدراسة', 'data' => [15, 22, 9, 6]], ['label' => 'مرفوض', 'data' => [4, 7, 3, 2]]]" title="الحالة حسب المدينة" :height="260"/>
+                <x-hc.chart type="line" :labels="['2023', '2024', '2025', '2026']" :datasets="[['label' => 'طلبات', 'data' => [60, 88, 120, 140]], ['label' => 'تمويل', 'data' => [30, 52, 77, 103]]]" title="الطلبات والتمويل بالسنة" :height="260"/>
+                <x-hc.chart type="doughnut" :labels="['ذكور', 'إناث']" :datasets="[['label' => 'المستفيدون', 'data' => [38, 62]]]" title="المستفيدون حسب الجنس" :height="260" :percent="true"/>
+            </div>
+        </x-hc.card>
         <x-hc.empty title="لا توجد نتائج" icon="search">جرّب كلمة أقصر أو امسح الفلاتر.<x-slot:action><x-hc.button variant="secondary" size="sm" icon="x">مسح الفلاتر</x-hc.button></x-slot:action></x-hc.empty>
         <x-hc.action-bar><x-hc.button icon="check">حفظ الطلب</x-hc.button><x-hc.button variant="secondary">حفظ كمسودة</x-hc.button><span class="spacer"></span><span class="muted">شريط الأزرار يبقى ظاهراً أسفل النماذج الطويلة</span></x-hc.action-bar>
     </div>

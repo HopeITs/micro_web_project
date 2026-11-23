@@ -28,6 +28,34 @@ final class InstallmentsDataset extends Dataset
         return 'installments';
     }
 
+    /** The cities of the payment schedule: applications and finance read access (as PaymentScheduleService). */
+    public function viewCapabilities(): array
+    {
+        return ['applications.view', 'finance.view'];
+    }
+
+    public function currencyField(): ?string
+    {
+        return 'currency';
+    }
+
+    public function listRoute(): ?string
+    {
+        return 'finance.payments';
+    }
+
+    /** Every instalment has a due date: this keeps the schedule from narrowing to "due this month" when the drill-down brings no filter. */
+    public function listNeutralFilter(): ?array
+    {
+        return ['field' => 'due_on', 'op' => 'not_empty', 'values' => []];
+    }
+
+    /** The schedule has its own city chips, group select and currency select. */
+    public function listParams(): array
+    {
+        return ['city' => ['cities', true], 'group' => ['group', false], 'currency' => ['currency', false]];
+    }
+
     public function query(): Builder
     {
         $applicant = DB::table('project_applicants as pa')->join('people as pp', 'pp.id', '=', 'pa.person_id')->whereNull('pa.deleted_at')

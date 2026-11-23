@@ -112,6 +112,9 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // M4.17 search, 22 types (SearchService rechecks each type's capabilities per city; the export also reports.export, loans finance.export).
             Route::get('/search', [\App\Http\Controllers\SearchController::class, 'index'])->name('search.index');
             Route::get('/search/export/{token}', [\App\Http\Controllers\SearchController::class, 'export'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('search.export');
+            // M4.17 statistics, 15 axes (StatisticsService rechecks applications.view per city, the export also reports.export).
+            Route::get('/statistics', [\App\Http\Controllers\StatisticsController::class, 'index'])->name('statistics.index');
+            Route::get('/statistics/export/{token}', [\App\Http\Controllers\StatisticsController::class, 'export'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('statistics.export');
             // M4.20 official papers library (PaperLibrary rechecks projects.view per city).
             Route::get('/papers', [\App\Http\Controllers\PaperLibraryController::class, 'index'])->name('papers.index');
             Route::get('/papers/download', [\App\Http\Controllers\PaperLibraryController::class, 'download'])->middleware('throttle:60,1')->name('papers.download');

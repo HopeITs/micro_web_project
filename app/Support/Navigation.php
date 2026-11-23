@@ -44,7 +44,7 @@ final class Navigation
         'tools' => [
             // M4.17: shown when at least one of the 22 search types is available to the account (SearchService decides, per city).
             ['key' => 'search', 'icon' => 'search', 'route' => 'search.index', 'capability' => 'projects.view', 'gate' => 'search'],
-            ['key' => 'statistics', 'icon' => 'chart', 'capability' => 'applications.view', 'task' => 'M4.17'],
+            ['key' => 'statistics', 'icon' => 'chart', 'route' => 'statistics.index', 'capability' => 'applications.view'],
             // Smart-search phase 3: the pivot report builder; 'reports.view' is not a grant, for() shows it when the account can read at least one dataset.
             ['key' => 'reports', 'icon' => 'chart', 'route' => 'reports.index', 'capability' => 'reports.view'],
             ['key' => 'tasks', 'icon' => 'task', 'route' => 'tasks.board', 'capability' => 'tasks.view'],
@@ -84,7 +84,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'meetings.index' => 'meetings.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'checklists.index' => ['checklists.index', 'checklists.show', 'checklists.print'], 'search.index' => 'search.*', 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
+                        'projects.index' => 'projects.*', 'meetings.index' => 'meetings.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'checklists.index' => ['checklists.index', 'checklists.show', 'checklists.print'], 'search.index' => 'search.*', 'statistics.index' => 'statistics.*', 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
                     }),
                 ];
             }

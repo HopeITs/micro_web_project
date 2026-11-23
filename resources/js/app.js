@@ -44,10 +44,11 @@ document.addEventListener('alpine:init', () => {
     const loadChart = () => (loading ??= import('chart.js/auto').then((module) => module.default ?? module.Chart));
     const FALLBACK = ['#2a63b8', '#d2690a', '#1d8a52', '#8a46b0', '#0f8fa3', '#be1f24', '#8f7500', '#5d6572'];
     const POINTS = ['circle', 'rect', 'triangle', 'rectRot', 'star', 'cross', 'crossRot', 'rectRounded'];
+    const charts = new WeakMap(); // Chart instances stay outside Alpine's reactive state (a proxied chart recurses forever)
     const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
     window.Alpine.data('hcChart', () => ({
-        chart: null, kind: null, gone: false, observer: null, themeObserver: null, media: null, onTheme: null,
+        kind: null, gone: false, observer: null, themeObserver: null, media: null, onTheme: null,
         init() {
             this.observer = new MutationObserver(() => this.draw());
             this.observer.observe(this.$el, { attributes: true, attributeFilter: ['data-chart'] });
@@ -63,8 +64,8 @@ document.addEventListener('alpine:init', () => {
             this.observer?.disconnect();
             this.themeObserver?.disconnect();
             this.media?.removeEventListener('change', this.onTheme);
-            this.chart?.destroy();
-            this.chart = null;
+            charts.get(this.$el)?.destroy();
+            charts.delete(this.$el);
         },
         settings() {
             try { return JSON.parse(this.$el.dataset.chart || 'null'); } catch (_) { return null; }
@@ -152,16 +153,17 @@ document.addEventListener('alpine:init', () => {
                 },
             };
 
-            if (this.chart && this.kind === cfg.type && !rebuild) {
-                this.chart.data.labels = cfg.labels;
-                this.chart.data.datasets = datasets;
-                this.chart.options = options;
-                this.chart.update();
+            const existing = charts.get(this.$el);
+            if (existing && this.kind === cfg.type && !rebuild) {
+                existing.data.labels = cfg.labels;
+                existing.data.datasets = datasets;
+                existing.options = options;
+                existing.update();
                 return;
             }
-            this.chart?.destroy();
+            existing?.destroy();
             this.kind = cfg.type;
-            this.chart = new Chart(canvas, { type: kind, data: { labels: cfg.labels, datasets }, options, plugins: [valueLabels] });
+            charts.set(this.$el, new Chart(canvas, { type: kind, data: { labels: cfg.labels, datasets }, options, plugins: [valueLabels] }));
         },
     }));
 });

@@ -10,7 +10,7 @@ return [
     'nav_home' => 'Home', 'nav_projects' => 'Projects', 'nav_new_application' => 'New application', 'nav_people' => 'People & families',
     'nav_checklist' => 'Checklist', 'nav_national_number' => 'National number check', 'nav_loans' => 'Loans & payments', 'nav_payments' => 'Payment schedule',
     'nav_attachments' => 'Attachments', 'nav_visits' => 'Visits', 'nav_visit_results' => 'Visit results', 'nav_visitor_statistics' => 'Visitor statistics', 'nav_special_cases' => 'Special cases', 'nav_kobo' => 'Kobo sync', 'nav_meetings' => 'Profession meetings',
-    'nav_notifications' => 'Notifications', 'nav_search' => 'Search', 'nav_statistics' => 'Statistics', 'nav_tasks' => 'Task board', 'nav_accounts' => 'Accounts & permissions', 'nav_lookups' => 'Lists', 'nav_audit' => 'Audit log', 'nav_design' => 'Design components',
+    'nav_notifications' => 'Notifications', 'nav_search' => 'Search', 'nav_statistics' => 'Statistics', 'nav_tasks' => 'Task board', 'nav_accounts' => 'Accounts & permissions', 'nav_lookups' => 'Lists', 'nav_audit' => 'Audit log', 'nav_papers' => 'Official papers', 'nav_design' => 'Design components',
 
     'login_title' => 'Sign in', 'login_heading' => 'Micro Projects management',
     'login_intro' => 'One platform for every city: applications, assessment, loans, visits and reports.',

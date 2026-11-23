@@ -71,6 +71,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // Smart-search phase 2: the payment schedule as shown (columns, filters, search, sort) from the list's single-use token; DatasetExport rechecks finance.export per city.
             Route::get('/payments/export/{token}', \App\Http\Controllers\PaymentExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('payments.export');
 
+            // Smart-search phase 3: the report builder (ReportBuilder rechecks the datasets the account may read per city); its Excel/CSV
+            // comes from a single-use token and ReportExport rechecks reports.export (finance.export for instalments) per city.
+            Route::view('/reports', 'reports.builder')->name('reports.index');
+            Route::get('/reports/export/{token}', \App\Http\Controllers\ReportBuilderExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('reports.export');
             // M4.14 Kobo, read and review only (KoboReadService / KoboResultsService recheck visits.manage and reports.export per city).
             Route::get('/kobo', [\App\Http\Controllers\KoboController::class, 'index'])->name('kobo.index');
             Route::get('/kobo/export', [\App\Http\Controllers\KoboController::class, 'export'])->middleware('throttle:10,1')->name('kobo.export');

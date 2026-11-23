@@ -285,6 +285,17 @@ trait HasSmartFilters
     }
 
     /**
+     * What else a view stores in its spec besides filters and sort (the report builder keeps its rows, columns and measure here);
+     * restoreViewExtra() puts it back, checking it as the viewer sees it now.
+     */
+    protected function savedViewExtra(): array
+    {
+        return [];
+    }
+
+    protected function restoreViewExtra(array $spec): void {}
+
+    /**
      * Puts a view's checked filters on the component (a list may move some of them, e.g. the city, to its own controls).
      *
      * @param  array<string, array{op: string, values: list<mixed>}>  $filters
@@ -318,7 +329,7 @@ trait HasSmartFilters
         }
         $filters = $this->savableViewFilters();
         $table = $this->viewTable();
-        if ($filters === [] && $table['columns'] === null && $table['sort'] === []) {
+        if ($filters === [] && $table['columns'] === null && $table['sort'] === [] && $this->savedViewExtra() === []) {
             $this->viewError = __('hc.view_nothing_to_save');
 
             return;
@@ -330,7 +341,7 @@ trait HasSmartFilters
         }
         $view = SavedView::create([
             'account_id' => $account->id, 'dataset' => $this->dataset()->key(), 'kind' => $this->savedViewKind(), 'name' => $name,
-            'spec' => (new QuerySpec($filters, $table['sort']))->validate($this->dataset())->toArray(), 'columns' => $table['columns'], 'is_shared' => false, 'is_default' => false,
+            'spec' => [...(new QuerySpec($filters, $table['sort']))->validate($this->dataset())->toArray(), ...$this->savedViewExtra()], 'columns' => $table['columns'], 'is_shared' => false, 'is_default' => false,
         ]);
         app(AccountAuditTrail::class)->record($account->id, 'saved_views.created', 'succeeded', decision: 'saved_view:'.$view->id,
             details: [['field' => 'name', 'after' => $name], ['field' => 'dataset', 'after' => $view->dataset]]);
@@ -345,12 +356,12 @@ trait HasSmartFilters
         $view = $this->ownView($id);
         $filters = $this->savableViewFilters();
         $table = $this->viewTable();
-        if ($filters === [] && $table['columns'] === null && $table['sort'] === []) {
+        if ($filters === [] && $table['columns'] === null && $table['sort'] === [] && $this->savedViewExtra() === []) {
             $this->viewError = __('hc.view_nothing_to_save');
 
             return;
         }
-        $view->update(['spec' => (new QuerySpec($filters, $table['sort']))->validate($this->dataset())->toArray(), 'columns' => $table['columns']]);
+        $view->update(['spec' => [...(new QuerySpec($filters, $table['sort']))->validate($this->dataset())->toArray(), ...$this->savedViewExtra()], 'columns' => $table['columns']]);
         $this->activeViewId = $view->id;
         $this->viewError = null;
         $this->viewNotice = __('hc.view_updated', ['name' => $view->name]);
@@ -440,13 +451,15 @@ trait HasSmartFilters
                 'default' => $v->is_default, 'owner' => (string) $v->account?->username, 'active' => $v->id === $this->activeViewId];
             if ($item['active']) {
                 $stored = ['columns' => $v->columns ?: null, 'sort' => is_array($v->spec['sort'] ?? null) ? $v->spec['sort'] : []];
-                $active = $item + ['changed' => $this->checkedViewFilters($v->spec)[0] !== $current || $stored != $table];
+                $extra = $this->savedViewExtra();
+                $active = $item + ['changed' => $this->checkedViewFilters($v->spec)[0] !== $current || $stored != $table
+                    || ($extra !== [] && array_intersect_key((array) $v->spec, $extra) != $extra)];
             }
 
             return $item;
         })->all();
 
-        $canSave = $current !== [] || $table['columns'] !== null || $table['sort'] !== [];
+        $canSave = $current !== [] || $table['columns'] !== null || $table['sort'] !== [] || $this->savedViewExtra() !== [];
 
         return ['list' => $list, 'active' => $active, 'can_save' => $canSave, 'can_share' => $this->canShareViews(),
             'notice' => $this->viewNotice, 'error' => $this->viewError];
@@ -470,6 +483,7 @@ trait HasSmartFilters
         $this->textFilters = [];
         $this->editingFilter = null;
         $this->resetForView();
+        $this->restoreViewExtra(is_array($view->spec) ? $view->spec : []);
         $this->loadViewFilters($filters);
         if (method_exists($this, 'restoreDatasetTable')) {
             // Lists with HasDatasetColumns: the view's columns and sort come back too (unknown keys dropped).

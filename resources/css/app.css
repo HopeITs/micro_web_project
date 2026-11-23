@@ -495,3 +495,21 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-sort-pri { font-size: .65rem; color: var(--brand); }
 .hc-per-page { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); }
 .hc-per-page .hc-select { width: auto; min-height: 34px; padding: 4px 8px; }
+
+/* ------------------------------------------------------------------ Charts (x-hc.chart, smart-search phase 3)
+ * Categorical palette as tokens, read by resources/js/app.js (hcChart). Eight hues that stay apart for the common colour-vision
+ * types and keep their contrast on the light and the dark surface; a chart never relies on colour alone (legend, value labels,
+ * point shapes and a text table for screen readers). Redefine here only; the script reads the computed values.
+ */
+:root { --chart-1: #2a63b8; --chart-2: #d2690a; --chart-3: #1d8a52; --chart-4: #8a46b0; --chart-5: #0f8fa3; --chart-6: #be1f24; --chart-7: #8f7500; --chart-8: #5d6572; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --chart-1: #7fb0f0; --chart-2: #f0a35c; --chart-3: #6cc98f; --chart-4: #c79be6; --chart-5: #55c4d6; --chart-6: #f08a83; --chart-7: #d8c04a; --chart-8: #a9b0bb; }
+}
+:root[data-theme="dark"] { --chart-1: #7fb0f0; --chart-2: #f0a35c; --chart-3: #6cc98f; --chart-4: #c79be6; --chart-5: #55c4d6; --chart-6: #f08a83; --chart-7: #d8c04a; --chart-8: #a9b0bb; }
+.hc-chart { margin: 0; min-width: 0; }
+.hc-chart-canvas { position: relative; width: 100%; }
+.hc-chart-canvas canvas { max-width: 100%; }
+.hc-table .num, .hc-table th.num { text-align: end; font-variant-numeric: tabular-nums; }
+.hc-table tfoot th, .hc-table tfoot td { border-block-start: 2px solid var(--line-strong); background: var(--surface-2); }
+.hc-table tbody th[scope="row"] { text-align: start; font-weight: 500; color: var(--ink); background: transparent; font-size: inherit; white-space: normal; padding: 12px 16px; border-block-end: 1px solid var(--line); }
+.hc-table tfoot th[scope="row"] { color: var(--ink); font-size: inherit; padding: 12px 16px; }

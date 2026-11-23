@@ -26,6 +26,21 @@ final class ProjectsDataset extends Dataset
         return 'projects';
     }
 
+    public function viewCapabilities(): array
+    {
+        return ['projects.view'];
+    }
+
+    public function listRoute(): ?string
+    {
+        return 'projects.index';
+    }
+
+    public function listParams(): array
+    {
+        return ['city' => ['city', true]];
+    }
+
     public function query(): Builder
     {
         $current = DB::table('project_state_history')->select('project_id', 'project_state_id', 'changed_on')->where('is_current', true)->whereNull('deleted_at');

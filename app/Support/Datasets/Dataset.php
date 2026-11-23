@@ -177,4 +177,90 @@ abstract class Dataset
     {
         return $this->query()->getModel()->qualifyColumn('city_id');
     }
+
+    // ---------------------------------------------------------------- reports (smart-search plan, phase 3)
+    //
+    // Pivot reports (App\Services\Reports\ReportQuery) read the same registry:
+    //   - a Field is a dimension when groupable (lookup, enum, bool or date; never sensitive); a date is grouped by year or month.
+    //   - a Field is a measure when aggregatable (number or money). Money is never added across currencies: a dataset
+    //     that has a currency field (currencyField()) forces it as a grouping; one without it offers no money measure.
+    //   - viewCapabilities() are held per city: a report only ever covers the cities where the account holds all of them.
+    //   - listRoute() / listParams() let a cell open the dataset's own list with the equivalent filters (drill-down).
+
+    public const GRAINS = ['year', 'month'];
+
+    public const GROUP_TYPES = ['lookup', 'enum', 'bool', 'date'];
+
+    /** @return list<string> the per-city capabilities needed to read this dataset (reports cover the cities where all are held) */
+    public function viewCapabilities(): array
+    {
+        return ['projects.view'];
+    }
+
+    /** Key of the field holding the row's currency, or null when the dataset has no money measure. */
+    public function currencyField(): ?string
+    {
+        return null;
+    }
+
+    /** Route name of the dataset's list page (the drill-down target), or null when there is none. */
+    public function listRoute(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Fields the list page takes as their own URL parameter instead of `f[...]`: field key => [parameter, takes a list].
+     *
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    public function listParams(): array
+    {
+        return [];
+    }
+
+    /**
+     * A filter the list needs when a drill-down brings none of its own, so that it lists every row (the payment schedule shows
+     * only what is due this month until a filter narrows it).
+     *
+     * @return array{field: string, op: string, values: list<string>}|null
+     */
+    public function listNeutralFilter(): ?array
+    {
+        return null;
+    }
+
+    /** @return array<string, Field> fields a report may group by */
+    public function groupable(): array
+    {
+        return array_filter($this->fields(), fn (Field $f) => $f->groupable && ! $f->sensitive && in_array($f->type, self::GROUP_TYPES, true));
+    }
+
+    /** @return array<string, Field> fields a report may sum, average or compare (money only when the dataset has a currency field) */
+    public function measurable(): array
+    {
+        $currency = $this->currencyField() !== null;
+
+        return array_filter($this->fields(), fn (Field $f) => $f->aggregatable && ! $f->sensitive
+            && ($f->type === 'number' || ($f->type === 'money' && $currency)));
+    }
+
+    /** The column counted by "distinct count": the base model's key. */
+    public function measureKey(): string
+    {
+        return $this->query()->getModel()->getQualifiedKeyName();
+    }
+
+    /** SQL that groups a field: the expression itself, or a date's year ("2026") / month ("2026-03"). */
+    public function groupSql(Field $field, ?string $grain = null): string
+    {
+        if ($field->type !== 'date') {
+            return $field->sql;
+        }
+        $format = ($grain ?? 'year') === 'month' ? '%Y-%m' : '%Y';
+
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('{$format}', {$field->sql})"
+            : "DATE_FORMAT({$field->sql}, '{$format}')";
+    }
 }

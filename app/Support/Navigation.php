@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
+use App\Support\Datasets\DatasetRegistry;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -42,6 +43,8 @@ final class Navigation
         'tools' => [
             ['key' => 'search', 'icon' => 'search', 'capability' => 'projects.view', 'task' => 'M4.17'],
             ['key' => 'statistics', 'icon' => 'chart', 'capability' => 'applications.view', 'task' => 'M4.17'],
+            // Smart-search phase 3: the pivot report builder; 'reports.view' is not a grant, for() shows it when the account can read at least one dataset.
+            ['key' => 'reports', 'icon' => 'chart', 'route' => 'reports.index', 'capability' => 'reports.view'],
             ['key' => 'tasks', 'icon' => 'task', 'route' => 'tasks.board', 'capability' => 'tasks.view'],
             ['key' => 'notifications', 'icon' => 'bell', 'route' => 'notifications.index', 'capability' => 'notifications.view'],
             ['key' => 'accounts', 'icon' => 'shield', 'route' => 'admin.accounts.index', 'capability' => 'accounts.manage'],
@@ -60,7 +63,9 @@ final class Navigation
         $out = [];
         foreach (self::GROUPS as $group => $items) {
             foreach ($items as $item) {
-                $held[$item['capability']] ??= $access->cities($account, $item['capability'])->isNotEmpty();
+                $held[$item['capability']] ??= $item['capability'] === 'reports.view'
+                    ? DatasetRegistry::readableBy($account) !== [] // not a grant: at least one dataset is readable
+                    : $access->cities($account, $item['capability'])->isNotEmpty();
                 if (! $held[$item['capability']]) {
                     continue;
                 }

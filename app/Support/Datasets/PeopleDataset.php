@@ -27,6 +27,21 @@ final class PeopleDataset extends Dataset
         return 'people';
     }
 
+    public function viewCapabilities(): array
+    {
+        return ['people.view'];
+    }
+
+    public function listRoute(): ?string
+    {
+        return 'people.index';
+    }
+
+    public function listParams(): array
+    {
+        return ['city' => ['city', true]];
+    }
+
     public function query(): Builder
     {
         $family = DB::table('family_members')->whereNull('deleted_at')->selectRaw('person_id, MIN(family_id) as family_id')->groupBy('person_id');

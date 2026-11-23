@@ -35,6 +35,137 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
+// Charts (x-hc.chart, smart-search phase 3). Chart.js is installed with npm and imported lazily: the chunk is only fetched on a page
+// that has a chart, from our own origin (the CSP allows no CDN). The component reads its data from the figure's data-chart attribute,
+// which Livewire updates on every render; a MutationObserver redraws in place (same type) or rebuilds (other type), and destroy()
+// releases the instance, observers and listeners when the figure leaves the page, so nothing leaks across updates or navigation.
+document.addEventListener('alpine:init', () => {
+    let loading = null;
+    const loadChart = () => (loading ??= import('chart.js/auto').then((module) => module.default ?? module.Chart));
+    const FALLBACK = ['#2a63b8', '#d2690a', '#1d8a52', '#8a46b0', '#0f8fa3', '#be1f24', '#8f7500', '#5d6572'];
+    const POINTS = ['circle', 'rect', 'triangle', 'rectRot', 'star', 'cross', 'crossRot', 'rectRounded'];
+    const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+    window.Alpine.data('hcChart', () => ({
+        chart: null, kind: null, gone: false, observer: null, themeObserver: null, media: null, onTheme: null,
+        init() {
+            this.observer = new MutationObserver(() => this.draw());
+            this.observer.observe(this.$el, { attributes: true, attributeFilter: ['data-chart'] });
+            this.onTheme = () => this.draw(true);
+            this.media = window.matchMedia('(prefers-color-scheme: dark)');
+            this.media.addEventListener('change', this.onTheme);
+            this.themeObserver = new MutationObserver(this.onTheme);
+            this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+            this.draw();
+        },
+        destroy() {
+            this.gone = true;
+            this.observer?.disconnect();
+            this.themeObserver?.disconnect();
+            this.media?.removeEventListener('change', this.onTheme);
+            this.chart?.destroy();
+            this.chart = null;
+        },
+        settings() {
+            try { return JSON.parse(this.$el.dataset.chart || 'null'); } catch (_) { return null; }
+        },
+        async draw(rebuild = false) {
+            const cfg = this.settings();
+            if (!cfg) return;
+            const Chart = await loadChart();
+            if (this.gone || !this.$refs || !this.$el.isConnected) return;
+            const canvas = this.$el.querySelector('canvas');
+            if (!canvas) return;
+
+            const pie = cfg.type === 'pie' || cfg.type === 'doughnut';
+            const kind = pie ? cfg.type : (cfg.type === 'line' ? 'line' : 'bar');
+            const rtl = document.documentElement.dir === 'rtl';
+            const ink = css('--ink-2', '#555');
+            const grid = css('--line', '#ddd');
+            const surface = css('--surface', '#fff');
+            const palette = FALLBACK.map((fallback, i) => css(`--chart-${i + 1}`, fallback));
+            const number = new Intl.NumberFormat(document.documentElement.lang || undefined, { maximumFractionDigits: 2 });
+            const fmt = (value) => (value === null || value === undefined ? '—' : number.format(value) + (cfg.percent ? '%' : ''));
+            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+            Chart.defaults.color = ink;
+
+            const datasets = cfg.datasets.map((set, i) => {
+                const color = palette[i % palette.length];
+                if (pie) {
+                    return { label: set.label, data: set.data, backgroundColor: cfg.labels.map((_, j) => palette[j % palette.length]), borderColor: surface, borderWidth: 2 };
+                }
+                return kind === 'line'
+                    ? { label: set.label, data: set.data, borderColor: color, backgroundColor: color, tension: 0.25, pointStyle: POINTS[i % POINTS.length], pointRadius: 5, pointHoverRadius: 7, spanGaps: false }
+                    : { label: set.label, data: set.data, backgroundColor: color, borderColor: color, borderWidth: 0, borderRadius: 3 };
+            });
+
+            // Values written on the marks (no colour-only reading); skipped when there are too many marks to stay legible.
+            const total = cfg.labels.length * cfg.datasets.length;
+            const valueLabels = {
+                id: 'hcValueLabels',
+                afterDatasetsDraw(chart) {
+                    if (pie || cfg.type === 'stacked' || total > 36) return;
+                    const { ctx } = chart;
+                    ctx.save();
+                    ctx.fillStyle = ink;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.font = `600 11px ${Chart.defaults.font.family}`;
+                    chart.data.datasets.forEach((set, i) => {
+                        chart.getDatasetMeta(i).data.forEach((element, j) => {
+                            const value = set.data[j];
+                            if (value !== null && value !== undefined) ctx.fillText(fmt(value), element.x, element.y - 4);
+                        });
+                    });
+                    ctx.restore();
+                },
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: reduced ? false : { duration: 350 },
+                layout: { padding: { top: 18 } },
+                plugins: {
+                    legend: {
+                        display: pie || cfg.datasets.length > 1,
+                        rtl, textDirection: rtl ? 'rtl' : 'ltr',
+                        labels: {
+                            color: ink, usePointStyle: true, boxWidth: 10,
+                            generateLabels: (chart) => {
+                                const items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                if (pie) items.forEach((item) => { item.text = `${item.text}: ${fmt(chart.data.datasets[0].data[item.index])}`; item.fontColor = ink; });
+                                else items.forEach((item) => { item.fontColor = ink; });
+                                return items;
+                            },
+                        },
+                    },
+                    tooltip: {
+                        rtl, textDirection: rtl ? 'rtl' : 'ltr',
+                        callbacks: { label: (item) => `${item.dataset.label ? item.dataset.label + ': ' : ''}${fmt(item.parsed.y ?? item.parsed)}` },
+                    },
+                },
+                scales: pie ? {} : {
+                    x: { stacked: cfg.type === 'stacked', reverse: rtl, grid: { display: false }, ticks: { color: ink } },
+                    y: { stacked: cfg.type === 'stacked', beginAtZero: true, position: rtl ? 'right' : 'left', grid: { color: grid }, border: { display: false }, ticks: { color: ink, callback: (value) => fmt(value) } },
+                },
+            };
+
+            if (this.chart && this.kind === cfg.type && !rebuild) {
+                this.chart.data.labels = cfg.labels;
+                this.chart.data.datasets = datasets;
+                this.chart.options = options;
+                this.chart.update();
+                return;
+            }
+            this.chart?.destroy();
+            this.kind = cfg.type;
+            this.chart = new Chart(canvas, { type: kind, data: { labels: cfg.labels, datasets }, options, plugins: [valueLabels] });
+        },
+    }));
+});
+
 // Keep an entered value selected even if Livewire/Alpine is still loading.
 document.addEventListener('input', (event) => {
     if (!(event.target instanceof HTMLElement) || !event.target.matches('[data-null-value]')) return;

@@ -86,6 +86,12 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/applications/{project}/special-cases', [\App\Http\Controllers\SpecialCaseController::class, 'project'])->whereNumber('project')->name('special-cases.project');
             Route::get('/special-cases', [\App\Http\Controllers\SpecialCaseController::class, 'index'])->name('special-cases.index');
             Route::get('/special-cases/export', [\App\Http\Controllers\SpecialCaseController::class, 'export'])->middleware('throttle:10,1')->name('special-cases.export');
+            // M4.20 official papers library (PaperLibrary rechecks projects.view per city).
+            Route::get('/papers', [\App\Http\Controllers\PaperLibraryController::class, 'index'])->name('papers.index');
+            Route::get('/papers/download', [\App\Http\Controllers\PaperLibraryController::class, 'download'])->middleware('throttle:60,1')->name('papers.download');
+            Route::get('/papers/original', [\App\Http\Controllers\PaperLibraryController::class, 'original'])->middleware('throttle:60,1')->name('papers.original');
+            Route::get('/papers/review/{form}', [\App\Http\Controllers\PaperLibraryController::class, 'review'])->where('form', 'F[0-9]{2}')->name('papers.review');
+            Route::get('/applications/{project}/print', [\App\Http\Controllers\PaperPrintController::class, 'application'])->whereNumber('project')->name('applications.print');
             // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).
             Route::get('/applications/{project}/executive-file', [ExecutiveFileController::class, 'show'])->whereNumber('project')->name('executive.show');
             Route::get('/applications/{project}/purchases', [PurchasingController::class, 'show'])->whereNumber('project')->name('purchasing.show');

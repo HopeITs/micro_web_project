@@ -1,0 +1,37 @@
+<?php
+
+return [
+    'print' => 'Print',
+    'print_application' => 'Print application',
+    'back' => 'Back',
+    'review_title' => 'Redraw review',
+    'review_intro' => 'The original paper beside its redraw from the data. Staff or the lawyer compare them before the legal wording is approved.',
+    'review_original' => 'Original paper',
+    'review_redraw' => 'Redrawn by the program',
+    'review_project' => 'Project',
+    'review_no_project' => 'No project at this stage in the city.',
+    'review_link' => 'Review redraw',
+    'title' => 'Official papers',
+    'intro' => 'Every paper of the micro-projects programme, blank and ready to print, for each city and version. The Word files have been emptied of old data.',
+    'search' => 'Find a paper', 'city' => 'City', 'all_cities' => 'All my cities', 'variant' => 'Version', 'any' => 'Any', 'filter' => 'Show', 'clear' => 'Clear',
+    'none' => 'No papers match', 'not_installed' => 'The paper files are not installed on this server yet. An administrator installs them with papers:import.',
+    'download' => 'Download', 'missing_file' => 'not installed', 'fillable' => 'to fill', 'static' => 'to read',
+    'files_count' => '{1} :count file|[2,*] :count files',
+    'variants' => ['syrian' => 'Syrian', 'non_syrian' => 'Non-Syrian', 'generic' => 'Generic (older)'],
+    'cities' => ['ALP' => 'Aleppo', 'IDL' => 'Idlib', 'HMS' => 'Homs', 'DAM' => 'Damascus', 'LAT' => 'Latakia', 'WAD' => 'Al Wadi'],
+    'groups' => [
+        'registration' => 'Registration', 'study' => 'Study', 'reference' => 'Reference', 'purchasing' => 'Purchasing', 'legal' => 'Legal papers',
+        'finance' => 'Finance', 'consent' => 'Consents', 'meetings' => 'Profession meetings', 'training' => 'Training',
+    ],
+    'forms' => [
+        'F01' => 'Required documents', 'F02' => 'Preliminary registration form', 'F03' => 'Project application form', 'F04' => 'Audio recording consent',
+        'F05' => 'Special case', 'F06' => 'Experience test', 'F07' => 'Procedure stages', 'F08' => 'Price quotation list', 'F09' => 'Purchase request',
+        'F10' => 'Promissory note', 'F11' => 'Deed: tools and machines', 'F12' => 'Deed: agricultural tools and machines', 'F13' => 'Deed: solar energy',
+        'F14' => 'Deed: agricultural solar energy', 'F15' => 'Deed: vehicles', 'F16' => 'Final car sale contract', 'F17' => 'Sale and purchase contract',
+        'F18' => 'Partnership (joint venture) contract', 'F19' => 'Disbursement request', 'F20' => 'Equipment receipt pledge', 'F21' => 'Beneficiary card',
+        'F22' => 'Equipment and goods return', 'F23' => 'Clearance deed', 'F24' => 'Photo and audio consent (adult, Caritas Polska)',
+        'F25' => 'Photo, audio and video consent (child, Caritas Polska)', 'F26' => 'Photo use policy (RC_Info)', 'F27' => 'Informed consent (RC_Sign)',
+        'F28' => 'Profession meeting questionnaire (group)', 'F29' => 'Profession meeting questionnaire (individual, older)',
+        'F30' => 'Profession meeting attendance', 'F31' => 'Profession meeting minutes', 'F32' => 'Training attendance', 'F33' => 'Project management course attendance',
+    ],
+];

@@ -493,3 +493,19 @@ This sits with M4.18 but can be done first, because every module below needs it.
   - the HMS/DMS/LAT non-Syrian pictures,
   - the second LAT car-sale contract.
 - **Sample data stays out of the repository.** The Word templates carry sample identities and amounts in their text boxes, and none of it was copied here.
+
+## 11. Owner decisions (21 November 2026)
+
+Recorded from the planning session for M4.20 (plan: print every official paper from the site, auto-filled from data).
+
+| Question | Decision |
+|---|---|
+| How are the papers printed? | **Every paper is redrawn in HTML to the same design**, including the application form, the contracts and the deeds. Tables grow with the data instead of the paper's fixed rows. The legal wording is copied from the paper picture as real text and **reviewed against the original** (a review page shows the original beside the redraw) before staff use it. |
+| Downloading the papers | Every paper can be downloaded blank from the site, per city and version. The Word files are **emptied of the sample data** in their text boxes first; the background picture and box positions are kept. |
+| Data the system lacks (G3–G7, G10) | **One table per kind** (vehicles, solar systems, equipment items, sale contracts, partnership contracts, purchase requests, price quotes, equipment receipts and returns, skills tests). This is the schema addendum v1.4, which needs the owner's approval before any migration. |
+| Non-Syrian beneficiaries (G2, Q3) | A **nationality field on the person** (with the identity document type, number and the free lines the non-Syrian papers print). The site picks the Syrian or non-Syrian version automatically. Part of v1.4. |
+| Idlib (Q1) | **Part of Aleppo.** Idlib projects stay in the Aleppo city; the signing place (حلب / ادلب) is chosen when printing. |
+| Branch details and signatories (G1, Q2) | **Per-city settings** edited by an administrator: address, phones, complaints phone, office hours and the names of the director, micro-projects manager, finance manager and purchasing officer. Part of v1.4. Until then the print uses the addresses printed on the papers. |
+| The lawyer's papers | They are the legal set: promissory note (F10), the five deeds (F11–F15), the two sale contracts (F16, F17), the partnership contract (F18) and the clearance (F23). |
+
+**Still open** (not asked yet): Q5–Q12 above (consent records, Caritas Polska consents, beneficiary card slots, disbursement layout, the older questionnaire, template errors, missing papers, Word output) and the Al Wadi address (the Wadi folder is the Homs papers).

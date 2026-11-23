@@ -52,11 +52,11 @@ return [
         'exported' => 'Exported', 'printed' => 'Printed', 'toggled' => 'Changed', 'seen' => 'Read', 'sent' => 'Sent', 'noted' => 'Added a note to', 'rescheduled' => 'Rescheduled',
         'schedule' => 'Opened the schedule', 'results' => 'Opened the results of', 'donor_assigned' => 'Assigned a donor to', 'group_created' => 'Created a group for', 'loan_saved' => 'Saved the loan of',
         'payments_saved' => 'Saved the payments of', 'download_started' => 'Started downloading', 'download_succeeded' => 'Downloaded', 'download_failed' => 'Download failed',
-        'download_denied' => 'Download refused',
+        'download_denied' => 'Download refused', 'downloaded' => 'Downloaded',
     ],
     'nouns' => [
         'applications' => 'application', 'projects' => 'project', 'people' => 'person', 'lookups' => 'list value', 'assessments' => 'checklist', 'finance' => 'finance',
         'executive_files' => 'executive files', 'purchasing' => 'purchasing', 'special_cases' => 'special case', 'visits' => 'visit', 'me_visits' => 'M&E visit',
-        'profession_meetings' => 'profession meeting', 'tasks' => 'task', 'notifications' => 'notice', 'accounts' => 'accounts', 'reports' => 'report', 'attachments' => 'attachment',
+        'profession_meetings' => 'profession meeting', 'tasks' => 'task', 'notifications' => 'notice', 'accounts' => 'accounts', 'reports' => 'report', 'attachments' => 'attachment', 'papers' => 'official paper',
     ],
 ];

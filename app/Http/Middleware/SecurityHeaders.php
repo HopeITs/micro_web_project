@@ -16,7 +16,10 @@ class SecurityHeaders
             $response->headers->set('Referrer-Policy', 'no-referrer');
         }
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('X-Frame-Options', 'DENY');
+        // M4.20: the review page of a redrawn paper shows the application print and the original paper side by side, so these two
+        // routes (and only these) may be framed by this same site. Every other page stays unframable.
+        $sameSiteFrame = $request->is('en/applications/*/print', 'ar/applications/*/print', 'en/papers/original', 'ar/papers/original');
+        $response->headers->set('X-Frame-Options', $sameSiteFrame ? 'SAMEORIGIN' : 'DENY');
         if (! $response->headers->has('Referrer-Policy')) {
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         }
@@ -24,7 +27,12 @@ class SecurityHeaders
         // These restrictions work with Livewire/Alpine without allowing frames,
         // plugins or cross-origin form submissions. A full script policy needs
         // a separate nonce/CSP-compatible Alpine design before deployment.
-        $response->headers->set('Content-Security-Policy', "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'");
+        // The original paper is a PDF: Chrome's viewer needs object-src to stay open for that one response.
+        $response->headers->set('Content-Security-Policy', match (true) {
+            $request->is('en/papers/original', 'ar/papers/original') => "base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
+            $sameSiteFrame => "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
+            default => "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+        });
         if ($request->isSecure() && app()->environment('production')) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
         }

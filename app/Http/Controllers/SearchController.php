@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\AccountAuditTrail;
+use App\Services\Reports\ApplicationDetailsExport;
 use App\Services\Reports\Search\SearchService;
 use App\Services\Reports\TableExport;
 use Illuminate\Http\Request;
@@ -33,6 +34,12 @@ final class SearchController
     {
         $payload = preg_match('/\A[A-Za-z0-9]{40}\z/', $token) === 1 ? Cache::pull('search-export:'.$token) : null;
         abort_if(! is_array($payload) || ($payload['account'] ?? null) !== $request->user()->id, 404);
+
+        if (! empty($payload['details'])) {
+            [$headings, $rows] = app(ApplicationDetailsExport::class)->export($request->user(), (array) ($payload['state'] ?? []));
+
+            return $export->stream(TableExport::format($payload['format'] ?? null), 'application-details-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));
+        }
 
         [$headings, $rows, $numeric, $mode] = $search->export($request->user(), (string) ($payload['mode'] ?? ''), (array) ($payload['state'] ?? []));
 

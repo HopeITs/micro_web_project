@@ -6,6 +6,7 @@ return [
     'cities' => 'Cities', 'filters' => 'Filters', 'filters_active' => 'Filters (:count)', 'clear' => 'Clear filters', 'last' => 'Last visit of each person only',
     'count_projects' => 'Projects: :count', 'count_rows' => 'Rows: :count', 'none' => 'No rows match', 'none_hint' => 'Change the type, the cities or the filters.',
     'table' => 'Search results', 'scroll_hint' => 'Scroll sideways to see all columns.', 'duplicate' => 'Duplicate name', 'duplicate_hint' => 'More than one person has this name',
+    'export_details' => 'All application details', 'details_hint' => 'One row per project with every field of the application form and its tables (Excel)', 'details_too_many' => 'More than :max projects match. Narrow the filters first.',
     'open' => 'Open the record', 'export_excel' => 'Excel', 'export_csv' => 'CSV', 'yes' => 'Yes', 'no' => 'No', 'son_of' => 'son/daughter of', 'multi_hint' => 'Hold Ctrl (or Cmd) to choose several.', 'all' => 'All',
     'groups' => ['applications' => 'Applications', 'people' => 'People and family', 'money' => 'Finance', 'field' => 'Visits and field'],
     'modes' => [

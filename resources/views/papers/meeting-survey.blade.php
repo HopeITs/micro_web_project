@@ -25,7 +25,7 @@
             @foreach($q->options as $o)
                 @php($a = $s['opt'][$o->id] ?? [])
                 @php($mark = $q->answer_type === 'option_number' ? (string) ($a['n'] ?? '') : (! empty($a['on']) ? '✓' : ''))
-                <div class="ask"><span>{{ $name($o) }}@if(($a['text'] ?? '') !== '') — {{ $a['text'] }}@endif</span><span class="num" style="min-width:12mm;text-align:center;border:1px solid var(--line)">{{ $mark }}</span></div>
+                <div class="ask"><span>{{ $name($o) }}@if(($a['text'] ?? '') !== '') — {{ $a['text'] }}@endif</span><span class="num" style="min-width:12mm;min-height:5mm;line-height:5mm;text-align:center;border:1px solid var(--line)">{{ $mark }}</span></div>
             @endforeach
         @elseif($q->answer_type === 'text')
             <div class="lined" style="--n:2">{{ $s['tx'][$q->id] ?? '' }}</div>

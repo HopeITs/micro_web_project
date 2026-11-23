@@ -84,7 +84,6 @@ class MeetingPaperScenarioTest extends TestCase
         return $s;
     }
 
-
     /** @return array{0: int, 1: object} a final meeting (id) and its project */
     private function finalMeeting(): array
     {

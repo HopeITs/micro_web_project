@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\WebAccount;
+use App\Services\Reports\ApplicationDetailsExport;
 use App\Services\Reports\ProjectReportFilters;
 use App\Services\Reports\Search\SearchModes;
 use App\Services\Reports\Search\SearchService;
@@ -104,6 +105,16 @@ class SearchPage extends Component
         $this->redirect(route('search.export', ['locale' => app()->getLocale(), 'token' => $token]));
     }
 
+    /** M4.18: every field of every matching application (one row per project) as Excel/CSV; the applications type only. */
+    public function exportDetails(string $format, ApplicationDetailsExport $details): void
+    {
+        abort_unless(in_array($format, TableExport::FORMATS, true), 422);
+        abort_unless($this->mode === 'applications' && $details->canExport($this->account()), 403);
+        $token = Str::random(40);
+        Cache::put('search-export:'.$token, ['account' => $this->account()->id, 'mode' => 'applications', 'details' => true, 'format' => $format, 'state' => $this->state()], now()->addMinutes(5));
+        $this->redirect(route('search.export', ['locale' => app()->getLocale(), 'token' => $token]));
+    }
+
     public function render(SearchService $search): View
     {
         $account = $this->account();
@@ -128,7 +139,7 @@ class SearchPage extends Component
 
         return view('livewire.search-page', $result + [
             'cityOptions' => $cityOptions, 'groups' => $groups, 'options' => $options, 'filterKind' => $mode->filterKind(), 'headings' => $mode->headings(), 'numeric' => $mode->numeric(),
-            'linkColumn' => $mode->linkColumn(), 'canExport' => $search->canExport($account, $this->mode),
+            'linkColumn' => $mode->linkColumn(), 'canExport' => $search->canExport($account, $this->mode), 'canExportDetails' => $this->mode === 'applications' && $search->canExport($account, 'applications'),
             'activeFilters' => count(array_filter($filters, fn ($v, $k) => $k !== 'q' && $v !== [] && $v !== '', ARRAY_FILTER_USE_BOTH)) + ($this->last ? 1 : 0),
         ]);
     }

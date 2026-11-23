@@ -6,6 +6,7 @@ return [
     'cities' => 'المدن', 'filters' => 'التصفية', 'filters_active' => 'التصفية (:count)', 'clear' => 'مسح التصفية', 'last' => 'آخر زيارة لكل شخص فقط',
     'count_projects' => 'عدد المشاريع: :count', 'count_rows' => 'عدد الصفوف: :count', 'none' => 'لا توجد صفوف مطابقة', 'none_hint' => 'غيّر النوع أو المدن أو التصفية.',
     'table' => 'نتائج البحث', 'scroll_hint' => 'مرّر جانبياً لرؤية كل الأعمدة.', 'duplicate' => 'اسم مكرر', 'duplicate_hint' => 'أكثر من شخص يحمل هذا الاسم',
+    'export_details' => 'كل معلومات الاستمارة', 'details_hint' => 'صف لكل مشروع بكل حقول الاستمارة وجداولها (Excel)', 'details_too_many' => 'أكثر من :max مشروع مطابق. ضيّق المرشحات أولاً.',
     'open' => 'فتح السجل', 'export_excel' => 'Excel', 'export_csv' => 'CSV', 'yes' => 'نعم', 'no' => 'لا', 'son_of' => 'ابن/ة', 'multi_hint' => 'اضغط Ctrl لاختيار أكثر من قيمة.', 'all' => 'الكل',
     'groups' => ['applications' => 'الاستمارات', 'people' => 'الأشخاص والعائلة', 'money' => 'المالية', 'field' => 'الزيارات والميدان'],
     'modes' => [

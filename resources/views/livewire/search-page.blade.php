@@ -94,6 +94,9 @@
             @if($canExport)
                 <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportTable('xlsx')">{{ __('search.export_excel') }}</x-hc.button>
                 <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportTable('csv')">{{ __('search.export_csv') }}</x-hc.button>
+                @if($canExportDetails)
+                    <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportDetails('xlsx')" title="{{ __('search.details_hint') }}">{{ __('search.export_details') }}</x-hc.button>
+                @endif
             @endif
             @if($filterKind !== 'none' || $searchMode->hasLastSwitch())
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('search.clear') }}</x-hc.button>

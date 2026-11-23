@@ -96,6 +96,8 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/profession-meetings/new', [\App\Http\Controllers\ProfessionMeetingController::class, 'create'])->name('meetings.create');
             Route::get('/profession-meetings/report', [\App\Http\Controllers\ProfessionMeetingController::class, 'report'])->name('meetings.report');
             Route::get('/profession-meetings/{meeting}', [\App\Http\Controllers\ProfessionMeetingController::class, 'show'])->whereNumber('meeting')->name('meetings.show');
+            // M4.18: printed minutes and survey of a final meeting (MeetingPaper rechecks profession_meetings.view in the city and audits papers.printed).
+            Route::get('/profession-meetings/{meeting}/print/{kind}', [\App\Http\Controllers\MeetingPaperController::class, 'show'])->whereNumber('meeting')->where('kind', 'minutes|survey')->name('meetings.print');
             // M4.16 task board (TaskBoardService / ProjectTaskService recheck tasks.view, applications.view, tasks.manage and the responsibility per city) and the notification box.
             Route::get('/task-board', [\App\Http\Controllers\TaskBoardController::class, 'index'])->name('tasks.board');
             Route::get('/task-board/export', [\App\Http\Controllers\TaskBoardController::class, 'export'])->middleware('throttle:10,1')->name('tasks.board.export');

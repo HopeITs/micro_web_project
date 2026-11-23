@@ -161,6 +161,16 @@ class IdentityEnginesTest extends TestCase
         // Two independent readings: different page segmentation, Arabic and English data.
         Process::assertRan(fn (PendingProcess $p) => str_contains(implode(' ', (array) $p->command), '--psm 6') && str_contains(implode(' ', (array) $p->command), '-l ara+eng'));
         Process::assertRan(fn (PendingProcess $p) => str_contains(implode(' ', (array) $p->command), '--psm 11'));
+        Process::assertRan(fn (PendingProcess $p) => ! str_contains(implode(' ', (array) $p->command), '--tessdata-dir'));
+    }
+
+    public function test_tesseract_can_read_its_language_data_from_a_folder_without_administrator_rights(): void
+    {
+        config(['identity_reader.driver' => 'tesseract', 'identity_reader.passes' => 1, 'identity_reader.tesseract.tessdata' => 'D:/ocr-data/tessdata']);
+        $this->fakeTesseract($this->cardTsv());
+
+        app(IdCardReader::class)->read(base64_decode(self::PNG), 'image/png');
+        Process::assertRan(fn (PendingProcess $p) => str_contains(implode(' ', (array) $p->command), '--tessdata-dir D:/ocr-data/tessdata'));
     }
 
     public function test_tesseract_is_off_when_the_program_is_missing_and_reports_missing_arabic_or_a_failure(): void

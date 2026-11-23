@@ -89,6 +89,20 @@ class OcrTextParserTest extends TestCase
         $this->assertSame('أنثى', $input['sex']['value']);
     }
 
+    public function test_plain_text_output_is_read_too_with_a_fair_confidence(): void
+    {
+        $plain = 'البطاقة الشخصية
+الاسم : نبيل
+الكنية : زيدان
+الرقم الوطني : 01020304050
+';
+        $input = OcrTextParser::toInput(OcrTextParser::lines($plain));
+        $this->assertSame('نبيل', $input['first_name']['value']);
+        $this->assertSame('medium', $input['first_name']['confidence']);
+        $this->assertSame('01020304050', $input['national_number']['value']);
+        $this->assertSame('medium', $input['national_number']['confidence'], 'unknown word confidence is never "high"');
+    }
+
     public function test_text_that_is_not_a_document_is_reported_as_such(): void
     {
         $this->assertSame('not_an_identity_document', OcrTextParser::toInput(OcrTextParser::lines($this->tsv(['ab'])))['document_type']);

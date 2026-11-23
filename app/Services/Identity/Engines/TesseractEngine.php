@@ -59,10 +59,12 @@ final class TesseractEngine implements IdentityEngine
         $file = tempnam(sys_get_temp_dir(), 'idr');
         file_put_contents($file, $image);
         try {
-            $result = Process::timeout((int) config('identity_reader.tesseract.timeout'))->run([
-                (string) config('identity_reader.tesseract.binary'), $file, 'stdout', '-l', (string) config('identity_reader.tesseract.lang'),
-                '--psm', self::PSM[max(1, min(3, $pass))], '--dpi', '300', 'tsv',
-            ]);
+            $result = Process::timeout((int) config('identity_reader.tesseract.timeout'))->run(array_merge(
+                [(string) config('identity_reader.tesseract.binary'), $file, 'stdout', '-l', (string) config('identity_reader.tesseract.lang')],
+                filled(config('identity_reader.tesseract.tessdata')) ? ['--tessdata-dir', (string) config('identity_reader.tesseract.tessdata')] : [],
+                // tessedit_create_tsv works with any tessdata folder (the "tsv" config file lives only in Tesseract's own folder).
+                ['--psm', self::PSM[max(1, min(3, $pass))], '--dpi', '300', '-c', 'tessedit_create_tsv=1'],
+            ));
         } catch (\Throwable $e) {
             throw new IdentityReadException('unreachable', 0, $e);
         } finally {

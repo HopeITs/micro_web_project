@@ -22,7 +22,7 @@ PDF scans: the models and Tesseract read images, so a PDF is turned into page im
 
 ### Installing the free engines (Windows)
 
-- **Tesseract:** install it from the UB Mannheim build (github.com/UB-Mannheim/tesseract/wiki) and tick **Arabic** under "Additional language data". Check with `tesseract --list-langs` that `ara` is listed. If `tesseract` is not on the PATH, set `TESSERACT_BIN` to the full path (usually `C:\Program Files\Tesseract-OCR\tesseract.exe`).
+- **Tesseract:** install it from the UB Mannheim build (github.com/UB-Mannheim/tesseract/wiki) and tick **Arabic** under "Additional language data". Check with `tesseract --list-langs` that `ara` is listed. If `tesseract` is not on the PATH, set `TESSERACT_BIN` to the full path (usually `C:\Program Files\Tesseract-OCR\tesseract.exe`). **Without administrator rights** (or to use the more accurate "best" Arabic data): put `ara.traineddata` (from github.com/tesseract-ocr/tessdata_best, about 13 MB) and a copy of `eng.traineddata` in a folder of your own and set `TESSERACT_DATA` to that folder.
 - **Poppler** (only for PDF scans): install Poppler for Windows and set `PDFTOPPM_BIN` to the full path of `pdftoppm.exe` if it is not on the PATH.
 - **Ollama:** install it from ollama.com, then run `ollama pull qwen2.5vl:7b` (several gigabytes). The defaults `OLLAMA_URL=http://127.0.0.1:11434` and `OLLAMA_MODEL=qwen2.5vl:7b` can stay. Another vision model can be tried through `OLLAMA_MODEL`.
 - Restart the site's server after editing `.env` (it does not reload it).
@@ -38,6 +38,34 @@ php artisan identity:test "C:\path\to\scan.jpg" --driver=ollama
 
 Run both on the same ten real cards, write down which values are wrong for each, and choose by the number of wrong values and the time it takes. Staff review every value before saving whatever the engine.
 
+## On the online server
+
+Whether it is possible depends on what kind of server the site will be hosted on. The hosting choice is still open (the question is asked before deployment, M7.1); this is what each engine needs, so the answer can be checked against any offer.
+
+| | Tesseract | Ollama (vision model) | Claude (cloud) |
+|---|---|---|---|
+| Possible on a normal VPS or a dedicated server with SSH and `sudo` | **Yes**: light (a few seconds of one CPU core and well under 1 GB of memory per reading) | Only on a **large** machine: the 7B model is about 6 GB on disk and needs roughly 8 GB of free memory or more; on a CPU without a graphics card one reading takes tens of seconds or minutes. A small VPS (2–4 GB) cannot run it. A GPU server is expensive. Check these figures on the real machine with `ollama run` before relying on them. | Yes, anywhere with internet |
+| Shared hosting (cPanel and similar) | Normally **no**: no permission to install programs, and `proc_open` (which the site uses to run it) is usually disabled | No | Yes (needs only outbound HTTPS) |
+| The scan leaves the server | No | No | Yes (to the cloud service) |
+| Cost | Free | Free software, but a big server costs money | Per reading |
+
+**Tesseract on a Linux VPS (Ubuntu or Debian), as a user with `sudo`:**
+
+```
+sudo apt update
+sudo apt install tesseract-ocr tesseract-ocr-ara poppler-utils
+tesseract --list-langs          # ara must be listed
+```
+
+Then in the site's `.env`: `ID_READER_DRIVER=tesseract` (the defaults `TESSERACT_BIN=tesseract` and `PDFTOPPM_BIN=pdftoppm` fit). `poppler-utils` is for PDF scans. The Linux package usually carries the lighter Arabic data; for the more accurate data download `ara.traineddata` from tessdata_best as on the development machine and set `TESSERACT_DATA` to its folder. PHP must be allowed to run programs (`proc_open` not in `disable_functions`), and the web user must be able to run `tesseract`. Restart the PHP service after editing `.env`. Test on the server with `php artisan identity:test <scan> --driver=tesseract`.
+
+**Ollama, when the server is big enough:** install with the official script from ollama.com (`curl -fsSL https://ollama.com/install.sh | sh`), which sets it up as a service, then `ollama pull qwen2.5vl:7b`, and set `ID_READER_DRIVER=ollama`. Ollama has **no login**: keep it listening on `127.0.0.1` only and never open its port to the internet.
+
+**If the online server is too small for Ollama but the office has a strong computer:** the office machine can run Ollama and the online site can reach it over a private VPN (WireGuard or Tailscale), with `OLLAMA_URL=http://<the machine's VPN address>:11434`. The scan then travels over the VPN to your own machine and nowhere else; the office machine must be on whenever staff read documents. Do not expose that port publicly.
+
+**What to ask a hosting provider:** SSH access with `sudo` (or root); permission to install packages; `proc_open` allowed in PHP; the amount of memory (4 GB is enough for Tesseract, 16 GB or more is needed for Ollama on CPU) and whether a GPU is offered; outbound internet only if the cloud engine is wanted.
+
+**Recommendation:** start with Tesseract on the server (it fits any ordinary VPS, costs nothing, the scan stays with you) and keep staff review as the safety net. Move to Ollama only if the trial on real cards shows Tesseract is not good enough *and* the hosting has the machine for it (or the office-computer option above is acceptable).
 ## Settings (`.env`)
 
 | Key | Meaning |

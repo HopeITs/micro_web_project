@@ -42,6 +42,16 @@ final class OcrTextParser
             $lines[$key]['words'][] = ['text' => $text, 'conf' => max(0.0, (float) $cols[10])];
         }
 
+        // Not TSV (an engine build that ignored the option): read the plain text line by line, the confidence of its words unknown (a fair 75).
+        if ($lines === [] && trim($tsv) !== '') {
+            foreach (preg_split('/\R/u', $tsv) ?: [] as $row) {
+                $words = preg_split('/\s+/u', trim($row), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                if ($words !== []) {
+                    $lines[] = ['words' => array_map(fn (string $w) => ['text' => $w, 'conf' => 75.0], $words)];
+                }
+            }
+        }
+
         return array_values($lines);
     }
 

@@ -33,6 +33,8 @@ return [
     'tesseract' => [
         'binary' => env('TESSERACT_BIN', 'tesseract'),
         'lang' => env('TESSERACT_LANG', 'ara+eng'),
+        // A folder holding ara.traineddata (and eng) when the language data is not in Tesseract's own folder (needs no administrator rights).
+        'tessdata' => env('TESSERACT_DATA'),
         'timeout' => (int) env('TESSERACT_TIMEOUT', 120),
     ],
 

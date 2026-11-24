@@ -26,7 +26,7 @@ final class PaperLibrary
 
     public const GROUPS = ['registration', 'study', 'financing', 'legal', 'purchasing', 'consents', 'meetings', 'training', 'handouts'];
 
-    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit) {}
+    public function __construct(private AccountAccess $access, private AccountAuditTrail $audit, private PaperCatalogue $catalogue) {}
 
     /** Cities (with code) whose papers the account may download. */
     public function cities(WebAccount $account): Collection
@@ -53,14 +53,14 @@ final class PaperLibrary
         $q = mb_strtolower(trim((string) ($filters['q'] ?? '')));
 
         $byForm = [];
-        foreach (config('papers.files', []) as $entry) {
+        foreach ($this->catalogue->files() as $entry) {
             if (! in_array($entry['city'], $codes, true) || ($city !== null && $entry['city'] !== $city) || ($variant !== null && $entry['variant'] !== $variant)) {
                 continue;
             }
             $byForm[$entry['form']][] = $entry + ['installed' => $this->installed($entry)];
         }
         $papers = [];
-        foreach (config('papers.forms', []) as $id => $form) {
+        foreach ($this->catalogue->forms() as $id => $form) {
             if (! isset($byForm[$id])) {
                 continue;
             }
@@ -72,7 +72,12 @@ final class PaperLibrary
             $papers[] = ['id' => $id, 'key' => $form['key'], 'title' => $title, 'group' => $form['group'], 'fillable' => $form['fillable'], 'files' => $files];
         }
 
-        return ['papers' => $papers, 'cities' => $cities, 'installed' => collect(config('papers.files', []))->contains(fn ($e) => $this->installed($e))];
+        // The people who keep the papers (papers.manage) also see what they may do: the cities they manage, the paper ids to add to, and the hidden originals.
+        $manage = app(PaperManager::class)->cities($account)->pluck('code')->all();
+        $hidden = array_values(array_filter($this->catalogue->removed(), fn ($e) => in_array($e['city'], $manage, true)));
+
+        return ['papers' => $papers, 'cities' => $cities, 'installed' => collect($this->catalogue->files())->contains(fn ($e) => $this->installed($e)),
+            'manage' => $manage, 'hidden' => $hidden, 'forms' => $this->catalogue->forms()];
     }
 
     /** Streams one blank paper after checking the city and recording the download. */
@@ -126,7 +131,7 @@ final class PaperLibrary
             $this->audit->record($account->id, 'access.denied', 'denied');
             abort(403);
         }
-        $files = collect(config('papers.files', []))->filter(fn ($e) => $e['form'] === $form && $e['variant'] === 'syrian' && $this->installed($e) && $permitted->contains('code', $e['city']));
+        $files = collect($this->catalogue->files())->filter(fn ($e) => $e['form'] === $form && $e['variant'] === 'syrian' && $this->installed($e) && $permitted->contains('code', $e['city']));
         $codes = $files->pluck('city')->unique()->values()->all();
         $city = in_array($filters['city'] ?? null, $codes, true) ? $filters['city'] : ($codes[0] ?? null);
         $original = $city === null ? null : ($files->first(fn ($e) => $e['city'] === $city && $e['format'] === 'pdf' && $e['place'] === null) ?? $files->first(fn ($e) => $e['city'] === $city));
@@ -141,7 +146,7 @@ final class PaperLibrary
     /** @return array{0: array<string, mixed>, 1: int} the catalogue entry and the city id, after the per-city permission check */
     private function resolve(WebAccount $account, string $form, string $city, ?string $place, string $variant, string $format): array
     {
-        $entry = collect(config('papers.files', []))->first(fn ($e) => $e['form'] === $form && $e['city'] === $city && ($e['place'] ?? null) === $place
+        $entry = collect($this->catalogue->files())->first(fn ($e) => $e['form'] === $form && $e['city'] === $city && ($e['place'] ?? null) === $place
             && $e['variant'] === $variant && $e['format'] === $format);
         $cityId = DB::table('cities')->where('code', $city)->value('id');
         if ($entry === null || $cityId === null) {
@@ -159,9 +164,13 @@ final class PaperLibrary
     /** The paper's title in the page language: the Arabic name from the catalogue (the papers' own names), the English one from lang. */
     public static function title(string $form): string
     {
-        $arabic = (string) config('papers.forms.'.$form.'.name_ar', $form);
+        $added = app(PaperCatalogue::class)->forms()[$form] ?? null;
+        $arabic = (string) ($added['name_ar'] ?? config('papers.forms.'.$form.'.name_ar', $form));
         if (app()->isLocale('ar')) {
             return $arabic;
+        }
+        if (! empty($added['name_en'])) {
+            return (string) $added['name_en'];
         }
         $key = 'papers.forms.'.$form;
         $title = __($key);

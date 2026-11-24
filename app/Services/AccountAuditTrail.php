@@ -38,7 +38,7 @@ final class AccountAuditTrail
         'legacy.restored' => ['legacy_link'], 'capability.granted' => ['capability_grant'], 'capability.revoked' => ['capability_grant'],
         'saved_views.created' => [], 'saved_views.deleted' => [], 'projects.exported' => [], 'people.exported' => [], 'installments.exported' => [],
         'identity.read' => ['person_entity'],
-        'national.checked' => [], 'kobo.view' => [], 'kobo.list' => [], 'kobo.exported' => [], 'papers.downloaded' => [], 'papers.printed' => ['application_entity', 'person_entity', 'meeting_entity'], 'lookups.created' => ['lookup_value'], 'lookups.updated' => ['lookup_value'], 'lookups.hidden' => ['lookup_value'], 'lookups.shown' => ['lookup_value'], 'lookups.deleted' => ['lookup_value'], 'lookups.exported' => [],
+        'national.checked' => [], 'kobo.view' => [], 'kobo.list' => [], 'kobo.exported' => [], 'papers.downloaded' => [], 'papers.uploaded' => [], 'papers.removed' => [], 'papers.restored' => [], 'papers.printed' => ['application_entity', 'person_entity', 'meeting_entity'], 'lookups.created' => ['lookup_value'], 'lookups.updated' => ['lookup_value'], 'lookups.hidden' => ['lookup_value'], 'lookups.shown' => ['lookup_value'], 'lookups.deleted' => ['lookup_value'], 'lookups.exported' => [],
     ];
 
     /** v1.3 details: at most this many fields per event, each value cut at this many characters. */

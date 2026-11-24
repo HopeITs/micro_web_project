@@ -8,6 +8,7 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Kobo\KoboReadService;
 use App\Services\Kobo\KoboResultsService;
+use App\Services\Kobo\KoboVisitService;
 use App\Services\Reports\TableExport;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,6 +24,29 @@ final class KoboController
         $kobo->opened($request->user());
 
         return view('kobo.index');
+    }
+
+    /** A new Kobo visit of a project (M4.14b); the form is chosen on the page. KoboVisitService rechecks the capability per city. */
+    public function create(Request $request, string $locale, int $project, KoboVisitService $visits): View
+    {
+        $form = $visits->form($request->user(), $project, null);
+        $this->audit($request, $form);
+
+        return view('kobo.visit', ['project' => $form['project'], 'number' => $visits->number($form['project']), 'submission' => null, 'formUid' => (string) $request->query('form', '')]);
+    }
+
+    public function show(Request $request, string $locale, int $submission, KoboVisitService $visits): View
+    {
+        $project = $visits->projectOf($request->user(), $submission);
+        $form = $visits->form($request->user(), $project, $submission);
+        $this->audit($request, $form);
+
+        return view('kobo.visit', ['project' => $form['project'], 'number' => $visits->number($form['project']), 'submission' => $submission, 'formUid' => '']);
+    }
+
+    private function audit(Request $request, array $form): void
+    {
+        app(AccountAuditTrail::class)->record($request->user()->id, 'kobo.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: (int) $form['project']->id);
     }
 
     public function export(Request $request, string $locale, KoboResultsService $results, AccountAccess $access, AccountAuditTrail $audit, TableExport $export): StreamedResponse

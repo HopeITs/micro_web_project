@@ -77,7 +77,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/reports/export/{token}', \App\Http\Controllers\ReportBuilderExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('reports.export');
             // M4.14 Kobo, read and review only (KoboReadService / KoboResultsService recheck visits.manage and reports.export per city).
             Route::get('/kobo', [\App\Http\Controllers\KoboController::class, 'index'])->name('kobo.index');
-            Route::get('/kobo/export', [\App\Http\Controllers\KoboController::class, 'export'])->middleware('throttle:10,1')->name('kobo.export');
+            // M4.14b the Kobo visit forms on the web (KoboVisitService rechecks visits.manage / me_visits.manage and the delete capabilities per city).
+            Route::get('/kobo/visits/new/{project}', [\App\Http\Controllers\KoboController::class, 'create'])->whereNumber('project')->name('kobo.visit.create');
+            Route::get('/kobo/visits/{submission}', [\App\Http\Controllers\KoboController::class, 'show'])->whereNumber('submission')->name('kobo.visit.show');
+            Route::get('/kobo/export',[\App\Http\Controllers\KoboController::class, 'export'])->middleware('throttle:10,1')->name('kobo.export');
 
             // M4.12 visits (VisitService / MonitoringVisitService / VisitScheduleService / VisitResultsService / VisitorStatisticsService recheck the capabilities per city).
             Route::get('/applications/{project}/visits', [\App\Http\Controllers\VisitController::class, 'hub'])->whereNumber('project')->name('visits.hub');

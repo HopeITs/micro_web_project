@@ -62,7 +62,7 @@ class KoboScenarioTest extends TestCase
         $me = $this->as('role.monitoring');
         $this->get('/ar/kobo')->assertOk()->assertSeeLivewire(KoboIndex::class)->assertSee(__('kobo.read_only', [], 'ar'))->assertSee(__('kobo.tabs.reviews', [], 'ar'));
         $this->assertTrue(DB::table('account_audit_events')->where('actor_account_id', $me->id)->where('event_type', 'kobo.list')->exists());
-        $this->get('/en/kobo')->assertOk()->assertSee('Read and review only');
+        $this->get('/en/kobo')->assertOk()->assertSee('Kobo visits are entered, edited and deleted here');
 
         $all = DB::table('kobo_submissions')->whereNull('deleted_at')->count();
         $page = Livewire::test(KoboIndex::class)->assertViewHas('submissions', fn ($p) => $p->total() === $all);

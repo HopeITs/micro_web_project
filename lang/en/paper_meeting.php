@@ -6,4 +6,5 @@ return [
     'attendees' => 'Attendees', 'project' => 'Project', 'name' => 'Beneficiary name', 'speciality' => 'Specialty', 'notes' => 'General notes', 'competition' => 'Competition', 'count' => 'Count',
     'reason' => 'Reason', 'from' => 'From', 'to' => 'To', 'brand' => 'Brand', 'spec' => 'Specialty', 'items' => 'Equipment', 'challenge' => 'Problem', 'solution' => 'Suggested solution',
     'print_minutes' => 'Print minutes', 'print_survey' => 'Print survey',
+    'word_minutes' => 'Download minutes (Word)', 'word_survey' => 'Download survey (Word)',
 ];

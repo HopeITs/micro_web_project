@@ -7,6 +7,7 @@ namespace App\Services\Reports;
 use App\Models\WebAccount;
 use App\Services\AccountAuditTrail;
 use App\Services\Applications\ApplicationFields;
+use App\Services\Attachments\AttachmentService;
 use App\Services\Papers\ApplicationPaper;
 use App\Services\Reports\Search\SearchModes;
 use App\Services\Reports\Search\SearchService;
@@ -23,7 +24,7 @@ final class ApplicationDetailsExport
 {
     public const MAX_PROJECTS = 3000;
 
-    public function __construct(private SearchService $search, private ApplicationPaper $paper, private AccountAuditTrail $audit) {}
+    public function __construct(private SearchService $search, private ApplicationPaper $paper, private AccountAuditTrail $audit, private AttachmentService $attachments) {}
 
     public function canExport(WebAccount $account): bool
     {
@@ -33,7 +34,7 @@ final class ApplicationDetailsExport
     /** @return list<string> the column headings: city, project, stage, then the form's fields and tables */
     public function headings(): array
     {
-        $h = [__('search.columns.city'), __('search.columns.number'), __('search.columns.stage')];
+        $h = [__('search.columns.city'), __('search.columns.number'), __('search.columns.stage'), __('search.columns.photo')];
         foreach ($this->fields() as [, , $label]) {
             $h[] = $label;
         }
@@ -67,6 +68,21 @@ final class ApplicationDetailsExport
         }
 
         return str_replace('_', ' ', $base);
+    }
+
+    /** The link to the beneficiary's personal photo (opens only for accounts that may see it), or empty: the workbook is text, so a link instead of a picture. */
+    private function photoLink(WebAccount $account, ?int $personId): string
+    {
+        if ($personId === null) {
+            return '';
+        }
+        try {
+            $photo = $this->attachments->photo($account, $personId);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
+            return '';
+        }
+
+        return $photo !== null && $photo->available ? url('/'.app()->getLocale().'/attachments/'.$photo->id) : '';
     }
 
     private static function word(string $value): string
@@ -106,7 +122,7 @@ final class ApplicationDetailsExport
             foreach ($ids as $id) {
                 $d = $this->paper->build($account, (int) $id);
                 $city = $cities[$d['city']['id']];
-                $line = [app()->isLocale('en') && $city->name_en ? $city->name_en : $city->name_ar, $d['number'], __('search.stage.'.$d['stage'])];
+                $line = [app()->isLocale('en') && $city->name_en ? $city->name_en : $city->name_ar, $d['number'], __('search.stage.'.$d['stage']), $this->photoLink($account, $d['person_id'] ?? null)];
                 foreach ($fields as [$part, $field]) {
                     $line[] = self::word((string) ($d[$part][$field] ?? ''));
                 }

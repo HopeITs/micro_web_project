@@ -30,6 +30,7 @@ return [
         'SYP' => 'SYP', 'USD' => 'USD',
     ],
     'columns' => [
+        'photo' => 'Personal photo link',
         'city' => 'City', 'number' => 'Project', 'beneficiary' => 'Beneficiary', 'beneficiary_en' => 'Beneficiary (English)', 'father' => 'Father', 'mother' => 'Mother', 'career' => 'Career', 'description' => 'Description',
         'speciality' => 'Specialty', 'category' => 'Category', 'subcategory' => 'Sub category', 'project_type' => 'Project type', 'subtype' => 'Type detail', 'fund_type' => 'Fund type', 'request_date' => 'Request date',
         'state' => 'Status', 'state_date' => 'Status date', 'state_count' => 'Status changes', 'fund_date' => 'Loan date', 'fund_amount' => 'Loan amount', 'currency' => 'Currency', 'donor' => 'Donor', 'group' => 'Group',

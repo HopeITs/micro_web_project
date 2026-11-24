@@ -21,7 +21,7 @@ final class MeetingPaper
     public function __construct(private ProfessionMeetingService $meetings, private AccountAuditTrail $audit) {}
 
     /** @return array<string, mixed> */
-    public function forPrint(WebAccount $account, int $meetingId, string $kind): array
+    public function forPrint(WebAccount $account, int $meetingId, string $kind, string $via = 'print'): array
     {
         abort_unless(in_array($kind, self::KINDS, true), 404);
         $page = $this->meetings->form($account, $meetingId);
@@ -35,7 +35,7 @@ final class MeetingPaper
         $careers = $this->meetings->careers()->whereIn('id', $state['careerIds'])->pluck('label')->all();
         $registrar = fn ($id) => $id ? (string) DB::table('web_accounts')->where('id', $id)->value('username') : '';
         $city = $page['city'];
-        $this->audit->record($account->id, 'papers.printed', 'succeeded', (int) $city->id, subjectType: 'meeting_entity', subjectId: $meetingId, decision: 'paper:MEETING_'.strtoupper($kind));
+        $this->audit->record($account->id, 'papers.printed', 'succeeded', (int) $city->id, subjectType: 'meeting_entity', subjectId: $meetingId, decision: 'paper:MEETING_'.strtoupper($kind).($via === 'word' ? ':word' : ''));
 
         $invited = (int) ($state['invited'] === '' ? 0 : $state['invited']);
         $attendance = (int) ($state['attendance'] === '' ? 0 : $state['attendance']);

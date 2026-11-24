@@ -56,7 +56,7 @@ final class ApplicationPaper
             'city' => ['id' => (int) $city->id, 'code' => (string) $city->code, 'name' => $ar ? $city->name_ar : $city->name_en],
             'place' => $place !== null && in_array($place, PaperCity::places((string) $city->code), true) ? $place : (string) $city->code,
             'number' => ProjectNumberAllocator::display((string) $city->code, (int) $state['number']),
-            'stage' => $stage, 'preliminary' => $stage === 'preliminary',
+            'stage' => $stage, 'preliminary' => $stage === 'preliminary', 'person_id' => $state['person_id'] ?? null,
             'family_number' => (string) $state['family_number'],
             'registrars' => [
                 'paper' => $this->username($project->paper_registrar_account_id ?? null),

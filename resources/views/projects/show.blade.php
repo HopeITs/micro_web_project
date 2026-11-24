@@ -24,6 +24,7 @@
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'assessments.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('checklists.show', ['locale' => app()->getLocale(), 'project' => $project->id])">Checklist</x-hc.button>
                 <x-hc.button icon="file" variant="secondary" :href="route('applications.print', ['locale' => app()->getLocale(), 'project' => $project->id])" target="_blank" rel="noopener">{{ __('papers.print_application') }}</x-hc.button>
+                <x-hc.button icon="file" variant="secondary" :href="route('applications.file', ['locale' => app()->getLocale(), 'project' => $project->id])" target="_blank" rel="noopener">{{ __('papers.print_file') }}</x-hc.button>
             @endif
             @php($finance = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'finance.view') && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
             @if($finance)

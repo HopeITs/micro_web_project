@@ -9,6 +9,8 @@
         <div class="hc-toolbar" style="margin-block-end:12px;gap:8px">
             <x-hc.button variant="secondary" size="sm" icon="file" :href="route('meetings.print', ['locale' => app()->getLocale(), 'meeting' => $meetingId, 'kind' => 'minutes'])" target="_blank">{{ __('paper_meeting.print_minutes') }}</x-hc.button>
             <x-hc.button variant="secondary" size="sm" icon="file" :href="route('meetings.print', ['locale' => app()->getLocale(), 'meeting' => $meetingId, 'kind' => 'survey'])" target="_blank">{{ __('paper_meeting.print_survey') }}</x-hc.button>
+            <x-hc.button variant="secondary" size="sm" icon="file" :href="route('meetings.word', ['locale' => app()->getLocale(), 'meeting' => $meetingId, 'kind' => 'minutes'])">{{ __('paper_meeting.word_minutes') }}</x-hc.button>
+            <x-hc.button variant="secondary" size="sm" icon="file" :href="route('meetings.word', ['locale' => app()->getLocale(), 'meeting' => $meetingId, 'kind' => 'survey'])">{{ __('paper_meeting.word_survey') }}</x-hc.button>
         </div>
     @endif
     @if($locked)<x-hc.alert type="info" style="margin-block-end:16px">{{ __('field.meeting.locked') }}

@@ -3,6 +3,8 @@
 return [
     'print' => 'Print', 'meeting_draft' => 'A draft meeting cannot be printed. Mark it final first.',
     'print_application' => 'Print application',
+    'print_file' => 'Print whole file',
+    'file' => ['title' => 'Beneficiary file', 'city' => 'City', 'beneficiary' => 'Beneficiary', 'contents' => 'Contents of the file', 'paper' => 'Paper', 'included' => 'Included', 'left_out' => 'Left out (no permission)', 'printed' => 'Printed on'],
     'back' => 'Back',
     'review_title' => 'Redraw review',
     'review_intro' => 'The original paper beside its redraw from the data. Staff or the lawyer compare them before the legal wording is approved.',

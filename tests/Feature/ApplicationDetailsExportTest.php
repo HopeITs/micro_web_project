@@ -72,4 +72,29 @@ class ApplicationDetailsExportTest extends TestCase
         $this->assertFalse(app(ApplicationDetailsExport::class)->canExport(auth()->user()));
         Livewire::test(SearchPage::class)->set('mode', 'applications')->assertDontSee(__('search.export_details', [], 'ar'))->call('exportDetails', 'csv')->assertForbidden();
     }
+    public function test_the_photo_column_links_to_the_personal_photo_only_when_there_is_one(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $admin = $this->as('role.administrator');
+        $dam = (int) DB::table('cities')->where('code', 'DAM')->value('id');
+        $link = DB::table('project_applicants as b')->join('projects as p', 'p.id', '=', 'b.project_id')->where('p.city_id', $dam)->where('b.role', \App\Services\Applications\ApplicationService::BENEFICIARY)->whereNull('p.deleted_at')->whereNull('b.deleted_at')->orderBy('p.id')->first(['b.person_id']);
+        $this->assertNotNull($link);
+        $png = \Illuminate\Http\UploadedFile::fake()->createWithContent('me.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+        app(\App\Services\Attachments\AttachmentService::class)->setPhoto($admin, (int) $link->person_id, $png);
+        $photoId = (int) DB::table('attachments')->where('person_id', $link->person_id)->whereNull('deleted_at')->value('id');
+
+        $redirect = Livewire::test(SearchPage::class)->set('mode', 'applications')->set('cities', [$dam])->call('exportDetails', 'csv')->effects['redirect'];
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, $this->get($redirect)->assertOk()->streamedContent());
+        rewind($stream);
+        $records = [];
+        while (($r = fgetcsv($stream)) !== false) {
+            $records[] = $r;
+        }
+        $col = array_search(__('search.columns.photo'), $records[0], true);
+        $this->assertNotFalse($col);
+        $links = array_filter(array_column(array_slice($records, 1), $col));
+        $this->assertCount(1, $links, 'Only the beneficiary with a photo has a link.');
+        $this->assertStringEndsWith('/ar/attachments/'.$photoId, (string) reset($links));
+    }
 }

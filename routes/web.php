@@ -101,6 +101,7 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/profession-meetings/{meeting}', [\App\Http\Controllers\ProfessionMeetingController::class, 'show'])->whereNumber('meeting')->name('meetings.show');
             // M4.18: printed minutes and survey of a final meeting (MeetingPaper rechecks profession_meetings.view in the city and audits papers.printed).
             Route::get('/profession-meetings/{meeting}/print/{kind}', [\App\Http\Controllers\MeetingPaperController::class, 'show'])->whereNumber('meeting')->where('kind', 'minutes|survey')->name('meetings.print');
+            Route::get('/profession-meetings/{meeting}/word/{kind}', [\App\Http\Controllers\MeetingPaperController::class, 'word'])->whereNumber('meeting')->where('kind', 'minutes|survey')->middleware('throttle:30,1')->name('meetings.word');
             // M4.16 task board (TaskBoardService / ProjectTaskService recheck tasks.view, applications.view, tasks.manage and the responsibility per city) and the notification box.
             Route::get('/task-board', [\App\Http\Controllers\TaskBoardController::class, 'index'])->name('tasks.board');
             Route::get('/task-board/export', [\App\Http\Controllers\TaskBoardController::class, 'export'])->middleware('throttle:10,1')->name('tasks.board.export');
@@ -130,6 +131,7 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::post('/papers/files/restore', [\App\Http\Controllers\PaperLibraryController::class, 'restore'])->middleware('throttle:30,1')->name('papers.restore');
             Route::get('/papers/review/{form}', [\App\Http\Controllers\PaperLibraryController::class, 'review'])->where('form', 'F[0-9]{2}')->name('papers.review');
             Route::get('/applications/{project}/print', [\App\Http\Controllers\PaperPrintController::class, 'application'])->whereNumber('project')->name('applications.print');
+            Route::get('/applications/{project}/file/print', [\App\Http\Controllers\PaperPrintController::class, 'file'])->whereNumber('project')->name('applications.file');
             // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).
             Route::get('/applications/{project}/executive-file', [ExecutiveFileController::class, 'show'])->whereNumber('project')->name('executive.show');
             Route::get('/applications/{project}/purchases', [PurchasingController::class, 'show'])->whereNumber('project')->name('purchasing.show');

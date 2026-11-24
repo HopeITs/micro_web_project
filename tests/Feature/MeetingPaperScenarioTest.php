@@ -133,4 +133,54 @@ class MeetingPaperScenarioTest extends TestCase
         $this->get("/ar/profession-meetings/$id/print/minutes")->assertForbidden();
         $this->assertSame(1, DB::table('account_audit_events')->where('event_type', 'access.denied')->where('outcome', 'denied')->count() >= 1 ? 1 : 0, 'The refusal is audited.');
     }
+    /** The text of word/document.xml inside a downloaded .docx. */
+    private function docx(\Symfony\Component\HttpFoundation\Response $response): string
+    {
+        $file = tempnam(sys_get_temp_dir(), 'dx');
+        file_put_contents($file, $response instanceof \Symfony\Component\HttpFoundation\StreamedResponse ? '' : $response->getContent());
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($file) === true, 'The download is a zip (.docx).');
+        $xml = (string) $zip->getFromName('word/document.xml');
+        $zip->close();
+        unlink($file);
+
+        return $xml;
+    }
+
+    public function test_the_minutes_and_the_survey_download_as_word_filled_from_a_final_meeting(): void
+    {
+        [$id, $project] = $this->finalMeeting();
+
+        $minutes = $this->get("/ar/profession-meetings/$id/word/minutes")->assertOk();
+        $this->assertStringContainsString('wordprocessingml.document', (string) $minutes->headers->get('Content-Type'));
+        $xml = $this->docx($minutes->baseResponse);
+        foreach (['قاعة الكنيسة', 'حاضر 1', $project->display, 'محضر'] as $needle) {
+            $this->assertStringContainsString($needle, $xml);
+        }
+        $this->assertStringContainsString('<w:bidi/>', $xml);
+        $this->assertNotFalse(simplexml_load_string($xml), 'document.xml is well-formed XML');
+
+        $survey = $this->docx($this->get("/ar/profession-meetings/$id/word/survey")->assertOk()->baseResponse);
+        foreach (['ماركة أ', 'منشار', 'دعم مادي', 'مشارك أول', 'كثرة المحلات'] as $needle) {
+            $this->assertStringContainsString($needle, $survey);
+        }
+
+        $events = DB::table('account_audit_events')->where('event_type', 'papers.printed')->where('subject_id', $id)->pluck('decision_locator')->all();
+        $this->assertEqualsCanonicalizing(['paper:MEETING_MINUTES:word', 'paper:MEETING_SURVEY:word'], $events);
+        $this->get("/ar/profession-meetings/$id/word/other")->assertNotFound();
+        Livewire::test(ProfessionMeetingForm::class, ['meetingId' => $id])->assertSee(__('paper_meeting.word_minutes', [], 'ar'));
+    }
+
+    public function test_a_draft_and_an_unauthorised_reader_get_no_word_file(): void
+    {
+        $this->as('role.data-entry');
+        $project = $this->project();
+        Livewire::test(ProfessionMeetingForm::class, ['city' => $project->city_id])->set('state.careerIds', [(int) $project->career_id])->call('saveDraft')->assertHasNoErrors();
+        $draft = (int) DB::table('profession_meetings')->value('id');
+        $this->get("/ar/profession-meetings/$draft/word/minutes")->assertStatus(409);
+
+        [$id] = $this->finalMeeting();
+        $this->as('role.guest');
+        $this->get("/ar/profession-meetings/$id/word/survey")->assertForbidden();
+    }
 }

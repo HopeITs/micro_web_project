@@ -30,6 +30,7 @@ return [
         'SYP' => 'ل.س', 'USD' => 'دولار',
     ],
     'columns' => [
+        'photo' => 'رابط الصورة الشخصية',
         'city' => 'المدينة', 'number' => 'المشروع', 'beneficiary' => 'المستفيد', 'beneficiary_en' => 'المستفيد (إنكليزي)', 'father' => 'الأب', 'mother' => 'الأم', 'career' => 'المهنة', 'description' => 'الوصف',
         'speciality' => 'الاختصاص', 'category' => 'التصنيف', 'subcategory' => 'التصنيف الفرعي', 'project_type' => 'نوع المشروع', 'subtype' => 'تفصيل النوع', 'fund_type' => 'نوع التمويل', 'request_date' => 'تاريخ الطلب',
         'state' => 'الحالة', 'state_date' => 'تاريخ الحالة', 'state_count' => 'عدد تغييرات الحالة', 'fund_date' => 'تاريخ القرض', 'fund_amount' => 'مبلغ القرض', 'currency' => 'العملة', 'donor' => 'الجهة الممولة', 'group' => 'المجموعة',

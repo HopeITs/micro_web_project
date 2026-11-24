@@ -28,6 +28,14 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // Password of the seeded test role accounts. Local/testing may keep the well-known default; any other environment
+    // (the online staging site) must set a strong value so the default never reaches a public address.
+    'seed_account_password' => env('SEED_ACCOUNT_PASSWORD'),
+
+    // Password of the seeded test role accounts. Local/testing may keep the default; any other environment (the online staging site)
+    // must set a strong value, so the well-known default never reaches a public address.
+    'seed_account_password' => env('SEED_ACCOUNT_PASSWORD'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

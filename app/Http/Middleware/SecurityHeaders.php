@@ -35,7 +35,7 @@ class SecurityHeaders
             $sameSiteFrame => "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
             default => "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
         });
-        if ($request->isSecure() && app()->environment('production')) {
+        if ($request->isSecure() && app()->environment(['production', 'staging'])) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
         }
 

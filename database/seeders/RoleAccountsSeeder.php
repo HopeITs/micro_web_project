@@ -46,22 +46,37 @@ final class RoleAccountsSeeder extends Seeder
         return $accounts;
     }
 
+    /** The test accounts' password: SEED_ACCOUNT_PASSWORD when set; the well-known default only in local and testing. */
+    public static function password(): string
+    {
+        $set = (string) config('app.seed_account_password');
+        if ($set !== '') {
+            return $set;
+        }
+        if (! app()->environment(['local', 'testing'])) {
+            throw new RuntimeException('Set SEED_ACCOUNT_PASSWORD (a strong value) before seeding test accounts outside local and testing.');
+        }
+
+        return self::PASSWORD;
+    }
+
     public function run(AccountProvisioner $provisioner, AccessRoles $roles): void
     {
         if (app()->isProduction()) {
             throw new RuntimeException('Test role accounts are never seeded in production.');
         }
+        $password = self::password();
         $cities = DB::table('cities')->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
         $now = now('UTC')->format('Y-m-d H:i:s.u');
         foreach (self::accounts() as $username => $role) {
             $account = WebAccount::where('username', $username)->first()
-                ?? $provisioner->createPlain($username, self::email($username), Hash::make(self::PASSWORD), self::DECISION);
+                ?? $provisioner->createPlain($username, self::email($username), Hash::make($password), self::DECISION);
             $email = self::email($username);
             if ($email !== null && $account->email === null && DB::table('web_accounts')->where('email', $email)->doesntExist()) {
                 DB::table('web_accounts')->where('id', $account->id)->update(['email' => $email]);
             }
             // A normal password, not the one-time kind: password_changed_at set means no forced change at first login.
-            DB::table('web_accounts')->where('id', $account->id)->update(['password_hash' => Hash::make(self::PASSWORD), 'password_changed_at' => $now, 'disabled_at' => null, 'updated_at' => $now]);
+            DB::table('web_accounts')->where('id', $account->id)->update(['password_hash' => Hash::make($password), 'password_changed_at' => $now, 'disabled_at' => null, 'updated_at' => $now]);
             foreach ($cities as $city) {
                 $roles->assign($account->fresh(), $city, $role, self::DECISION);
             }

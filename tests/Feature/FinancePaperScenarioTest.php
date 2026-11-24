@@ -117,4 +117,64 @@ class FinancePaperScenarioTest extends TestCase
         $this->flushSession();
         $this->get('/ar/applications/'.$hms.'/finance-papers/clearance')->assertRedirect();
     }
+    public function test_the_beneficiary_card_prints_the_instalments_in_the_twelve_slots_and_the_counter_details(): void
+    {
+        $id = $this->project('DAM');
+        $dam = $this->city('DAM');
+        $this->loan($id, $dam);
+        $loan = (int) DB::table('loans')->where('project_id', $id)->value('id');
+        DB::table('loans')->where('id', $loan)->update(['receipt_number' => 'RC-555']);
+        foreach (range(1, 14) as $i) {
+            DB::table('loan_installments')->insert(['city_id' => $dam, 'loan_id' => $loan, 'amount' => 125000, 'due_on' => sprintf('2026-%02d-15', min($i, 12)).'', 'is_paid' => $i <= 2 ? 1 : 0, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $this->signIn('super.admin');
+        $html = $this->get('/ar/applications/'.$id.'/finance-papers/beneficiary-card')->assertOk()->assertSee('اسم المستفيد')->assertSee('RC-555')->assertSee('سوريا - دمشق - باب شرقي شارع القصبة')
+            ->assertSee('0989 162 112')->assertSee('0993 310 230')->assertSee('يومي السبت والأحد')->assertSee('125,000')->getContent();
+        $this->assertSame(24, substr_count($html, 'class="slot"'), '14 instalments need two backs of twelve slots');
+        $this->assertSame(2, substr_count($html, 'rb on'), 'the two paid instalments are ticked');
+        $this->assertSame('paper:F21', DB::table('account_audit_events')->where('event_type', 'papers.printed')->where('subject_id', $id)->latest('id')->value('decision_locator'));
+
+        // The city's own settings win over the built-in counter text.
+        $this->post('/ar/papers/settings', ['city' => $dam, 'address_ar' => 'سوريا - دمشق - عنوان جديد', 'office_hours' => 'من 09:00 حتى 03:00'])->assertRedirect();
+        $this->get('/ar/applications/'.$id.'/finance-papers/beneficiary-card')->assertOk()->assertSee('سوريا - دمشق - عنوان جديد')->assertSee('من 09:00 حتى 03:00');
+    }
+
+    public function test_the_entry_page_saves_the_disbursement_and_contract_details_and_the_papers_print_them(): void
+    {
+        $id = $this->project('DAM');
+        $dam = $this->city('DAM');
+        $this->loan($id, $dam);
+        $this->signIn('super.admin');
+        $this->get('/ar/applications/'.$id.'/paper-data')->assertOk()->assertSee('بيانات أوراق المشروع')->assertSee('رقم الطلب');
+
+        $this->post('/ar/applications/'.$id.'/paper-data/disbursement', ['request_number' => 'REQ-900', 'requested_on' => '2026-08-09', 'hold_amount' => '75000', 'extra_reason' => 'سبب إضافي'])->assertRedirect('/ar/applications/'.$id.'/paper-data');
+        $this->get('/ar/applications/'.$id.'/finance-papers/disbursement-request')->assertOk()->assertSee('REQ-900')->assertSee('2026/08/09')->assertSee('75,000');
+
+        $this->post('/ar/applications/'.$id.'/paper-data/contract', ['purpose' => 'غرض مدخل', 'duration_months' => '18', 'starts_on' => '2026-09-01', 'ends_on' => '2028-02-29', 'print' => '1'])
+            ->assertRedirect('/ar/applications/'.$id.'/finance-papers/partnership-contract');
+        $this->get('/ar/applications/'.$id.'/finance-papers/partnership-contract')->assertOk()->assertSee('غرض مدخل')->assertSee('2026/09/01');
+        $this->assertSame(1, DB::table('partnership_contracts')->where('project_id', $id)->count());
+
+        // A second save updates the same row and the audit keeps the changed fields.
+        $this->post('/ar/applications/'.$id.'/paper-data/contract', ['purpose' => 'غرض معدّل', 'duration_months' => '18'])->assertRedirect();
+        $this->assertSame(1, DB::table('partnership_contracts')->where('project_id', $id)->count());
+        $this->assertSame(3, DB::table('account_audit_events')->where('event_type', 'papers.data_saved')->count());
+
+        // Bad values are refused and nothing changes.
+        $this->post('/ar/applications/'.$id.'/paper-data/disbursement', ['hold_amount' => 'abc'])->assertSessionHasErrors('hold_amount');
+        $this->post('/ar/applications/'.$id.'/paper-data/contract', ['starts_on' => '2026-09-01', 'ends_on' => '2026-01-01'])->assertSessionHasErrors('ends_on');
+        $this->post('/ar/applications/'.$id.'/paper-data/other', [])->assertNotFound();
+    }
+
+    public function test_a_reader_without_finance_management_can_read_but_not_save_the_entry_page(): void
+    {
+        $id = $this->project('HMS');
+        $account = app(AccountProvisioner::class)->createPlain('fin.read', 'fin.read@hcsyria.org', Hash::make('password'), 'test:papers');
+        DB::table('web_accounts')->where('id', $account->id)->update(['password_changed_at' => now('UTC')->format('Y-m-d H:i:s.u')]);
+        app(AccessRoles::class)->assign($account->fresh(), $this->city('HMS'), 'guest', 'test:papers');
+        $this->signIn('fin.read@hcsyria.org');
+        $this->assertContains($this->get('/ar/applications/'.$id.'/paper-data')->status(), [200, 403]);
+        $this->assertContains($this->post('/ar/applications/'.$id.'/paper-data/disbursement', ['request_number' => 'X'])->status(), [403, 404]);
+        $this->assertSame(0, DB::table('disbursement_requests')->where('project_id', $id)->count());
+    }
 }

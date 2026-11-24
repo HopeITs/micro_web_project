@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
 final class FinancePaper
 {
     /** URL part => paper id. */
-    public const PAPERS = ['promissory-note' => 'F10', 'clearance' => 'F23', 'disbursement-request' => 'F19', 'partnership-contract' => 'F18'];
+    public const PAPERS = ['promissory-note' => 'F10', 'clearance' => 'F23', 'disbursement-request' => 'F19', 'partnership-contract' => 'F18', 'beneficiary-card' => 'F21'];
 
     private const CURRENCY_WORDS = ['SYP' => 'ليرة سورية', 'USD' => 'دولاراً أمريكياً'];
 
@@ -46,6 +46,7 @@ final class FinancePaper
         match ($kind) {
             'disbursement-request' => $d += $this->disbursement($project, $loan, $person, (int) $city->id),
             'partnership-contract' => $d += $this->partnership($project, $person),
+            'beneficiary-card' => $d += $this->card($project, $loan, (string) $city->code),
             default => null,
         };
         $this->audit->record($account->id, 'papers.printed', 'succeeded', (int) $city->id, subjectType: 'application_entity', subjectId: $projectId, decision: 'paper:'.$id);
@@ -116,6 +117,19 @@ final class FinancePaper
             'invoices' => $purchases->map(fn ($r) => ['amount' => number_format((float) $r->price), 'number' => (string) $r->invoice_number, 'description' => trim($r->item_name.' '.($r->brand ?? '')), 'notes' => (string) ($r->trader_name ?? '')])->all(),
             'invoice_total' => $purchases->isEmpty() ? '' : number_format((float) $total),
             'manager' => $this->signatory($city, 'projects_manager')['name'], 'finance' => $this->signatory($city, 'finance_manager')['name'], 'purchasing' => $this->signatory($city, 'purchasing_officer')['name'],
+        ];
+    }
+
+    /** The beneficiary card: the donor, the receipt number and the instalments (the twelve slots on the back), the city's counter details. @return array<string, mixed> */
+    private function card(object $project, ?object $loan, string $city): array
+    {
+        $rows = $loan ? DB::table('loan_installments')->where('loan_id', $loan->id)->whereNull('deleted_at')->orderByRaw('CASE WHEN due_on IS NULL THEN 1 ELSE 0 END')->orderBy('due_on')->orderBy('id')->get() : collect();
+
+        return [
+            'donor' => (string) ($project->donor_id ? DB::table('donors')->where('id', $project->donor_id)->value(app()->isLocale('en') ? 'name_en' : 'name_ar') : ''),
+            'receipt' => (string) ($loan->receipt_number ?? ''),
+            'slots' => $rows->map(fn ($r) => ['date' => $r->due_on ? str_replace('-', '/', substr((string) $r->due_on, 0, 10)) : '', 'amount' => number_format((float) $r->amount), 'paid' => (bool) $r->is_paid])->values()->all(),
+            'counter' => PaperCity::card($city),
         ];
     }
 

@@ -41,6 +41,29 @@ final class PaperCity
         return ['address' => (string) ($row->address_en ?? '') !== '' ? $row->address_en : $default['address'], 'mobile' => (string) ($row->phone_1 ?? '') !== '' ? $row->phone_1 : $default['mobile']];
     }
 
+    /** What the beneficiary card (F21) prints on its information side, as the owner's cards print it today; the city's own settings win. */
+    private const CARD = [
+        'ALP' => ['hours' => 'من 10:00 صباحاً حتى 04:00 مساء', 'days_off' => 'يومي السبت والأحد', 'address' => 'سوريا - حلب - الفيلات الشرقية', 'contact' => '0993 310 234 / 0993 360 488', 'complaints' => '0993 310 230'],
+        'DAM' => ['hours' => 'من 10:00 صباحاً حتى 04:00 مساء', 'days_off' => 'يومي السبت والأحد', 'address' => 'سوريا - دمشق - باب شرقي شارع القصبة', 'contact' => '0989 162 112', 'complaints' => '0993 310 230'],
+        'HMS' => ['hours' => 'من 10:00 صباحاً حتى 02:00 مساء', 'days_off' => 'يومي السبت والأحد', 'address' => 'سوريا - حمص - الحميدية شارع الأوزون 2b', 'contact' => '0950 018 423', 'complaints' => '0993 310 230'],
+        'LAT' => ['hours' => 'من 10:00 صباحاً حتى 04:00 مساء', 'days_off' => 'يومي السبت والأحد', 'address' => 'سوريا - اللاذقية - سوق التجار', 'contact' => '0950 018 484', 'complaints' => '0993 310 230'],
+    ];
+
+    /** @return array{hours: string, days_off: string, address: string, contact: string, complaints: string} */
+    public static function card(string $cityCode): array
+    {
+        $default = self::CARD[$cityCode === 'WAD' ? 'HMS' : $cityCode] ?? self::CARD['ALP'];
+        try {
+            $row = DB::table('city_paper_settings as s')->join('cities as c', 'c.id', '=', 's.city_id')->where('c.code', $cityCode)->whereNull('s.deleted_at')->first(['s.office_hours', 's.office_days', 's.address_ar', 's.phone_2', 's.complaints_phone']);
+        } catch (\Throwable) {
+            $row = null;
+        }
+        $pick = fn (?string $v, string $d) => (string) $v !== '' ? (string) $v : $d;
+
+        return ['hours' => $pick($row->office_hours ?? null, $default['hours']), 'days_off' => $pick($row->office_days ?? null, $default['days_off']), 'address' => $pick($row->address_ar ?? null, $default['address']),
+            'contact' => $pick($row->phone_2 ?? null, $default['contact']), 'complaints' => $pick($row->complaints_phone ?? null, $default['complaints'])];
+    }
+
     /** The places a paper may be signed in for a city: Aleppo also offers Idlib (owner decision 21 Nov 2026). */
     public static function places(string $cityCode): array
     {

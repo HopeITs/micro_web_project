@@ -32,9 +32,10 @@
             @php($finance = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'finance.view') && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
             @if($finance)
                 <x-hc.button icon="wallet" variant="secondary" :href="route('finance.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('finance.open') }}</x-hc.button>
-                @foreach(['promissory-note' => 'print_note', 'clearance' => 'print_clearance', 'disbursement-request' => 'print_disbursement', 'partnership-contract' => 'print_partnership'] as $financeKey => $financeLabel)
+                @foreach(['promissory-note' => 'print_note', 'clearance' => 'print_clearance', 'disbursement-request' => 'print_disbursement', 'partnership-contract' => 'print_partnership', 'beneficiary-card' => 'print_card'] as $financeKey => $financeLabel)
                     <x-hc.button icon="file" variant="ghost" :href="route('applications.finance-paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $financeKey])" target="_blank" rel="noopener">{{ __('paper_finance.'.$financeLabel) }}</x-hc.button>
                 @endforeach
+                <x-hc.button icon="settings" variant="ghost" :href="route('applications.paper-data', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('papers.data.open') }}</x-hc.button>
             @endif
             {{-- M4.12: the project's visits (visits.view or me_visits.view, with applications.view). --}}
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view') && (app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'visits.view') || app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'me_visits.view')))

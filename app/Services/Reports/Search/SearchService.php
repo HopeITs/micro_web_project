@@ -167,6 +167,8 @@ final class SearchService
         if ($rows->isEmpty()) {
             return [];
         }
+        // An export reads in chunks of 500 whose keys continue (500…999); lines() and flags() keep the keys, the loop below counts from 0.
+        $rows = $rows->values();
         $lines = $mode->lines($rows);
         $flags = $mode->flags($rows);
         $sensitive = $mode->sensitive();

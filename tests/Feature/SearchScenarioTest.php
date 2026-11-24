@@ -411,6 +411,24 @@ class SearchScenarioTest extends TestCase
         $this->get($token)->assertNotFound();
     }
 
+    /** The export reads in chunks of 500: rows of the second chunk onwards must line up with their cells (found by the M4 gate oracle on real data). */
+    public function test_an_export_of_more_than_500_rows_lists_every_row(): void
+    {
+        $admin = $this->as('role.administrator');
+        $project = DB::table('projects')->whereNull('deleted_at')->orderBy('id')->first(['id', 'city_id']);
+        $now = now();
+        DB::table('project_materials')->insert(array_map(fn ($i) => ['city_id' => $project->city_id, 'project_id' => $project->id, 'name' => 'item '.$i, 'quantity' => 1,
+            'price' => $i, 'local_contribution' => 0, 'created_at' => $now, 'updated_at' => $now], range(1, 1050)));
+        $expected = DB::table('project_materials')->whereNull('deleted_at')->count();
+        $this->assertGreaterThan(1000, $expected);
+
+        [$headings, $rows] = app(SearchService::class)->export($admin, 'materials', []);
+        $lines = iterator_to_array($rows, false);
+        $this->assertCount($expected, $lines);
+        $this->assertSame(count($headings), count($lines[$expected - 1]));
+        $this->assertContains('item 1050', array_merge(...$lines));
+    }
+
     public function test_export_refusals(): void
     {
         // Guest cannot export at all.

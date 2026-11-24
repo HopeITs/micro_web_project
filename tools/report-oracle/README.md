@@ -1,37 +1,54 @@
-# Report oracle (P6.3)
+# Report oracle
 
-Compares the web's reports and exports with the desktop's own SQL on the restored source databases, city by city. It is read-only on the sources and writes only counts and the differing values.
+## M4 gate: `php artisan report:oracle` (current)
+
+Compares what the website's reports and exports give with what the desktop's own SQL gives on the city source databases, for every project the unified database holds. The web side runs in process the same services the pages and exports use (`SearchService`, `PaymentScheduleService`, `LifecycleService`), as a temporary account holding every capability in every city, inside a transaction that is rolled back: nothing is written to either database.
 
 ```powershell
-$env:ORACLE_WEB_PASSWORD = '<web password>'   # never on the command line
-php tools/report-oracle/oracle.php --web=http://127.0.0.1:8024 --user=sample.tester `
-    --source-config=D:\MyProjects\MicroProjects-Phase3-Private\connection.json --sample --out=oracle-report.json
+php artisan report:oracle --database=micro_m3_sample --source-user=root --out=docs/delivery/m4-gate-oracle-report.json
 ```
 
-- `--source-config`: JSON with `host`, `port`, `source_username`, `source_password`; the databases are `micro_projects_source_<city>` (lower-case city name as the web shows it).
-- `--sample`: for the 100-application sample only (its catalog rows are copied through resolved links, so a catalog name can be blank in the web but present in the desktop; the tool lists that as a known difference). **Do not use it on the full import**: there such a blank is a failure.
-- Exit code 0 when there are no unexplained differences, 1 otherwise, 2 for bad arguments.
+- `--database`: the unified database holding the transferred data (default: the app database). `micro_m3_sample` holds the full M3 transfer of the five cities.
+- `--sources`: prefix of the city source databases (default `m1src_`, so `m1src_alp` … `m1src_wad`, the 19 November backups).
+- `--source-host`, `--source-port`, `--source-user`: the source server (default: the app's connection). The password comes from the `ORACLE_SOURCE_PASSWORD` environment variable, never the command line.
+- `--only=loans,details`: run some checks only.
+- Exit code 0 when there are no unexplained differences, 1 otherwise.
 
-## What it checks
+The report holds counts, project numbers and the differing values. Names, national numbers, birth dates and free text about people are masked (`•`) in the examples.
 
 | Check | Compares |
 |---|---|
-| applications | every web row against the desktop (name, request date, current status); a filter matrix (status, year, date ranges including an inclusive boundary on a day that has records and the day before it, year end/start, status and date, empty result, each city) against the desktop rows satisfying the same predicate |
-| statistics | status-by-city and request-year counts against the desktop aggregates over the same projects |
-| loans | the 15 figures of the Loans and Payments report, per loan, against `BuildLoanReportQuery` |
-| instalments | count and amount by city, project, currency and paid/unpaid, plus totals by city, currency and state (both directions) |
-| family | per person: family numbers, project links and the person's attributes against `FamilyMember_bind` |
-| details | the twelve detail search modes: every row on both sides, compared as a multiset |
-| lookups | 21 lookup tables exported whole against the desktop's tables (with `--sample`: every web row must exist in the desktop's table) |
-| state history | each project's state-history export against the desktop's `microproject_state` rows (state, date, current); fails when no project is found |
-| loan filters | the Loans and Payments report's fund type, type, sub type, category, sub category, career, partnership and funded-amount (USD) filters: the number of loans under each filter (names taken from the real data, ranges from the real values) against the desktop's own conditions; on a difference it lists the loans that differ |
-| other modes | applications, attachments, M&E visits, monitoring visits, check lists, special cases, educations (every row, both ways) and profession meetings (every web meeting must exist in the desktop's meetings of the city) |
+| applications | every project: description, request date, current status, both directions |
+| statistics | projects by status and by request year, per city |
+| loans | the 15 figures of the Loans and Payments report per loan (`BuildLoanReportQuery`) |
+| instalments | the payment schedule export (paid and unpaid): count and amount per project, currency and paid state, and totals per city |
+| family | every family member row (`FamilyMember_bind`) |
+| details | the twelve detail search types (`bind_person_tables` / `bind_project_tables`), every row as a multiset |
+| other modes | attachments, visit dates, M&E visits, special cases, educations |
+| state history | every project's state history (state, date, current) |
 
-## Known, documented differences (listed, not failures)
+Detail and other-mode exports are read in Arabic (list names as the desktop stores them). Arabic vowel marks, tatweel and the hamza forms of alef are ignored, because the shared lists of M3 keep one spelling for all cities.
 
-- "Total instalments" may differ by one cent: the desktop rounds a floating-point column, the web rounds the exact decimal.
-- "Remaining instalments" is rounded to two decimals; the desktop value is unrounded.
-- "Paid amount" is blank in the desktop and 0 in the web until a loan has a paid instalment.
-- CSV text that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets an apostrophe prefix (formula guard); workbook exports are unaffected.
-- Check lists: the desktop SQL reads the home-visit second visitor as the project-visit one; that column is not compared.
-- With `--sample`: catalog names missing from the sample.
+### Known, explained differences (listed, not failures)
+
+Each one was checked on the source data (24 Nov 2026). Each is limited to the projects it applies to, found by a query on the source database.
+
+- **Loans**:
+  - "Total instalments" may differ by one cent and "Return rate" by its last digit: the desktop rounds a float column, the web the exact decimal.
+  - "Remaining instalments" is rounded to two decimals.
+  - Where nothing is paid, the desktop shows the paid amount, remaining amount and remaining instalments blank; the web shows 0 or the full amount.
+  - Months late is blank on the web for Closed projects; the desktop blanks it only for Canceled ones (spec M4.17).
+  - A loan with nothing to return and no instalments: blank in the desktop, 0 on the web.
+- **Several projects per person**: the desktop keys M&E visits by person and shows them under every project of that person; the web keeps each visit on the project the transfer linked it to.
+- **Partners**:
+  - The desktop's project-level searches (materials, energy sources, special cases) repeat each row once per applicant.
+  - The desktop's visit dates read only the beneficiary's M&E visits; the web reads those of the project, partners included.
+- **Two visits of a kind** (two openings, or two M&E visits with the same number): the desktop shows the first one entered, the web the earliest date.
+- **Applicant without a family row**: the desktop's detail searches reach people through family rows only; the web lists them.
+- **Family rows without a family book**: skipped by the M3 transfer and recorded in `docs/planning/m3/reconcile-<city>.json`.
+- **Project files from the desktop file table** (PDF, no image type): the desktop attachment search reads the image table only.
+- **Amounts with three decimals** (15 material prices and one energy cost) are stored with two. M3 recorded fewer of them as `money_rounded`; this needs a decision (see the M4 gate report).
+
+## P6.3: `oracle.php` (superseded)
+
+`oracle.php` compared the old P6 web over HTTP (CSV downloads from `/en/search-reports/export?mode=…`, `/en/applications/export` …) with the restored `micro_projects_source_<city>` databases. Those routes no longer exist: M4 exports go through single-use tokens. The file stays as the reference for the desktop SQL that `report:oracle` reuses.

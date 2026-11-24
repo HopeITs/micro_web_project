@@ -47,7 +47,7 @@ Each one was checked on the source data (24 Nov 2026). Each is limited to the pr
 - **Applicant without a family row**: the desktop's detail searches reach people through family rows only; the web lists them.
 - **Family rows without a family book**: skipped by the M3 transfer and recorded in `docs/planning/m3/reconcile-<city>.json`.
 - **Project files from the desktop file table** (PDF, no image type): the desktop attachment search reads the image table only.
-- **Amounts with three decimals** (15 material prices and one energy cost) are stored with two. M3 recorded fewer of them as `money_rounded`; this needs a decision (see the M4 gate report).
+- **Amounts with three decimals** (15 material prices and one energy cost) are stored with two. M3 recorded fewer of them as `money_rounded`. The owner accepted the rounding on 24 Nov 2026: money columns keep two decimals.
 
 ## P6.3: `oracle.php` (superseded)
 

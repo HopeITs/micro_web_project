@@ -266,7 +266,7 @@ final class ReportOracle extends Command
         'two_openings' => 'Two opening visits: the desktop shows the first entered, the web the earliest date',
         'two_numbers' => 'Two M&E visits with the same number: the desktop shows the first entered, the web the earliest date',
         'untyped' => 'Project files of the desktop file table (PDF, no image type): the desktop attachment search reads the image table only',
-        'rounded' => 'Amount with three decimals stored with two (money columns have two decimals); M3 recorded fewer of these as money_rounded',
+        'rounded' => 'Amount with three decimals stored with two (money columns have two decimals); rounding accepted by the owner, 24 Nov 2026',
     ];
 
     /**

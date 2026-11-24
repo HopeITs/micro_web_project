@@ -201,7 +201,7 @@
                 "ALP|1134"
             ]
         },
-        "Amount with three decimals stored with two (money columns have two decimals); M3 recorded fewer of these as money_rounded (materials)": {
+        "Amount with three decimals stored with two (money columns have two decimals); rounding accepted by the owner, 24 Nov 2026 (materials)": {
             "count": 15,
             "examples": [
                 "HMS|2117 1.125 → 1.13",
@@ -217,7 +217,7 @@
                 "LAT|401"
             ]
         },
-        "Amount with three decimals stored with two (money columns have two decimals); M3 recorded fewer of these as money_rounded (project-power)": {
+        "Amount with three decimals stored with two (money columns have two decimals); rounding accepted by the owner, 24 Nov 2026 (project-power)": {
             "count": 1,
             "examples": [
                 "ALP|3714 0.126 → 0.13"

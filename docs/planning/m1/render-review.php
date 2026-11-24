@@ -67,37 +67,42 @@ ul{margin:6px 0;padding-inline-start:22px}
 <header><div class="wrap"><img src="data:image/svg+xml;base64,<?= $logo ?>" alt="مركز الرجاء" style="filter:brightness(0) invert(1);background:none;padding:0;height:44px"><div><h1>M1 — مخطط القاعدة الموحدة (للاعتماد)</h1><p>قاعدة واحدة لكل المدن · <?= $e($s['meta']['version']) ?> · 19 تشرين الثاني 2026</p></div></div></header>
 <main><div class="wrap">
 
-<?php if (!empty($s['meta']['addendum_v1_2'])): $a = $s['meta']['addendum_v1_2']; ?>
+<?php if (! empty($s['meta']['addendum_v1_2'])) {
+    $a = $s['meta']['addendum_v1_2']; ?>
 <section class="approve">
 <h2>ملحق v1.2 — تصحيحات من نقل الداتا الحقيقية (يحتاج موافقتك)</h2>
 <p><b>السبب:</b> <?= $e($a['reason']) ?></p>
 <div class="table"><table><tr><th>التغيير</th><th>الدليل</th></tr>
-<?php foreach ($a['changes'] as $change => $why): ?><tr><td><code><?= $e($change) ?></code></td><td><?= $e($why) ?></td></tr>
-<?php endforeach; ?></table></div>
+<?php foreach ($a['changes'] as $change => $why) { ?><tr><td><code><?= $e($change) ?></code></td><td><?= $e($why) ?></td></tr>
+<?php } ?></table></div>
 <h3>قواعد نقل أُضيفت (لا تغيّر الجداول)</h3>
-<ul><?php foreach (['not_answered', 'required_text', 'deleted_users', 'imported_accounts', 'notice_kind', 'attachment_ids'] as $k): ?><li><code><?= $e($k) ?></code>: <?= $e($s['meta']['transforms'][$k]) ?></li><?php endforeach; ?></ul>
+<ul><?php foreach (['not_answered', 'required_text', 'deleted_users', 'imported_accounts', 'notice_kind', 'attachment_ids'] as $k) { ?><li><code><?= $e($k) ?></code>: <?= $e($s['meta']['transforms'][$k]) ?></li><?php } ?></ul>
 <p>v1.1 المعتمدة لم تتغير. بصمة v1.2: <span class="sha"><?= $e($s['sha256']) ?></span></p>
 </section>
-<?php endif; ?>
-<?php if (!empty($s['meta']['addendum_v1_1']) && $s['meta']['version'] === 'unified-v1.1'): $a = $s['meta']['addendum_v1_1']; ?>
+<?php } ?>
+<?php if (! empty($s['meta']['addendum_v1_1']) && $s['meta']['version'] === 'unified-v1.1') {
+    $a = $s['meta']['addendum_v1_1']; ?>
 <section class="approve">
 <h2>ملحق v1.1 — جداول الحسابات (يحتاج موافقتك)</h2>
 <p><b>السبب:</b> في v1 اعتبرنا جداول الحسابات "موجودة وتبقى كما هي"، لكنها مرتبطة بطبقات ستُحذف (<code>web_principals</code>، <code>sources</code>، <code>op_task</code>، <code>op_microproject</code>). هنا عرّفناها صراحةً وربطناها بالجداول الموحدة.</p>
 <p><b>ما لا يتغير:</b> البيانات، والصلاحيات، وقواعد النقل. وأعمدة <code>account_city_capabilities</code> و<code>account_city_roles</code> و<code>account_password_resets</code> و<code>account_audit_events</code> تبقى كما هي.</p>
 <div class="table"><table><tr><th>الجدول</th><th>التغيير</th></tr>
-<?php foreach ($s['tables'] as $n => $t): if (empty($t['addendum'])) continue; ?><tr><td><code><?= $e($n) ?></code></td><td><?= $e($t['addendum']) ?></td></tr>
-<?php endforeach; foreach ($a['removed_tables'] as $n => $why): ?><tr><td><code><?= $e($n) ?></code></td><td>يُحذف: <?= $e($why) ?></td></tr>
-<?php endforeach; ?></table></div>
+<?php foreach ($s['tables'] as $n => $t) {
+    if (empty($t['addendum'])) {
+        continue;
+    } ?><tr><td><code><?= $e($n) ?></code></td><td><?= $e($t['addendum']) ?></td></tr>
+<?php } foreach ($a['removed_tables'] as $n => $why) { ?><tr><td><code><?= $e($n) ?></code></td><td>يُحذف: <?= $e($why) ?></td></tr>
+<?php } ?></table></div>
 <p>بصمة v1.1: <span class="sha"><?= $e($s['sha256']) ?></span></p>
 </section>
-<?php endif; ?>
+<?php } ?>
 <section>
 <h2>الخلاصة</h2>
 <div class="kpis">
 <div class="kpi"><b><?= $s['counts']['tables'] ?></b><span>جدولاً في القاعدة الجديدة</span></div>
 <div class="kpi"><b><?= ($s['counts']['by_scope']['lookup'] ?? 0) + ($s['counts']['by_scope']['city_lookup'] ?? 0) ?></b><span>قائمة (Lookup)</span></div>
 <div class="kpi"><b><?= $s['counts']['by_scope']['city'] ?? 0 ?></b><span>جدول بيانات</span></div>
-<div class="kpi"><b><?= ($s["counts"]["by_scope"]["existing"] ?? 0) + ($s["counts"]["by_scope"]["explicit"] ?? 0) ?></b><span>جدول حسابات موجود يُعاد استخدامه</span></div>
+<div class="kpi"><b><?= ($s['counts']['by_scope']['existing'] ?? 0) + ($s['counts']['by_scope']['explicit'] ?? 0) ?></b><span>جدول حسابات موجود يُعاد استخدامه</span></div>
 <div class="kpi"><b><?= $s['counts']['source_tables'] ?></b><span>جدولاً مصدرياً مغطى</span></div>
 <div class="kpi"><b>818 ← <?= $s['counts']['tables'] ?></b><span>عدد الجداول الحالي ← الجديد</span></div>
 </div>
@@ -131,37 +136,41 @@ ul{margin:6px 0;padding-inline-start:22px}
 <section>
 <h2>قواعد النقل (M1.6)</h2>
 <div class="table"><table><tr><th>القاعدة</th><th>ماذا تفعل</th></tr>
-<?php foreach ($s['meta']['transforms'] as $k => $v): ?><tr><td><code><?= $e($k) ?></code></td><td><?= $e($v) ?></td></tr>
-<?php endforeach; ?></table></div>
+<?php foreach ($s['meta']['transforms'] as $k => $v) { ?><tr><td><code><?= $e($k) ?></code></td><td><?= $e($v) ?></td></tr>
+<?php } ?></table></div>
 <h3>ما وجدناه في الداتا الحقيقية</h3>
-<ul><?php foreach ($s['meta']['source_findings'] as $k => $v): ?><li><b><?= $e($k) ?>:</b> <?= $e($v) ?></li><?php endforeach; ?></ul>
+<ul><?php foreach ($s['meta']['source_findings'] as $k => $v) { ?><li><b><?= $e($k) ?>:</b> <?= $e($v) ?></li><?php } ?></ul>
 </section>
 
 <section>
 <h2>الجداول</h2>
 <div class="filter"><input id="q" type="search" placeholder="ابحث عن جدول أو عمود أو جدول مصدري (مثلاً microproject أو national)"><button type="button" id="openAll">فتح الكل</button><button type="button" id="closeAll">إغلاق الكل</button></div>
-<?php foreach ($s['groups'] as $gk => $gname):
+<?php foreach ($s['groups'] as $gk => $gname) {
     $tables = array_filter($s['tables'], fn ($t) => $t['group'] === $gk); ?>
 <h3><?= $e($gname) ?> <span class="std">(<?= count($tables) ?>)</span></h3>
-<?php foreach ($tables as $name => $t): ?>
+<?php foreach ($tables as $name => $t) { ?>
 <details data-search="<?= $e(strtolower($name.' '.($t['source'] ?? '').' '.implode(' ', array_map(fn ($c) => $c['name'].' '.($c['source'] ?? ''), $t['columns'] ?? [])))) ?>">
-<summary><span class="name"><?= $e($name) ?></span><span class="tag t-<?= $e($t['scope']) ?>"><?= $e($scopeLabel[$t['scope']]) ?></span><?php if (!empty($t['source'])): ?><span class="src">من <code><?= $e($t['source']) ?></code></span><?php endif; ?><?php if (!empty($t['columns'])): ?><span class="std"><?= count($t['columns']) ?> عمود</span><?php endif; ?></summary>
+<summary><span class="name"><?= $e($name) ?></span><span class="tag t-<?= $e($t['scope']) ?>"><?= $e($scopeLabel[$t['scope']]) ?></span><?php if (! empty($t['source'])) { ?><span class="src">من <code><?= $e($t['source']) ?></code></span><?php } ?><?php if (! empty($t['columns'])) { ?><span class="std"><?= count($t['columns']) ?> عمود</span><?php } ?></summary>
 <div class="body">
-<?php if (!empty($t['note'])): ?><div class="note"><?= $e($t['note']) ?></div><?php endif; ?>
-<?php if (!empty($t['unique'])): ?><p class="std">فريد: <?php foreach ($t['unique'] as $u) echo '<code>('.$e(implode(', ', $u)).')</code> '; ?></p><?php endif; ?>
-<?php if (!empty($t['columns'])): ?><div class="table"><table><tr><th>العمود</th><th>النوع</th><th>فارغ؟</th><th>يرتبط بـ</th><th>من العمود</th><th>التحويل</th></tr>
-<?php foreach ($t['columns'] as $c): $std = in_array($c['name'], ['id', 'city_id', 'legacy_id', 'created_at', 'updated_at', 'deleted_at', 'name_ar', 'name_en', 'sort_order', 'is_active'], true) && empty($c['source']); ?>
-<tr<?= $std ? ' class="std"' : '' ?>><td><code><?= $e($c['name']) ?></code></td><td><code><?= $e($c['type']) ?></code></td><td><?= $c['nullable'] ? 'نعم' : '' ?></td><td><?= isset($c['references']) ? '<code>'.$e($c['references']).'</code>' : '' ?></td><td><?= isset($c['source']) ? '<code>'.$e($c['source']).'</code>' : ($c['name'] === 'legacy_id' && !empty($t['legacy_key']) ? '<code>'.$e($t['legacy_key']).'</code>' : '') ?></td><td><?= isset($c['transform']) ? $e($txLabel[$c['transform']] ?? $c['transform']) : '' ?></td></tr>
-<?php endforeach; ?></table></div><?php endif; ?>
+<?php if (! empty($t['note'])) { ?><div class="note"><?= $e($t['note']) ?></div><?php } ?>
+<?php if (! empty($t['unique'])) { ?><p class="std">فريد: <?php foreach ($t['unique'] as $u) {
+    echo '<code>('.$e(implode(', ', $u)).')</code> ';
+} ?></p><?php } ?>
+<?php if (! empty($t['columns'])) { ?><div class="table"><table><tr><th>العمود</th><th>النوع</th><th>فارغ؟</th><th>يرتبط بـ</th><th>من العمود</th><th>التحويل</th></tr>
+<?php foreach ($t['columns'] as $c) {
+    $std = in_array($c['name'], ['id', 'city_id', 'legacy_id', 'created_at', 'updated_at', 'deleted_at', 'name_ar', 'name_en', 'sort_order', 'is_active'], true) && empty($c['source']); ?>
+<tr<?= $std ? ' class="std"' : '' ?>><td><code><?= $e($c['name']) ?></code></td><td><code><?= $e($c['type']) ?></code></td><td><?= $c['nullable'] ? 'نعم' : '' ?></td><td><?= isset($c['references']) ? '<code>'.$e($c['references']).'</code>' : '' ?></td><td><?= isset($c['source']) ? '<code>'.$e($c['source']).'</code>' : ($c['name'] === 'legacy_id' && ! empty($t['legacy_key']) ? '<code>'.$e($t['legacy_key']).'</code>' : '') ?></td><td><?= isset($c['transform']) ? $e($txLabel[$c['transform']] ?? $c['transform']) : '' ?></td></tr>
+<?php } ?></table></div><?php } ?>
 </div></details>
-<?php endforeach; endforeach; ?>
+<?php }
+} ?>
 </section>
 
 <section>
 <h2>جداول مصدرية لا تُنقل (<?= count($s['not_imported']) ?>)</h2>
 <p>تبقى محفوظة في أرشيف النسخ الأصلية مع بصمتها، ولا تدخل قاعدة التشغيل.</p>
 <div class="table"><table><tr><th>الجدول</th><th>السبب</th></tr>
-<?php foreach ($s['not_imported'] as $k => $v): ?><tr><td><code><?= $e($k) ?></code></td><td><?= $e($v) ?></td></tr><?php endforeach; ?></table></div>
+<?php foreach ($s['not_imported'] as $k => $v) { ?><tr><td><code><?= $e($k) ?></code></td><td><?= $e($v) ?></td></tr><?php } ?></table></div>
 </section>
 
 <section class="approve">

@@ -46,4 +46,16 @@ return [
     'added' => 'added', 'replaced' => 'edited', 'added_hint' => 'Uploaded in the program, not from the original papers folder',
     'hidden_title' => 'Original files that were removed (can be restored)',
     'err_file' => 'The file is not a sound PDF or Word file (or it holds active content or is over 15 MB).', 'err_target' => 'The paper, city or version is not valid.',
+    'settings' => [
+        'title' => 'City paper settings', 'intro' => 'The branch address, phones and office hours the papers print, and who signs for the centre in each city.',
+        'footer_title' => 'Branch details in the paper footer', 'save' => 'Save', 'saved' => 'The city settings were saved.',
+        'f' => ['address_ar' => 'Address (Arabic)', 'address_en' => 'Address (English, printed in the footer)', 'phone_1' => 'Mobile (printed in the footer)', 'phone_2' => 'Other phone', 'complaints_phone' => 'Complaints phone',
+            'office_days' => 'Office days', 'office_hours' => 'Office hours', 'notes' => 'Notes', 'full_name' => 'Full name', 'father_name' => 'Father\'s name', 'mother_name' => 'Mother\'s name',
+            'birth_date' => 'Date of birth', 'registration_place' => 'Place of registry', 'national_number' => 'National number', 'id_issue_text' => 'ID issue text', 'valid_from' => 'Valid from', 'valid_to' => 'Valid until'],
+        'signatories' => 'Signatories for the centre', 'role' => 'Role', 'valid' => 'Validity', 'edit' => 'Edit', 'remove' => 'Remove', 'none' => 'No signatories yet.', 'cancel' => 'Cancel',
+        'new_signatory' => 'New signatory', 'edit_signatory' => 'Edit signatory', 'save_signatory' => 'Save signatory', 'confirm_remove' => 'Remove this signatory?',
+        'signatory_saved' => 'The signatory was saved.', 'signatory_removed' => 'The signatory was removed.', 'open' => 'City paper settings',
+        'roles' => ['director' => 'Director', 'projects_manager' => 'Projects manager', 'finance_manager' => 'Finance manager', 'purchasing_officer' => 'Purchasing officer', 'legal_representative' => 'Legal representative'],
+        'too_long' => 'The value is longer than allowed.', 'bad_role' => 'Unknown role.', 'name_required' => 'The name is required.', 'bad_date' => 'Not a valid date.', 'bad_period' => 'The validity ends before it starts.',
+    ],
 ];

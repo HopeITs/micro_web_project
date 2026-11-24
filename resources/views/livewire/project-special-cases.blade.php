@@ -85,6 +85,7 @@
                     </div>
                     @if($manage || $page['canDelete'])
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <x-hc.button size="sm" variant="ghost" icon="file" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $projectId, 'paper' => 'special-case', 'case' => $case->id])" target="_blank" rel="noopener">{{ __('paper_project.print_case') }}</x-hc.button>
                         @if($manage)<x-hc.button size="sm" variant="secondary" icon="settings" wire:click="edit({{ $case->id }})">{{ __('special_cases.edit') }}</x-hc.button>@endif
                         @if($page['canDelete'])<x-hc.button size="sm" variant="ghost" icon="x" wire:click="delete({{ $case->id }})" wire:confirm="{{ __('special_cases.delete_confirm') }}">{{ __('special_cases.delete') }}</x-hc.button>@endif
                     </div>

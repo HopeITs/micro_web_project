@@ -103,7 +103,7 @@ final class KoboVisitService
                 'group' => $group, 'role' => $role];
         }
 
-        return ['fields' => $fields, 'groups' => $groups];
+        return ['uid' => (string) $form->form_uid, 'fields' => $fields, 'groups' => $groups];
     }
 
     private function formRow(int $city, string $uid): object
@@ -272,46 +272,134 @@ final class KoboVisitService
     }
 
     /**
-     * Cleans the answers. Returns the raw layout (flat paths; repeat groups as lists of repetitions) and a label => display map for the audit.
+     * Cleans the answers and applies the form's XLSForm rules ({@see KoboRules}): a question hidden by its show-if drops its answer, a shown
+     * required question must be answered, a constraint is checked on answered questions. Returns the raw layout (flat paths; repeat groups
+     * as lists of repetitions) and the audit comparison map.
      *
-     * @return array{0: array<string, mixed>, 1: array<string, string>}
+     * @return array{0: array<string, mixed>, 1: array<string, array{label: string, text: string}>}
      */
     private function answers(array $spec, array $input): array
     {
+        $uid = (string) $spec['uid'];
         $flat = (array) ($input['a'] ?? []);
         $repeats = (array) ($input['r'] ?? []);
-        $groupOf = array_flip($spec['groups']);
-        $out = [];
-        foreach ($spec['fields'] as $field) {
-            if ($field['role'] === 'project' || $field['role'] === 'person' || $field['role'] === 'visitor' || $field['group'] !== null) {
-                continue;
-            }
+        $asked = fn (array $field) => ! in_array($field['role'], ['project', 'person', 'visitor'], true);
+        $flatFields = array_values(array_filter($spec['fields'], fn ($f) => $f['group'] === null && $asked($f)));
+        $given = [];
+        foreach ($flatFields as $field) {
             $value = $this->clean($field, $flat[$field['index']] ?? null, 'a.'.$field['index']);
-            if ($value !== null) {
-                $out[$field['path']] = $value;
-            }
+            $value === null || $given[$field['path']] = $value;
         }
+        $out = $this->applyRules($uid, $flatFields, $given, [], fn (array $f) => 'a.'.$f['index']);
         foreach ($spec['groups'] as $group => $g) {
+            $groupFields = array_values(array_filter($spec['fields'], fn ($f) => $f['group'] === $group));
             $rows = [];
             foreach (array_values((array) ($repeats[$g] ?? [])) as $i => $row) {
-                $repetition = [];
-                foreach ($spec['fields'] as $field) {
-                    if ($field['group'] !== $group) {
-                        continue;
-                    }
+                $values = [];
+                foreach ($groupFields as $field) {
                     $value = $this->clean($field, ((array) $row)[$field['index']] ?? null, "r.$g.$i.".$field['index']);
-                    if ($value !== null) {
-                        $repetition[$field['path']] = $value;
-                    }
+                    $value === null || $values[$field['path']] = $value;
                 }
-                $repetition === [] || $rows[] = $repetition;
+                if ($values !== []) {
+                    $rows[] = $this->applyRules($uid, $groupFields, $values, $out, fn (array $f) => "r.$g.$i.".$f['index']);
+                }
             }
             count($rows) <= 30 || $this->fail('r', 'repeat_max');
             $rows === [] || $out[$group] = $rows;
         }
-        unset($groupOf);
 
         return [$out, $this->labelled($spec, $out)];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $fields  the questions of one level (the page, or one repeat repetition) in form order
+     * @param  array<string, string>  $given  cleaned answers by path
+     * @param  array<string, mixed>  $outer  the page answers a repetition's rules may also read
+     * @param  callable(array): string  $key  the form key an error of the question is shown at
+     * @return array<string, string> the answers that stay (hidden ones dropped)
+     */
+    private function applyRules(string $uid, array $fields, array $given, array $outer, callable $key): array
+    {
+        $hidden = $this->hiddenPaths($uid, $fields, $given, $outer);
+        $kept = [];
+        foreach ($fields as $field) {
+            $path = $field['path'];
+            if (isset($hidden[$path])) {
+                continue;
+            }
+            $rule = KoboRules::for($uid, $path);
+            $text = (string) ($given[$path] ?? '');
+            if ($text === '') {
+                ($rule['required'] ?? false) && $field['kind'] !== 'geopoint' && $this->fail($key($field), 'required');
+
+                continue;
+            }
+            if (isset($rule['constraint'])) {
+                $context = fn (string $p) => isset($hidden[$p]) ? '' : (string) ($given[$p] ?? $outer[$p] ?? '');
+                KoboRules::test($rule['constraint'], $context) || $this->failText($key($field), $rule['message'] ?? __('kobo.errors.constraint'));
+            }
+            $kept[$path] = $text;
+        }
+
+        return $kept;
+    }
+
+    /**
+     * The paths hidden by their show-if, given the answers by path (a hidden question reads as unanswered for the ones after it).
+     *
+     * @param  list<array<string, mixed>>  $fields
+     * @param  array<string, mixed>  $given
+     * @param  array<string, mixed>  $outer
+     * @return array<string, true>
+     */
+    private function hiddenPaths(string $uid, array $fields, array $given, array $outer = []): array
+    {
+        $hidden = [];
+        foreach ($fields as $field) {
+            $context = fn (string $p) => isset($hidden[$p]) ? '' : (string) ($given[$p] ?? $outer[$p] ?? '');
+            if (! KoboRules::shown(KoboRules::for($uid, $field['path']), $context)) {
+                $hidden[$field['path']] = true;
+            }
+        }
+
+        return $hidden;
+    }
+
+    /**
+     * What the page hides right now, from its current (not yet saved) answers: field indexes of the page and, per repeat group row, of the row.
+     *
+     * @return array{flat: array<int, true>, rows: array<int, array<int, array<int, true>>>}
+     */
+    public function hidden(array $spec, array $a, array $r): array
+    {
+        $uid = (string) $spec['uid'];
+        $text = fn (mixed $v) => is_array($v) ? implode(' ', array_map('strval', $v)) : trim((string) ($v ?? ''));
+        $flatFields = array_values(array_filter($spec['fields'], fn ($f) => $f['group'] === null));
+        $given = [];
+        foreach ($flatFields as $field) {
+            $given[$field['path']] = $text($a[$field['index']] ?? null);
+        }
+        $byPath = array_column($spec['fields'], 'index', 'path');
+        $hiddenFlat = $this->hiddenPaths($uid, $flatFields, $given);
+        $out = ['flat' => [], 'rows' => []];
+        foreach ($hiddenFlat as $path => $_) {
+            $out['flat'][$byPath[$path]] = true;
+        }
+        $outer = array_diff_key($given, $hiddenFlat);
+        foreach ($spec['groups'] as $group => $g) {
+            $groupFields = array_values(array_filter($spec['fields'], fn ($f) => $f['group'] === $group));
+            foreach (array_values((array) ($r[$g] ?? [])) as $i => $row) {
+                $values = [];
+                foreach ($groupFields as $field) {
+                    $values[$field['path']] = $text(((array) $row)[$field['index']] ?? null);
+                }
+                foreach ($this->hiddenPaths($uid, $groupFields, $values, $outer) as $path => $_) {
+                    $out['rows'][$g][$i][$byPath[$path]] = true;
+                }
+            }
+        }
+
+        return $out;
     }
 
     /** @return array<string, array{label: string, text: string}> `q{field index}` => the question and its displayed answer, for the audit comparison */
@@ -649,6 +737,11 @@ final class KoboVisitService
             DB::table('kobo_submissions')->where('id', $submission->id)->update(['deleted_at' => $now, 'updated_at' => $now]);
             $this->audit->record($account->id, 'kobo.visit_deleted', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId, details: $details);
         });
+    }
+
+    private function failText(string $field, string $message): never
+    {
+        throw ValidationException::withMessages([$field => $message]);
     }
 
     private function fail(string $field, string $key, array $replace = []): never

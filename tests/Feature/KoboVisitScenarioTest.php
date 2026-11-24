@@ -6,6 +6,7 @@ use App\Livewire\KoboIndex;
 use App\Livewire\KoboVisitForm;
 use App\Models\WebAccount;
 use App\Services\Kobo\KoboCatalog;
+use App\Services\Kobo\KoboRules;
 use App\Services\Lifecycle\LifecycleService;
 use App\Services\Staff\ProjectNotices;
 use Database\Seeders\DatabaseSeeder;
@@ -125,16 +126,62 @@ class KoboVisitScenarioTest extends TestCase
         return Livewire::test(KoboVisitForm::class, ['projectId' => $project->id, 'submissionId' => $submission, 'start' => $submission === null ? $uid : null]);
     }
 
+    /** A sample answer for a question (a person filling the form in). */
+    protected function sample(array $field): mixed
+    {
+        $kind = KoboCatalog::kind($field);
+
+        return match (true) {
+            $kind === 'select_one' => $field['choices'] === [] ? 'x' : $field['choices'][0]['code'],
+            $kind === 'select_multiple' => $field['choices'] === [] ? [] : [$field['choices'][0]['code']],
+            in_array($kind, ['integer', 'decimal'], true) => '5',
+            $kind === 'date' => '2026-02-02',
+            default => 'x',
+        };
+    }
+
+    /**
+     * Saves like a person would: every required question is answered first (the XLSForm rules make most of them required), then the save is
+     * sent; the questions in $stop are left empty so their refusal can be checked, and repeat rows are completed when the save asks for them.
+     */
+    protected function complete($page, string $uid, array $stop = [])
+    {
+        $a = (array) $page->get('a');
+        foreach (KoboCatalog::forms()[$uid]['fields'] as $i => $field) {
+            $rule = KoboRules::for($uid, $field['path']);
+            if (! ($rule['required'] ?? false) || KoboCatalog::kind($field) === 'geopoint' || ! empty($field['repeat']) || in_array('a.'.$i, $stop, true) || ($a[$i] ?? '') !== '' && ($a[$i] ?? []) !== []) {
+                continue;
+            }
+            $a[$i] = $this->sample($field);
+        }
+        $page->set('a', $a)->call('save');
+        for ($n = 0; $n < 12; $n++) {
+            $filled = false;
+            foreach ($page->errors()->keys() as $key) {
+                if ($page->errors()->first($key) === __('kobo.errors.required') && preg_match('/^r\.(\d+)\.(\d+)\.(\d+)$/', $key, $m) === 1) {
+                    $page->set($key, $this->sample(KoboCatalog::forms()[$uid]['fields'][(int) $m[3]]));
+                    $filled = true;
+                }
+            }
+            if (! $filled) {
+                break;
+            }
+            $page->call('save');
+        }
+
+        return $page;
+    }
+
     protected function opening(object $project, string $date = '2026-02-01')
     {
-        return $this->page($project, self::OPENING)->set('date', $date)->set('visitors.0', (string) $this->visitor())
-            ->set('a.'.$this->index(self::OPENING, 'group_mo5jr41/Doner'), 'ACN')->set('a.'.$this->index(self::OPENING, 'group_mo5jr41/text_qp0vk54'), 'شارع الجلاء')->call('save');
+        return $this->complete($this->page($project, self::OPENING)->set('date', $date)->set('visitors.0', (string) $this->visitor())
+            ->set('a.'.$this->index(self::OPENING, 'group_mo5jr41/Doner'), 'ACN')->set('a.'.$this->index(self::OPENING, 'group_mo5jr41/text_qp0vk54'), 'شارع الجلاء'), self::OPENING);
     }
 
     protected function monitoring(object $project, string $stage, string $date = '2026-07-15', ?int $person = null)
     {
-        return $this->page($project, self::MONITORING)->set('date', $date)->set('person', (string) ($person ?? $this->beneficiary($project)))->set('visitors.0', (string) $this->visitor())
-            ->set('a.'.$this->index(self::MONITORING, '__010'), $stage)->call('save');
+        return $this->complete($this->page($project, self::MONITORING)->set('date', $date)->set('person', (string) ($person ?? $this->beneficiary($project)))->set('visitors.0', (string) $this->visitor())
+            ->set('a.'.$this->index(self::MONITORING, '__010'), $stage), self::MONITORING);
     }
 
     public function test_data_entry_records_the_opening_form_with_task_notice_and_visitor(): void
@@ -214,8 +261,9 @@ class KoboVisitScenarioTest extends TestCase
         $this->as('role.data-entry');
         $project = $this->project(0, 'vehicle');
         $page = $this->page($project, self::VEHICLE_OPENING)->set('date', '2026-02-01')->set('visitors.0', (string) $this->visitor());
-        $page->call('save')->assertHasErrors('a');
-        $page->set('a.'.$this->index(self::VEHICLE_OPENING, 'group_vz9zl11/__008'), '123456')->call('save')->assertHasNoErrors();
+        $plate = 'a.'.$this->index(self::VEHICLE_OPENING, 'group_vz9zl11/__008');
+        $this->complete($page, self::VEHICLE_OPENING, [$plate])->assertHasErrors($plate);
+        $this->complete($page->set($plate, '123456'), self::VEHICLE_OPENING)->assertHasNoErrors();
         $visit = DB::table('visits')->where('project_id', $project->id)->first();
         $this->assertSame(['V-op', '123456'], [$visit->kind, $visit->vehicle_number]);
         $forms = app(\App\Services\Kobo\KoboVisitService::class)->forms($project);
@@ -281,10 +329,10 @@ class KoboVisitScenarioTest extends TestCase
         $this->as('role.data-entry');
         $project = $this->project(0, 'other', 'مشاريع صغيرة');
         $achieved = $this->index(self::AGRI_MONITORING, 'production_data/production_achieved');
-        $agri = fn (string $date, ?string $answer) => $this->page($project, self::AGRI_MONITORING)->set('date', $date)->set('person', (string) $this->beneficiary($project))->set('visitors.0', (string) $this->visitor())
-            ->set('a.'.$achieved, (string) $answer)->call('save');
+        $agri = fn (string $date, ?string $answer) => $this->complete($this->page($project, self::AGRI_MONITORING)->set('date', $date)->set('person', (string) $this->beneficiary($project))->set('visitors.0', (string) $this->visitor())
+            ->set('a.'.$achieved, (string) $answer), self::AGRI_MONITORING, $answer === null ? ['a.'.$achieved] : []);
 
-        $agri('2026-03-01', null)->assertHasErrors('a');
+        $agri('2026-03-01', null)->assertHasErrors();
         $agri('2026-03-01', 'no')->assertHasNoErrors();
         $first = DB::table('kobo_monitoring_records')->where('project_id', $project->id)->first();
         $this->assertSame('1', $first->visit_number);
@@ -305,7 +353,8 @@ class KoboVisitScenarioTest extends TestCase
         $crop = $this->index(self::AGRI_OPENING, 'general_info/land_inventory/crop_type');
         $area = $this->index(self::AGRI_OPENING, 'general_info/land_inventory/quantity_area');
         $page = $this->page($project, self::AGRI_OPENING)->set('date', '2026-02-01')->set('visitors.0', (string) $this->visitor());
-        $page->call('addRow', 0)->set('r.0.0.'.$crop, 'قمح')->set('r.0.0.'.$area, '٢٥٠')->call('addRow', 0)->set('r.0.1.'.$crop, 'زيتون')->set('r.0.1.'.$area, '40')->call('save')->assertHasNoErrors();
+        $page->call('addRow', 0)->set('r.0.0.'.$crop, 'قمح')->set('r.0.0.'.$area, '٢٥٠')->call('addRow', 0)->set('r.0.1.'.$crop, 'زيتون')->set('r.0.1.'.$area, '40');
+        $this->complete($page, self::AGRI_OPENING)->assertHasNoErrors();
         $raw = json_decode((string) DB::table('kobo_submissions')->whereNull('kobo_submission_id')->where('form_uid', self::AGRI_OPENING)->value('raw_json'), true);
         $this->assertSame(['قمح', 'زيتون'], array_column($raw['general_info/land_inventory'], 'general_info/land_inventory/crop_type'));
         $this->assertSame(['250', '40'], array_column($raw['general_info/land_inventory'], 'general_info/land_inventory/quantity_area'));
@@ -338,5 +387,71 @@ class KoboVisitScenarioTest extends TestCase
         $account = WebAccount::where('username', 'role.data-entry')->first();
         DB::table('account_city_capabilities')->where('account_id', $account->id)->where('city_id', $other)->update(['revoked_at' => now()]);
         $this->get('/ar/kobo/visits/new/'.$foreign)->assertStatus(404);
+    }
+
+    /** The first flat question of a form that a single `${p} = 'v'` show-if hides, with the controlling select_one. */
+    private function dependent(string $uid): array
+    {
+        $fields = KoboCatalog::forms()[$uid]['fields'];
+        $byPath = array_column($fields, null, 'path');
+        foreach ($fields as $i => $field) {
+            $rule = KoboRules::for($uid, $field['path']);
+            if (($rule['required'] ?? false) && empty($field['repeat']) && KoboCatalog::kind($field) === 'text' && count($rule['relevant'] ?? []) === 1
+                && preg_match('/^\$\{([^}]+)\} = \'([^\']+)\'$/', $rule['relevant'][0], $m) === 1 && KoboCatalog::kind($byPath[$m[1]] ?? ['type' => '']) === 'select_one'
+                && count($byPath[$m[1]]['choices']) > 1 && ($byPath[$m[1]]['repeat'] ?? false) === false) {
+                $other = collect($byPath[$m[1]]['choices'])->first(fn ($c) => $c['code'] !== $m[2])['code'];
+
+                return ['dep' => $i, 'control' => (int) array_search($m[1], array_column($fields, 'path'), true), 'on' => $m[2], 'off' => $other, 'label' => $field['label'], 'path' => $field['path']];
+            }
+        }
+        $this->fail('No suitable dependent question in '.$uid);
+    }
+
+    public function test_xlsform_rules_hide_drop_and_require_questions(): void
+    {
+        $this->as('role.data-entry');
+        $project = $this->project();
+        $d = $this->dependent(self::MONITORING);
+        $stage = $this->index(self::MONITORING, '__010');
+        $base = fn () => $this->page($project, self::MONITORING)->set('date', '2026-07-15')->set('person', (string) $this->beneficiary($project))->set('visitors.0', (string) $this->visitor())->set('a.'.$stage, 'M&E_1');
+
+        // Shown and required: refused with the required message, shown on the page.
+        $page = $base()->set('a.'.$d['control'], $d['on'])->assertSee($d['label']);
+        $this->complete($page, self::MONITORING, ['a.'.$d['dep']])->assertHasErrors('a.'.$d['dep']);
+        $this->assertSame(__('kobo.errors.required'), $page->errors()->first('a.'.$d['dep']));
+
+        // Hidden: the question disappears from the page, its answer is dropped and it is no longer required.
+        $page = $base()->set('a.'.$d['control'], $d['off'])->set('a.'.$d['dep'], 'zzz-hidden')->assertDontSee($d['label']);
+        $this->complete($page, self::MONITORING)->assertHasNoErrors();
+        $raw = json_decode((string) DB::table('kobo_submissions')->whereNull('kobo_submission_id')->where('form_uid', self::MONITORING)->value('raw_json'), true);
+        $this->assertArrayNotHasKey($d['path'], $raw);
+        $this->assertSame($d['off'], $raw[KoboCatalog::forms()[self::MONITORING]['fields'][$d['control']]['path']]);
+
+        // The device draft banner is on the page.
+        $this->page($project, self::MONITORING)->assertSeeHtml('id="kobo-draft"');
+    }
+
+    public function test_the_rule_expressions_of_the_xlsforms(): void
+    {
+        $value = fn (array $answers) => fn (string $path) => (string) ($answers[$path] ?? '');
+        $this->assertTrue(KoboRules::test("\${a} = 'x'", $value(['a' => 'x'])));
+        $this->assertFalse(KoboRules::test("\${a} = 'x'", $value(['a' => 'y'])));
+        $this->assertTrue(KoboRules::test("\${a} != 'x'", $value([])));
+        $this->assertTrue(KoboRules::test("selected(\${m}, 'two')", $value(['m' => 'one two'])));
+        $this->assertFalse(KoboRules::test("selected(\${m}, 'tw')", $value(['m' => 'one two'])));
+        $this->assertTrue(KoboRules::test("\${a} = 'x' or \${b} = 'y' and \${c} = 'z'", $value(['a' => 'x'])), 'and binds tighter than or');
+        $this->assertFalse(KoboRules::test("\${a} = 'q' or \${b} = 'y' and \${c} = 'z'", $value(['b' => 'y'])));
+        $this->assertFalse(KoboRules::test("\${s2} != \${s1}", $value(['s1' => 'v', 's2' => 'v'])), 'the ranking constraint refuses the same choice twice');
+        $this->assertTrue(KoboRules::test("\${s2} != \${s1}", $value(['s1' => 'v', 's2' => 'w'])));
+        $this->assertTrue(KoboRules::test('not-a-supported-expression', $value([])), 'an unsupported expression never blocks');
+        // Every expression of the 47 exported forms is inside the grammar (the exporter reports none outside it).
+        foreach (KoboRules::all() as $uid => $paths) {
+            foreach ($paths as $rule) {
+                foreach ([...($rule['relevant'] ?? []), $rule['constraint'] ?? ''] as $expr) {
+                    $left = preg_replace(['/\$\{[^}]+\}/', "/'[^']*'/", '/selected\(|\)|,|\band\b|\bor\b|!=|=|\s+/'], '', (string) $expr);
+                    $this->assertSame('', $left, $uid.': '.$expr);
+                }
+            }
+        }
     }
 }

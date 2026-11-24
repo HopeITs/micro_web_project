@@ -19,6 +19,12 @@ Desktop reference (read-only): `Classes/KoboLocalVisitImporter`, `KoboMonitoring
 - Audit: `kobo.visit_saved`, `kobo.visit_deleted` with v1.3 details; answer changes are fields `q{index}` whose before/after read "question: answer" (audit field names must be ASCII identifiers).
 - Fix on the way: repeat-group answers were invisible to the M4.14 readers (`raw[$path]`); `KoboCatalog::lookup()` now resolves them for the answers, results and export.
 
+## XLSForm rules and device draft (owner decisions 24 Nov 2026)
+- Source: the 47 XLSForm exports (`<form_uid>.xlsx`, folder given by the owner, read-only). `php tools/kobo/export-form-rules.php <folder>` writes `resources/kobo/form-rules.json` (required 1,365, show-if 640, constraint 10, hint 76, appearance per question; `${name}` resolved to field paths; group-level show-ifs folded in). All 46 catalogued forms matched field for field, 0 unresolved references, 0 expressions outside the grammar. The 47th file (Latakia village needs survey `aLP57orWHmvSSrYgGyzWLf`) is not a project visit and is not in the catalogue; its rules are exported but unused. The 10 constraints (`${a} != ${b}` ranking rules) all belong to that file.
+- Engine `KoboRules` (grammar: `${f} = 'v'`, `!=`, `${f} != ${g}`, `selected()`, `and`/`or`, `and` first): a hidden question disappears from the page live (controlling selects update as they change), its answer is dropped on save and it is not required; a shown required question must be answered ("This question is required", beside the field, with a red asterisk); constraints are checked on answered questions; hints and appearance (multiline, likert, numbers) are shown. Geopoint is never required; a "My location" button fills it from the device.
+- Device draft (browser storage on that device only; never sent to the server or the audit): the answers are kept while the form is edited; on return a banner offers to restore or discard (kept 14 days); when the connection drops the answers stay on the device with a banner and a "Send draft" button, which sends only when pressed; a successful save clears it. The draft may hold personal answers: it lives on the staff device until sent or discarded.
+- Cut-over: all cities at once when Kobo stops (`KOBO_WEB_EDIT_SYNCED=true`).
+
 ## Pages
 `/{locale}/kobo/visits/new/{project}` (form picker, then the form) and `/{locale}/kobo/visits/{submission}`; "New Kobo visit" button (project picker) on the Kobo page and an "Open / edit" link on each submission.
 
@@ -29,4 +35,4 @@ Desktop reference (read-only): `Classes/KoboLocalVisitImporter`, `KoboMonitoring
 - Owner questions still open: the parallel-run period (when to set `KOBO_WEB_EDIT_SYNCED` and retire the desktop sync) and the Kobo token (asked at hosting, M7).
 
 ## Tests
-`KoboVisitScenarioTest` (9): opening and monitoring entry with task/reminder/visitors/audit, refusals, vehicle plate, edit before/after and delete by role, synced read-only and the cut-over switch, agriculture stages and reminders, repeat groups, refused roles and cities. Browser-checked on MariaDB as administrator: form picker, validation (date before loan), save, redirect to the stored visit; demo rows removed afterwards.
+`KoboVisitScenarioTest` (11, incl. XLSForm show-if/required/drop and the expression grammar over all 47 forms): opening and monitoring entry with task/reminder/visitors/audit, refusals, vehicle plate, edit before/after and delete by role, synced read-only and the cut-over switch, agriculture stages and reminders, repeat groups, refused roles and cities. Browser-checked on MariaDB as administrator: form picker, validation (date before loan), save, redirect to the stored visit; demo rows removed afterwards.

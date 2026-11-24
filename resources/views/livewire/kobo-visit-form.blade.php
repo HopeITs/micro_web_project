@@ -10,6 +10,10 @@
     $stageNote = $f && ! $opening && ($f->visit_type === 'final' || $f->fixed_stage !== null || in_array($f->visit_category, ['agriculture', 'livestock'], true));
 @endphp
 <div class="hc-grid">
+    <div id="kobo-draft" wire:ignore hidden class="hc-alert hc-alert-info" role="status" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <span data-draft-text></span>
+        <span style="display:flex;gap:8px"><button type="button" class="hc-btn hc-btn-primary hc-btn-sm" data-draft-act="primary"></button><button type="button" class="hc-btn hc-btn-ghost hc-btn-sm" data-draft-act="discard">{{ __('kobo.draft.discard') }}</button></span>
+    </div>
     @if($notice !== '')<x-hc.alert type="success">{{ $notice }}</x-hc.alert>@endif
     @foreach(['version', 'visit', 'form', 'person', 'visitors', 'date', 'r'] as $key)
         @error($key)<x-hc.alert type="danger">{{ $message }}</x-hc.alert>@enderror
@@ -77,14 +81,14 @@
 
         @php $section = null; $shown = []; @endphp
         @foreach($spec['fields'] as $field)
-            @continue(in_array($field['role'], ['project', 'person', 'visitor'], true) || ($field['group'] !== null && isset($shown[$field['group']])))
+            @continue(in_array($field['role'], ['project', 'person', 'visitor'], true) || ($field['group'] !== null && isset($shown[$field['group']])) || ($field['group'] === null && isset($hidden['flat'][$field['index']])))
             @if($field['section'] !== $section)
                 @if($section !== null)</div></div></section>@endif
                 @php $section = $field['section']; @endphp
                 <section class="hc-card"><header class="hc-card-head"><div><h2>{{ $section ?: __('kobo.visit.other_section') }}</h2></div></header><div class="hc-card-body"><div class="hc-form-grid">
             @endif
             @if($field['group'] === null)
-                @include('livewire.partials.kobo-field', ['field' => $field, 'model' => 'a.'.$field['index'], 'manage' => $manage])
+                @include('livewire.partials.kobo-field', ['field' => $field, 'model' => 'a.'.$field['index'], 'manage' => $manage, 'uid' => $spec['uid']])
             @else
                 @php $g = $spec['groups'][$field['group']]; $shown[$field['group']] = true; $groupFields = array_values(array_filter($spec['fields'], fn ($x) => $x['group'] === $field['group'])); @endphp
                 <div style="grid-column:1/-1" class="hc-grid" wire:key="group-{{ $g }}">
@@ -92,7 +96,8 @@
                         <div class="hc-card" style="padding:12px" wire:key="group-{{ $g }}-{{ $row }}">
                             <div class="hc-form-grid">
                                 @foreach($groupFields as $gf)
-                                    @include('livewire.partials.kobo-field', ['field' => $gf, 'model' => 'r.'.$g.'.'.$row.'.'.$gf['index'], 'manage' => $manage])
+                                    @continue(isset($hidden['rows'][$g][$row][$gf['index']]))
+                                    @include('livewire.partials.kobo-field', ['field' => $gf, 'model' => 'r.'.$g.'.'.$row.'.'.$gf['index'], 'manage' => $manage, 'uid' => $spec['uid']])
                                 @endforeach
                             </div>
                             @if($manage)<x-hc.button variant="ghost" size="sm" icon="x" type="button" wire:click="removeRow({{ $g }}, {{ $row }})">{{ __('kobo.visit.remove_row') }}</x-hc.button>@endif
@@ -129,3 +134,55 @@
     </form>
     @endif
 </div>
+
+@script
+<script>
+    // M4.14b device draft: the answers are kept on this device while the form is edited and after a lost connection, and sent only after a click.
+    const key = @js('kobo-draft:'.$projectId.':'.($submissionId ?? 'new'));
+    const text = @js(['found' => __('kobo.draft.found'), 'lost' => __('kobo.draft.lost'), 'restore' => __('kobo.draft.restore'), 'send' => __('kobo.draft.send')]);
+    const props = ['formUid', 'person', 'date', 'a', 'r', 'visitors'];
+    const banner = document.getElementById('kobo-draft');
+    const store = {
+        get() { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } },
+        set(v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} },
+        clear() { try { localStorage.removeItem(key); } catch (e) {} },
+    };
+    const snapshot = () => Object.fromEntries(props.map(p => [p, JSON.parse(JSON.stringify($wire[p] ?? null))]));
+    let baseline = JSON.stringify(snapshot());
+    let timer = null;
+    let mode = null;
+    const show = (kind, message, label, act) => {
+        mode = kind;
+        banner.querySelector('[data-draft-text]').textContent = message;
+        const primary = banner.querySelector('[data-draft-act=primary]');
+        primary.textContent = label;
+        primary.onclick = act;
+        banner.hidden = false;
+    };
+    const hide = () => { banner.hidden = true; mode = null; };
+    banner.querySelector('[data-draft-act=discard]').onclick = () => { store.clear(); baseline = JSON.stringify(snapshot()); hide(); };
+    const keep = () => {
+        const now = JSON.stringify(snapshot());
+        if (now !== baseline) { store.set({ at: Date.now(), state: JSON.parse(now) }); }
+    };
+    props.forEach(p => $wire.$watch(p, () => { clearTimeout(timer); timer = setTimeout(keep, 800); }));
+    const saved = store.get();
+    if (saved && saved.state && Date.now() - saved.at < 14 * 86400000 && JSON.stringify(saved.state) !== baseline) {
+        show('found', text.found.replace(':at', new Date(saved.at).toLocaleString()), text.restore, async () => {
+            if (saved.state.formUid && $wire.formUid !== saved.state.formUid) { $wire.formUid = saved.state.formUid; await $wire.$refresh(); }
+            props.forEach(p => { if (saved.state[p] !== undefined && p !== 'formUid') { $wire[p] = saved.state[p]; } });
+            hide();
+            await $wire.$refresh();
+        });
+    } else if (saved) { store.clear(); }
+    const lost = () => { keep(); store.get() && show('lost', text.lost, text.send, () => { hide(); $wire.save(); }); };
+    window.addEventListener('offline', lost);
+    window.addEventListener('online', () => { if (mode === 'lost') { banner.hidden = false; } });
+    if (!window.__koboDraftHook) {
+        window.__koboDraftHook = true;
+        Livewire.interceptRequest(({ onFailure }) => { onFailure(() => window.dispatchEvent(new Event('kobo-draft-lost'))); });
+    }
+    window.addEventListener('kobo-draft-lost', lost);
+    $wire.on('kobo-saved', () => { store.clear(); baseline = JSON.stringify(snapshot()); hide(); });
+</script>
+@endscript

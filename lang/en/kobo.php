@@ -2,7 +2,7 @@
 
 return [
     'title' => 'Kobo sync', 'intro' => 'The Kobo forms the desktop programme downloaded: answers, results, review queues and visitor names.',
-    'read_only' => 'Read and review only: downloading from Kobo and review decisions are made in the desktop programme for now; the data reaches the website with the data transfer.',
+    'read_only' => 'Kobo visits are entered, edited and deleted here (the "New Kobo visit" button). Visits the desktop downloaded stay read and review only, with review decisions in the desktop, until the sync is retired.',
     'tabs' => ['submissions' => 'Submissions', 'results' => 'Results', 'reviews' => 'Review', 'visitors' => 'Visitors'],
     'search' => 'Search', 'search_placeholder' => 'Project number, name, form or submitter', 'search_number' => 'Project number',
     'form' => 'Form', 'all_forms' => 'All forms', 'type' => 'Visit type', 'status' => 'Status', 'from' => 'From', 'to' => 'To',
@@ -27,4 +27,25 @@ return [
     'mappings' => 'Kobo name mappings (:count)', 'mappings_hint' => 'The Kobo user name and the name shown for the visitor.',
     'display_name' => 'Display name', 'account' => 'Account', 'ignored' => 'Ignored',
     'unlinked' => 'Visitors without an account (:count)', 'unlinked_hint' => 'Visitor names on Kobo visits that have no website account.',
+    'saved' => 'Visit saved.', 'deleted' => 'Visit deleted.', 'new_visit' => 'New Kobo visit', 'edit' => 'Open / edit',
+    'origin' => ['web' => 'Entered on the website', 'kobo' => 'From Kobo'],
+    'visit' => [
+        'title' => 'Kobo visit', 'back' => 'Back to Kobo', 'choose_form' => 'Choose the form', 'choose_hint' => 'Forms suggested for this project carry a star. The visit is stored as it used to arrive from Kobo, so it shows in the results, schedule and statistics.',
+        'no_forms' => 'This city has no forms', 'no_forms_hint' => 'Kobo forms are added to the city with the data transfer.', 'basics' => 'Visit details', 'person' => 'Beneficiary or partner',
+        'stage_production' => 'The visit number is set from the previous visit and the "production started" answer.', 'stage_fixed' => 'The form sets the visit number.', 'other_section' => 'Other questions',
+        'geopoint' => 'latitude longitude', 'add_row' => 'Add a row', 'remove_row' => 'Remove row', 'delete_confirm' => 'Delete this visit?',
+        'from_kobo' => 'downloaded from Kobo by the desktop', 'from_web' => 'entered on the website',
+        'synced_locked' => 'The desktop downloaded this visit from Kobo and it stays read only until the sync is retired. After that it is corrected and deleted here.',
+    ],
+    'errors' => [
+        'form' => 'Choose one of the city forms.', 'form_kind' => 'Vehicle forms are for vehicle projects only, the others for the rest.', 'visit' => 'The visit could not be saved.',
+        'synced' => 'The desktop downloaded this visit from Kobo and it stays read only.', 'rehab' => 'Rehabilitation projects get no Kobo visits.', 'not_funded' => 'A visit cannot be added to a project that is not funded.',
+        'stale' => 'This project\'s visits changed since the page was opened. Reload and save again.', 'plate' => 'Enter the vehicle plate number.', 'person' => 'Choose the beneficiary or partner of the project.',
+        'stage' => 'Choose the visit number (M1 to M4).', 'stage_missing' => 'This form does not set the visit number.', 'choice' => 'Choose one of the available options.', 'number' => 'Enter a valid number.',
+        'date' => 'Enter a valid date.', 'long' => 'The text is too long.', 'repeat_max' => 'Too many rows.',
+        'opening_exists' => 'This project already has an opening visit of this kind. Open and edit it.', 'number_used' => 'A visit numbered M:number is already recorded for this person. Open and edit it.',
+        'production_started' => 'Answer "production started" so the visit number can be set.', 'previous_unconfirmed' => 'The previous visit needs a correction or a match first.',
+        'previous_number' => 'The previous visit number must be set first.', 'production_next' => 'The next visit cannot be derived: the previous one is final or has no clear production answer.',
+        'production_final' => 'The next visit of this project is the final one: use the final visit form.',
+    ],
 ];

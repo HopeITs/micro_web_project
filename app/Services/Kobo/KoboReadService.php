@@ -80,7 +80,7 @@ final class KoboReadService
             ->whereNull('s.deleted_at')->whereIn('s.city_id', $cities);
     }
 
-    private const COLUMNS = ['s.id', 's.city_id', 's.form_uid', 's.form_name', 's.submitted_at', 's.submitted_by', 's.sync_status', 's.is_deleted_in_kobo', 's.local_table', 's.local_record_id', 's.error_message',
+    private const COLUMNS = ['s.id', 's.city_id', 's.kobo_submission_id', 's.form_uid', 's.form_name', 's.submitted_at', 's.submitted_by', 's.sync_status', 's.is_deleted_in_kobo', 's.local_table', 's.local_record_id', 's.error_message',
         'c.code as city_code', 'f.visit_type', 'f.visit_category', 'p.id as project_id', 'p.project_number', 'pe.first_name', 'pe.father_name', 'pe.last_name',
         'mr.visit_number', 'mr.me_visit_id', 'mr.visit_date as me_date', 'v.visit_date as opening_date', 'v.kind as visit_kind'];
 

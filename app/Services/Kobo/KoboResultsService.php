@@ -110,7 +110,7 @@ final class KoboResultsService
                 foreach ($field['choices'] as $choice) {
                     $q['options'][(string) $choice['label']] ??= 0;
                 }
-                $value = $row->raw[$path] ?? null;
+                $value = KoboCatalog::lookup($row->raw, $path);
                 if ($value === null || $value === '') {
                     $q['blank']++;
                     unset($q);
@@ -148,10 +148,10 @@ final class KoboResultsService
         foreach ($rows as $row) {
             $answers = [];
             foreach (KoboCatalog::fields((string) $row->form_uid) as $path => $field) {
-                if (! KoboCatalog::reported($field) || ! array_key_exists($path, $row->raw)) {
+                if (! KoboCatalog::reported($field) || KoboCatalog::lookup($row->raw, $path) === null) {
                     continue;
                 }
-                $value = KoboCatalog::display($field, $row->raw[$path]);
+                $value = KoboCatalog::display($field, KoboCatalog::lookup($row->raw, $path));
                 if ($value === '') {
                     continue;
                 }

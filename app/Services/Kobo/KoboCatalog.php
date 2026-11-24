@@ -34,6 +34,46 @@ final class KoboCatalog
         return $out;
     }
 
+    /**
+     * A field's stored answer. Kobo keeps answers flat under the field path; inside a repeat group they sit in a list of repetitions
+     * (`group => [[group/field => value], ...]`), and the answer is then the list of each repetition's value. Null when unanswered.
+     */
+    public static function lookup(array $raw, string $path): mixed
+    {
+        if (array_key_exists($path, $raw)) {
+            return $raw[$path];
+        }
+        $parts = explode('/', $path);
+        for ($i = count($parts) - 1; $i >= 1; $i--) {
+            $group = implode('/', array_slice($parts, 0, $i));
+            if (isset($raw[$group]) && is_array($raw[$group])) {
+                $values = [];
+                foreach ($raw[$group] as $row) {
+                    $value = is_array($row) ? self::lookup($row, $path) : null;
+                    if ($value !== null && $value !== '' && $value !== []) {
+                        array_push($values, ...(is_array($value) ? $value : [$value]));
+                    }
+                }
+
+                return $values === [] ? null : $values;
+            }
+        }
+
+        return null;
+    }
+
+    /** A repeat group's own key (its repetitions are read through its fields). */
+    private static function isGroupOfKnownFields(array $fields, string $path): bool
+    {
+        foreach ($fields as $known => $_) {
+            if (str_starts_with((string) $known, $path.'/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** "select_one", "select_multiple", "text", "integer", "date", "geopoint". */
     public static function kind(array $field): string
     {
@@ -71,17 +111,14 @@ final class KoboCatalog
         $fields = self::fields($formUid);
         $sections = [];
         foreach ($fields as $path => $field) {
-            if (! array_key_exists($path, $raw)) {
-                continue;
-            }
-            $value = self::display($field, $raw[$path]);
+            $value = self::display($field, self::lookup($raw, $path));
             if ($value === '') {
                 continue;
             }
             $sections[$field['section'] ?: '—'][] = ['label' => (string) $field['label'], 'value' => $value, 'path' => $path];
         }
         foreach ($raw as $path => $value) {
-            if (isset($fields[$path]) || self::isMeta((string) $path) || $value === null || $value === '' || is_array($value) && $value === []) {
+            if (isset($fields[$path]) || self::isGroupOfKnownFields($fields, (string) $path) || self::isMeta((string) $path) || $value === null || $value === '' || is_array($value) && $value === []) {
                 continue;
             }
             $sections["\u{2026}"][] = ['label' => (string) $path, 'value' => is_scalar($value) ? (string) $value : json_encode($value, JSON_UNESCAPED_UNICODE), 'path' => (string) $path];

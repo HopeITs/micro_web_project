@@ -70,7 +70,7 @@
                             <td data-label="{{ __('kobo.stage') }}">{{ $s->visit_number ?: ($s->visit_kind ? __('kobo.types.opening') : '—') }}</td>
                             <td data-label="{{ __('kobo.visitors') }}">{{ $s->visitors ? implode('، ', $s->visitors) : '—' }}</td>
                             <td data-label="{{ __('kobo.status') }}"><x-hc.badge :tone="$tone($s->status)">{{ __('kobo.statuses.'.$s->status) }}</x-hc.badge></td>
-                            <td><x-hc.button size="sm" variant="ghost" wire:click="show({{ $s->id }})">{{ $open === (int) $s->id ? __('kobo.hide') : __('kobo.answers') }}</x-hc.button></td>
+                            <td style="white-space:nowrap"><x-hc.button size="sm" variant="ghost" wire:click="show({{ $s->id }})">{{ $open === (int) $s->id ? __("kobo.hide") : __("kobo.answers") }}</x-hc.button>@if($s->project_id && $s->local_table)<a class="hc-btn hc-btn-ghost hc-btn-sm" href="{{ route("kobo.visit.show", ["locale" => $locale, "submission" => $s->id]) }}">{{ __("kobo.edit") }}</a>@endif</td>
                         </tr>
                         @if($open === (int) $s->id && $detail)
                         <tr wire:key="ks-{{ $s->id }}-detail"><td colspan="8" style="background:var(--surface-2)">

@@ -153,6 +153,7 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/papers/review/{form}', [PaperLibraryController::class, 'review'])->where('form', 'F[0-9]{2}')->name('papers.review');
             Route::get('/applications/{project}/print', [PaperPrintController::class, 'application'])->whereNumber('project')->name('applications.print');
             Route::get('/applications/{project}/papers/{paper}', [\App\Http\Controllers\PaperPrintController::class, 'project'])->whereNumber('project')->where('paper', 'audio-consent|special-case|experience-test')->name('applications.paper');
+            Route::get('/applications/{project}/finance-papers/{paper}', [\App\Http\Controllers\PaperPrintController::class, 'finance'])->whereNumber('project')->where('paper', 'promissory-note|clearance|disbursement-request|partnership-contract')->name('applications.finance-paper');
             Route::get('/applications/{project}/file/print', [PaperPrintController::class, 'file'])->whereNumber('project')->name('applications.file');
             // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).
             Route::get('/applications/{project}/executive-file', [ExecutiveFileController::class, 'show'])->whereNumber('project')->name('executive.show');

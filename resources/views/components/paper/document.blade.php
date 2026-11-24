@@ -50,6 +50,9 @@
         .ask { display: grid; grid-template-columns: 1fr auto; gap: 2mm 4mm; align-items: center; margin: .9mm 0; font-size: 8.8pt; }
         .sigs { display: grid; grid-template-columns: repeat(var(--c, 3), 1fr); gap: 8mm; margin-top: 8mm; text-align: center; font-size: 11pt; }
         .sigs div { border-bottom: 1px dotted #444; padding-bottom: 9mm; }
+        .fill { display: inline-block; border-bottom: 1px dotted #444; font-weight: 500; padding-inline: 1mm; text-align: center; min-height: 1.2em; vertical-align: bottom; }
+        .legal { font-size: 11pt; line-height: 2.1; text-align: justify; }
+        .legal p { margin: 0 0 1mm; }
         .photo { width: 32mm; height: 36mm; border: 1px solid var(--line); }
         .intro { display: grid; grid-template-columns: 1fr 36mm; gap: 6mm; align-items: start; }
         @page { size: A4; margin: 8mm 12mm 14mm; @bottom-center { content: "PAGE:" counter(page) "/" counter(pages); font-size: 7pt; color: #6d6e71; } }

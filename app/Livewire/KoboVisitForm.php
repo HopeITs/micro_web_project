@@ -142,6 +142,7 @@ class KoboVisitForm extends Component
 
             return;
         }
+        $this->dispatch('kobo-saved');
         if ($this->submissionId === null) {
             session()->flash('status', __('kobo.saved'));
             $this->skipRender();
@@ -170,6 +171,8 @@ class KoboVisitForm extends Component
 
     public function render(): View
     {
-        return view('livewire.kobo-visit-form', ['form' => $this->service()->form(auth()->user(), $this->projectId, $this->submissionId, $this->formUid)]);
+        $form = $this->service()->form(auth()->user(), $this->projectId, $this->submissionId, $this->formUid);
+
+        return view('livewire.kobo-visit-form', ['form' => $form, 'hidden' => $form['spec'] === null ? ['flat' => [], 'rows' => []] : $this->service()->hidden($form['spec'], $this->a, $this->r)]);
     }
 }

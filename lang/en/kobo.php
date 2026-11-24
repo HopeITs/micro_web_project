@@ -29,15 +29,17 @@ return [
     'unlinked' => 'Visitors without an account (:count)', 'unlinked_hint' => 'Visitor names on Kobo visits that have no website account.',
     'saved' => 'Visit saved.', 'deleted' => 'Visit deleted.', 'new_visit' => 'New Kobo visit', 'edit' => 'Open / edit',
     'origin' => ['web' => 'Entered on the website', 'kobo' => 'From Kobo'],
-    'visit' => [
+        'draft' => ['found' => 'A draft saved on this device was found (:at). Restore it?', 'lost' => 'The connection was lost. Your answers are kept on this device; when it is back press "Send draft".', 'restore' => 'Restore the draft', 'send' => 'Send draft', 'discard' => 'Discard the draft'],
+'visit' => [
         'title' => 'Kobo visit', 'back' => 'Back to Kobo', 'choose_form' => 'Choose the form', 'choose_hint' => 'Forms suggested for this project carry a star. The visit is stored as it used to arrive from Kobo, so it shows in the results, schedule and statistics.',
         'no_forms' => 'This city has no forms', 'no_forms_hint' => 'Kobo forms are added to the city with the data transfer.', 'basics' => 'Visit details', 'person' => 'Beneficiary or partner',
         'stage_production' => 'The visit number is set from the previous visit and the "production started" answer.', 'stage_fixed' => 'The form sets the visit number.', 'other_section' => 'Other questions',
-        'geopoint' => 'latitude longitude', 'add_row' => 'Add a row', 'remove_row' => 'Remove row', 'delete_confirm' => 'Delete this visit?',
+        'geopoint' => 'latitude longitude', 'locate' => 'My location', 'locate_failed' => 'The location could not be read.', 'add_row' => 'Add a row', 'remove_row' => 'Remove row', 'delete_confirm' => 'Delete this visit?',
         'from_kobo' => 'downloaded from Kobo by the desktop', 'from_web' => 'entered on the website',
         'synced_locked' => 'The desktop downloaded this visit from Kobo and it stays read only until the sync is retired. After that it is corrected and deleted here.',
     ],
     'errors' => [
+        'required' => 'This question is required.', 'constraint' => 'This value is not accepted.',
         'form' => 'Choose one of the city forms.', 'form_kind' => 'Vehicle forms are for vehicle projects only, the others for the rest.', 'visit' => 'The visit could not be saved.',
         'synced' => 'The desktop downloaded this visit from Kobo and it stays read only.', 'rehab' => 'Rehabilitation projects get no Kobo visits.', 'not_funded' => 'A visit cannot be added to a project that is not funded.',
         'stale' => 'This project\'s visits changed since the page was opened. Reload and save again.', 'plate' => 'Enter the vehicle plate number.', 'person' => 'Choose the beneficiary or partner of the project.',

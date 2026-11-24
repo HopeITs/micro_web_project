@@ -38,7 +38,7 @@ final class AccessRoles
             'reports.export', ...self::TASKS,
         ],
         'legal' => [...self::READ, 'attachments.download', 'attachments.legal', 'finance.view', 'executive_files.view', 'executive_files.manage', 'purchasing.view', 'purchasing.manage', ...self::TASKS],
-        'media' => [...self::READ, ...self::TASKS],
+        'media' => [...self::READ, ...self::TASKS, 'papers.manage'],
         'guest' => self::READ,
         // Duties the desktop kept as flags on a user (IsME, IsCommunication); IsCashier maps to the financial role.
         'monitoring' => [

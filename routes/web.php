@@ -124,6 +124,10 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/papers', [\App\Http\Controllers\PaperLibraryController::class, 'index'])->name('papers.index');
             Route::get('/papers/download', [\App\Http\Controllers\PaperLibraryController::class, 'download'])->middleware('throttle:60,1')->name('papers.download');
             Route::get('/papers/original', [\App\Http\Controllers\PaperLibraryController::class, 'original'])->middleware('throttle:60,1')->name('papers.original');
+            // Keeping the papers (papers.manage, rechecked per city by PaperManager): add or replace a file, remove it, bring an original back.
+            Route::post('/papers/files', [\App\Http\Controllers\PaperLibraryController::class, 'upload'])->middleware('throttle:30,1')->name('papers.upload');
+            Route::delete('/papers/files', [\App\Http\Controllers\PaperLibraryController::class, 'remove'])->middleware('throttle:30,1')->name('papers.remove');
+            Route::post('/papers/files/restore', [\App\Http\Controllers\PaperLibraryController::class, 'restore'])->middleware('throttle:30,1')->name('papers.restore');
             Route::get('/papers/review/{form}', [\App\Http\Controllers\PaperLibraryController::class, 'review'])->where('form', 'F[0-9]{2}')->name('papers.review');
             Route::get('/applications/{project}/print', [\App\Http\Controllers\PaperPrintController::class, 'application'])->whereNumber('project')->name('applications.print');
             // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).

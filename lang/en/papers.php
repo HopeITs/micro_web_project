@@ -34,4 +34,14 @@ return [
         'F28' => 'Profession meeting questionnaire (group)', 'F29' => 'Profession meeting questionnaire (individual, older)',
         'F30' => 'Profession meeting attendance', 'F31' => 'Profession meeting minutes', 'F32' => 'Training attendance', 'F33' => 'Project management course attendance',
     ],
+    // Keeping the papers (papers.manage): administrator and media staff.
+    'manage_title' => 'Manage papers', 'manage_intro' => 'Upload a new file (PDF or Word), replace the file of an existing paper, or add a new paper for the team. Changes show for everyone at once and every change is recorded in the audit log.',
+    'm_paper' => 'Paper', 'm_new_paper' => '— New paper —', 'm_place' => 'Place of signing', 'm_file' => 'File (PDF or Word, up to 15 MB)',
+    'm_name_ar' => 'New paper name (Arabic)', 'm_name_en' => 'New paper name (English, optional)', 'm_group' => 'New paper group',
+    'm_new_hint' => 'The name and group are used only when "New paper" is chosen. Choosing an existing paper with the same city and version replaces its file.',
+    'm_save' => 'Save file', 'saved' => 'The file was saved.', 'removed' => 'The file was removed from the library.', 'restored' => 'The original file was restored.',
+    'remove' => 'Remove this file', 'confirm_remove' => 'Remove this file from the library? The original can be restored later.', 'restore' => 'Restore original',
+    'added' => 'added', 'replaced' => 'edited', 'added_hint' => 'Uploaded in the program, not from the original papers folder',
+    'hidden_title' => 'Original files that were removed (can be restored)',
+    'err_file' => 'The file is not a sound PDF or Word file (or it holds active content or is over 15 MB).', 'err_target' => 'The paper, city or version is not valid.',
 ];

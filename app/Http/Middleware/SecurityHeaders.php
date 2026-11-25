@@ -16,11 +16,12 @@ class SecurityHeaders
             $response->headers->set('Referrer-Policy', 'no-referrer');
         }
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        // M4.20: the review page of a redrawn paper shows the application print and the original paper side by side, so these two
-        // routes (and only these) may be framed by this same site. Every other page stays unframable.
+        // M4.20: the review page of a redrawn paper shows the printed paper and its original side by side, so the print pages of the
+        // papers and the original (and only these) may be framed by this same site. Every other page stays unframable.
         // The identity reader shows a PDF scan (an attachment file) beside the proposed values the same way.
         $pdfFrame = $request->is('en/papers/original', 'ar/papers/original', 'en/attachments/*', 'ar/attachments/*');
-        $sameSiteFrame = $pdfFrame || $request->is('en/applications/*/print', 'ar/applications/*/print');
+        $sameSiteFrame = $pdfFrame || $request->is('en/applications/*/print', 'ar/applications/*/print', 'en/applications/*/papers/*', 'ar/applications/*/papers/*',
+            'en/applications/*/finance-papers/*', 'ar/applications/*/finance-papers/*', 'en/applications/*/purchase-papers/*', 'ar/applications/*/purchase-papers/*');
         $response->headers->set('X-Frame-Options', $sameSiteFrame ? 'SAMEORIGIN' : 'DENY');
         if (! $response->headers->has('Referrer-Policy')) {
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');

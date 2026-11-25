@@ -22,7 +22,25 @@ final class PaperLibrary
     public const DIRECTORY = 'papers';
 
     /** Papers redrawn in HTML so far, and the application stage each prints (the review page shows them beside the original). */
-    public const REDRAWN = ['F02' => 'preliminary', 'F03' => 'full'];
+    public const REDRAWN = [
+        'F02' => ['applications.print', []], 'F03' => ['applications.print', []],
+        'F04' => ['applications.paper', ['paper' => 'audio-consent']], 'F05' => ['applications.paper', ['paper' => 'special-case']], 'F06' => ['applications.paper', ['paper' => 'experience-test']],
+        'F08' => ['applications.purchase-paper', ['paper' => 'price-quote']], 'F09' => ['applications.purchase-paper', ['paper' => 'purchase-request']],
+        'F10' => ['applications.finance-paper', ['paper' => 'promissory-note']],
+        'F11' => ['applications.deeds.print', ['kind' => 'tools']], 'F12' => ['applications.deeds.print', ['kind' => 'tools_agri']], 'F13' => ['applications.deeds.print', ['kind' => 'solar']],
+        'F14' => ['applications.deeds.print', ['kind' => 'solar_agri']], 'F15' => ['applications.deeds.print', ['kind' => 'vehicles']],
+        'F16' => ['applications.sale-contracts.print', ['kind' => 'car']], 'F17' => ['applications.sale-contracts.print', ['kind' => 'device']],
+        'F18' => ['applications.finance-paper', ['paper' => 'partnership-contract']], 'F19' => ['applications.finance-paper', ['paper' => 'disbursement-request']],
+        'F20' => ['applications.purchase-paper', ['paper' => 'equipment-receipt']], 'F21' => ['applications.finance-paper', ['paper' => 'beneficiary-card']],
+        'F22' => ['applications.purchase-paper', ['paper' => 'equipment-return']], 'F23' => ['applications.finance-paper', ['paper' => 'clearance']],
+        'F24' => ['applications.paper', ['paper' => 'photo-adult']], 'F25' => ['applications.paper', ['paper' => 'photo-child']], 'F27' => ['applications.paper', ['paper' => 'photo-informed']],
+    ];
+
+    /** The application forms are redrawn for a stage; every other paper is compared on a full application. */
+    private const STAGE = ['F02' => 'preliminary'];
+
+    /** The consents that print only for Caritas projects. */
+    private const CARITAS_ONLY = ['F24', 'F25', 'F27'];
 
     public const GROUPS = ['registration', 'study', 'financing', 'legal', 'purchasing', 'consents', 'meetings', 'training', 'handouts'];
 
@@ -136,11 +154,15 @@ final class PaperLibrary
         $city = in_array($filters['city'] ?? null, $codes, true) ? $filters['city'] : ($codes[0] ?? null);
         $original = $city === null ? null : ($files->first(fn ($e) => $e['city'] === $city && $e['format'] === 'pdf' && $e['place'] === null) ?? $files->first(fn ($e) => $e['city'] === $city));
         $cityRow = $city === null ? null : $permitted->firstWhere('code', $city);
-        $projects = $cityRow === null ? collect() : DB::table('projects')->where('city_id', $cityRow->id)->where('application_stage', self::REDRAWN[$form])->whereNull('deleted_at')
+        $projects = $cityRow === null ? collect() : DB::table('projects')->where('city_id', $cityRow->id)->where('application_stage', self::STAGE[$form] ?? 'full')->whereNull('deleted_at')
+            ->when(in_array($form, self::CARITAS_ONLY, true), fn ($q) => $q->whereIn('donor_id', DB::table('donors')->where(fn ($d) => $d->where('name_en', 'like', '%aritas%')->orWhere('name_ar', 'like', '%aritas%')->orWhere('name_ar', 'like', '%كاريتاس%'))->select('id')))
             ->orderByDesc('id')->limit(60)->get(['id', 'project_number', 'name']);
         $project = in_array((int) ($filters['project'] ?? 0), $projects->pluck('id')->map(fn ($id) => (int) $id)->all(), true) ? (int) $filters['project'] : (int) ($projects->first()->id ?? 0);
 
-        return ['form' => $form, 'title' => self::title($form), 'cities' => $permitted->filter(fn ($c) => in_array($c->code, $codes, true))->values(), 'city' => $city, 'original' => $original, 'projects' => $projects, 'project' => $project ?: null];
+        [$route, $with] = self::REDRAWN[$form];
+        $redraw = $project ? route($route, ['locale' => app()->getLocale(), 'project' => $project] + $with) : null;
+
+        return ['form' => $form, 'title' => self::title($form), 'cities' => $permitted->filter(fn ($c) => in_array($c->code, $codes, true))->values(), 'city' => $city, 'original' => $original, 'projects' => $projects, 'project' => $project ?: null, 'redraw' => $redraw];
     }
 
     /** @return array{0: array<string, mixed>, 1: int} the catalogue entry and the city id, after the per-city permission check */

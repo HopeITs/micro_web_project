@@ -40,7 +40,7 @@ final class PaperLibrary
     private const STAGE = ['F02' => 'preliminary'];
 
     /** The consents that print only for Caritas projects. */
-    private const CARITAS_ONLY = ['F24', 'F25', 'F27'];
+    private const CARITAS_ONLY = ['F24', 'F25'];
 
     public const GROUPS = ['registration', 'study', 'financing', 'legal', 'purchasing', 'consents', 'meetings', 'training', 'handouts'];
 

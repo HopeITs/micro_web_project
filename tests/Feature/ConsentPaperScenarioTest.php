@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-/** M4.20 user scenarios: the photo consents of Caritas projects, and the comparison page of every redrawn paper. */
+/** M4.20 user scenarios: the photo consents (two for Caritas projects, one for all), and the comparison page of every redrawn paper. */
 class ConsentPaperScenarioTest extends TestCase
 {
     use RefreshDatabase;
@@ -53,14 +53,16 @@ class ConsentPaperScenarioTest extends TestCase
         DB::table('family_members')->insert(['city_id' => $city, 'family_id' => $family, 'person_id' => $person] + $stamp);
     }
 
-    public function test_the_consents_print_only_for_a_caritas_project(): void
+    public function test_the_caritas_consents_need_a_caritas_donor_and_the_centre_consent_does_not(): void
     {
         $id = $this->project();
         $this->donor($id, 'مانح آخر');
-        foreach (['photo-adult', 'photo-child', 'photo-informed'] as $paper) {
+        foreach (['photo-adult', 'photo-child'] as $paper) {
             $this->get('/ar/applications/'.$id.'/papers/'.$paper)->assertNotFound();
         }
-        $this->get('/ar/projects/'.$id)->assertOk()->assertDontSee('موافقة صورة (بالغ)');
+        $this->get('/ar/projects/'.$id)->assertOk()->assertDontSee('موافقة صورة (بالغ)')->assertDontSee('موافقة صورة (طفل)')->assertSee('إقرار استخدام الصور');
+        $this->get('/ar/applications/'.$id.'/papers/photo-informed')->assertOk()->assertSee('إقرار بالموافقة عن علم')->assertDontSee('caritas-polska-header.png');
+        DB::table('account_audit_events')->where('event_type', 'papers.printed')->delete();
 
         $this->donor($id, 'Caritas Poland');
         $first = (string) DB::table('project_applicants as a')->join('people as p', 'p.id', '=', 'a.person_id')->where('a.project_id', $id)->orderBy('a.id')->value('p.first_name');

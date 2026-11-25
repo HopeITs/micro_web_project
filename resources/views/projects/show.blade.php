@@ -28,9 +28,10 @@
                 @foreach(['audio-consent' => 'print_audio', 'special-case' => 'print_special', 'experience-test' => 'print_test'] as $paperKey => $paperLabel)
                     <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $paperKey])" target="_blank" rel="noopener">{{ __('paper_project.'.$paperLabel) }}</x-hc.button>
                 @endforeach
-                {{-- The photo consents print only for Caritas projects (owner decision, 25 Nov 2026). --}}
+                {{-- Hope Center's consent prints for every project; the two Caritas Polska consents only for Caritas projects (owner decisions, 25 Nov 2026). --}}
+                <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => 'photo-informed'])" target="_blank" rel="noopener">{{ __('paper_consent.print_photo_informed') }}</x-hc.button>
                 @if(\App\Services\Papers\ProjectPaper::isCaritas((int) $project->id))
-                    @foreach(['photo-adult' => 'print_photo_adult', 'photo-child' => 'print_photo_child', 'photo-informed' => 'print_photo_informed'] as $paperKey => $paperLabel)
+                    @foreach(['photo-adult' => 'print_photo_adult', 'photo-child' => 'print_photo_child'] as $paperKey => $paperLabel)
                         <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $paperKey])" target="_blank" rel="noopener">{{ __('paper_consent.'.$paperLabel) }}</x-hc.button>
                     @endforeach
                 @endif

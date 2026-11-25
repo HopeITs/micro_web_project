@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * M4.20 wave 1: the small per-project papers redrawn on the print engine: the audio-recording consent (F04), Special Case (F05) and the
- * experience test (F06), and the three photo consents (F24 adult and F25 child for Caritas Polska, F27 Hope Center's informed consent),
- * which print only for projects whose donor is Caritas (owner decision, 25 Nov 2026); the choices are ticked by hand. Each is filled from the saved project (names, number, mobile, city) through {@see ApplicationPaper::build}, so the
+ * experience test (F06), and the three photo consents: F24 (adult) and F25 (child) for Caritas Polska, which print only for projects whose
+ * donor is Caritas, and F27, Hope Center's own informed consent, for every project (owner decisions, 25 Nov 2026); choices are ticked by hand. Each is filled from the saved project (names, number, mobile, city) through {@see ApplicationPaper::build}, so the
  * reader needs applications.view in the city. Special Case also needs special_cases.view and fills the chosen case (blank without one);
  * the experience test fills the checklist's test fields only when the reader also holds assessments.view. Audited `papers.printed`.
  */
@@ -23,8 +23,11 @@ final class ProjectPaper
     /** URL part => paper id (the library's id), view, extra capability. */
     public const PAPERS = ['audio-consent' => 'F04', 'special-case' => 'F05', 'experience-test' => 'F06', 'photo-adult' => 'F24', 'photo-child' => 'F25', 'photo-informed' => 'F27'];
 
+    /** The photo consents, which share their data. */
+    public const CONSENTS = ['photo-adult', 'photo-child', 'photo-informed'];
+
     /** The consents printed only for Caritas projects. */
-    public const CARITAS = ['photo-adult', 'photo-child', 'photo-informed'];
+    public const CARITAS = ['photo-adult', 'photo-child'];
 
     public function __construct(private ApplicationPaper $application, private SpecialCaseService $cases, private ChecklistService $checklists, private AccountAccess $access, private AccountAuditTrail $audit) {}
 
@@ -41,7 +44,7 @@ final class ProjectPaper
             'name' => trim(implode(' ', array_filter([$p['first_name'] ?? '', $p['father_name'] ?? '', $p['last_name'] ?? '']))), 'mobile' => (string) ($p['mobile'] ?? ''),
             'career' => (string) ($d['project']['career_id'] ?? ''), 'date' => now()->format('Y/m/d'),
         ];
-        if (in_array($kind, self::CARITAS, true)) {
+        if (in_array($kind, self::CONSENTS, true)) {
             $out = $this->consent($projectId, $out['name']) + $out;
         } elseif ($kind === 'special-case') {
             $out += $this->specialCase($account, $projectId, $caseId);

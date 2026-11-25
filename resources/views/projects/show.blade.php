@@ -36,6 +36,7 @@
                     <x-hc.button icon="file" variant="ghost" :href="route('applications.finance-paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $financeKey])" target="_blank" rel="noopener">{{ __('paper_finance.'.$financeLabel) }}</x-hc.button>
                 @endforeach
                 <x-hc.button icon="settings" variant="ghost" :href="route('applications.paper-data', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('papers.data.open') }}</x-hc.button>
+                <x-hc.button icon="file" variant="ghost" :href="route('applications.deeds', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('paper_deeds.open_deeds') }}</x-hc.button>
             @endif
             {{-- M4.12: the project's visits (visits.view or me_visits.view, with applications.view). --}}
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view') && (app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'visits.view') || app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'me_visits.view')))
@@ -55,6 +56,7 @@
                     <x-hc.button icon="file" variant="ghost" :href="route('applications.purchase-paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $purchaseKey])" target="_blank" rel="noopener">{{ __('paper_purchase.'.$purchaseLabel) }}</x-hc.button>
                 @endforeach
                 <x-hc.button icon="settings" variant="ghost" :href="route('applications.purchase-data', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('purchase_data.open') }}</x-hc.button>
+                <x-hc.button icon="file" variant="ghost" :href="route('applications.sale-contracts', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('paper_deeds.open_sales') }}</x-hc.button>
             @endif
             @php($annex = app(\App\Services\Applications\ProjectAnnexService::class)->kind($project))
             @if($annex)

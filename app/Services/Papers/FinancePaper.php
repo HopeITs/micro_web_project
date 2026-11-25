@@ -54,7 +54,7 @@ final class FinancePaper
         return $d;
     }
 
-    private function beneficiary(int $projectId): ?object
+    public function beneficiary(int $projectId): ?object
     {
         $link = DB::table('project_applicants')->where('project_id', $projectId)->whereNull('deleted_at')->orderByRaw('CASE WHEN role = ? THEN 0 ELSE 1 END', [\App\Services\Applications\ApplicationService::BENEFICIARY])->orderBy('id')->first();
 
@@ -62,7 +62,7 @@ final class FinancePaper
     }
 
     /** The identity lines the legal papers print for a person (or the signatory row, which has the same shape). @return array<string, string> */
-    private function identity(?object $p, bool $signatory = false): array
+    public function identity(?object $p, bool $signatory = false): array
     {
         if ($p === null) {
             return array_fill_keys(['name', 'triple', 'father', 'mother', 'birth', 'registry', 'national', 'issue', 'other', 'doc_type', 'doc_number', 'address', 'mobile', 'name_en'], '');

@@ -2,8 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Services\AccountAccess;
 use App\Services\Field\ProfessionMeetingService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -128,12 +130,12 @@ class ProfessionMeetingForm extends Component
     public function render(ProfessionMeetingService $service): View
     {
         $account = auth()->user();
-        $access = app(\App\Services\AccountAccess::class);
+        $access = app(AccountAccess::class);
         $careerIds = array_map('intval', $this->state['careerIds'] ?? []);
 
         return view('livewire.profession-meeting-form', [
             'catalog' => $service->catalog(), 'careers' => $service->careers(), 'levels' => ProfessionMeetingService::LEVELS,
-            'cityRow' => \Illuminate\Support\Facades\DB::table('cities')->where('id', $this->city)->first(),
+            'cityRow' => DB::table('cities')->where('id', $this->city)->first(),
             'canManage' => $access->check($account, $this->city, 'profession_meetings.manage') && ! $this->locked,
             'canDelete' => $this->meetingId !== null && $access->check($account, $this->city, 'profession_meetings.delete') && (! $this->locked || $access->check($account, $this->city, 'accounts.manage')),
             'canReopen' => $this->locked && $access->check($account, $this->city, 'accounts.manage'),

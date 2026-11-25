@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\People;
 
+use App\Models\Person;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\ProjectNumberAllocator;
 use App\Support\ArabicSearch;
+use App\Support\CityContext;
+use App\Support\Datasets\Dataset;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -124,13 +127,13 @@ final class PeopleService
      * The people list's base query from the smart-filter dataset (CityScope on top of `people.view` cities, so neither can be bypassed
      * by a chosen city). @param  list<int>  $cities  the chosen city chips (ignored when outside the permitted ones)
      *
-     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Person>
+     * @return \Illuminate\Database\Eloquent\Builder<Person>
      */
-    public function listQuery(WebAccount $account, \App\Support\Datasets\Dataset $dataset, array $cities = []): \Illuminate\Database\Eloquent\Builder
+    public function listQuery(WebAccount $account, Dataset $dataset, array $cities = []): \Illuminate\Database\Eloquent\Builder
     {
         $permitted = $this->cityIds($account);
         $permitted !== [] || $this->deny($account);
-        $context = app(\App\Support\CityContext::class);
+        $context = app(CityContext::class);
         $chosen = array_values(array_intersect(array_map('intval', $cities), $context->active() ? array_intersect($permitted, $context->cityIds()) : $permitted));
 
         return $dataset->query()->whereIn('people.city_id', $chosen ?: $permitted);

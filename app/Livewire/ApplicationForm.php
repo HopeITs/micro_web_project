@@ -4,16 +4,19 @@ namespace App\Livewire;
 
 use App\Services\Applications\ApplicationFields;
 use App\Services\Applications\ApplicationService;
-use App\Services\Applications\ProjectScores;
+use App\Services\Attachments\AttachmentService;
 use App\Services\Drafts\ApplicationDraftStore;
 use App\Services\People\PeopleService;
 use App\Services\People\PersonFields;
 use App\Services\ProjectNumberAllocator;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * The interactive application form (M4.5): preliminary or full, in the paper order, with the beneficiary, the internal grids and the
@@ -21,7 +24,7 @@ use Livewire\Component;
  */
 class ApplicationForm extends Component
 {
-    use \Livewire\WithFileUploads;
+    use WithFileUploads;
 
     /** The budget file chosen next to the budget; it is attached to the project when the application is saved. */
     public mixed $budgetFile = null;
@@ -408,8 +411,8 @@ class ApplicationForm extends Component
         if ($this->budgetFile !== null) {
             try {
                 $type = (int) DB::table('attachment_types')->where('name_en', 'Budget proposal')->value('id');
-                app(\App\Services\Attachments\AttachmentService::class)->upload(auth()->user(), 'project', $id, $type, [$this->budgetFile]);
-            } catch (ValidationException|\Illuminate\Auth\Access\AuthorizationException|\Symfony\Component\HttpKernel\Exception\HttpException) {
+                app(AttachmentService::class)->upload(auth()->user(), 'project', $id, $type, [$this->budgetFile]);
+            } catch (ValidationException|AuthorizationException|\Symfony\Component\HttpKernel\Exception\HttpException) {
                 session()->flash('warning', __('applications.budget.failed'));
             }
         }
@@ -419,7 +422,7 @@ class ApplicationForm extends Component
     }
 
     /** Whom a loss, illness, property or aid row can be about: the beneficiary and the saved members of their family, with the relation. */
-    private function memberOptions(): \Illuminate\Support\Collection
+    private function memberOptions(): Collection
     {
         $en = app()->getLocale() === 'en';
         $person = (object) $this->form['person'];
@@ -447,6 +450,7 @@ class ApplicationForm extends Component
 
         return $list;
     }
+
     /** Family figures from the family table: size, active by residence status, working, studying. @return array<string, int> */
     private function familyStats(): array
     {
@@ -472,6 +476,7 @@ class ApplicationForm extends Component
         return DB::table('attachments as a')->join('attachment_types as t', 't.id', '=', 'a.attachment_type_id')->where('a.project_id', $this->projectId)->where('t.name_en', 'Budget proposal')
             ->whereNull('a.deleted_at')->orderByDesc('a.id')->get(['a.id', 'a.original_name'])->all();
     }
+
     public function render(): View
     {
         $service = $this->service();
@@ -506,7 +511,7 @@ class ApplicationForm extends Component
             'applicantGroups' => array_map(fn ($g) => array_filter($g, fn ($s) => $stage === 'full' || ! ($s['full'] ?? false)), ApplicationFields::APPLICANT),
             'personGroups' => array_map(fn ($g) => array_diff_key($g, $stage === 'full' ? [] : array_flip(ApplicationFields::PERSON_FULL_ONLY)), array_diff_key(PersonFields::PERSON, ['other' => 1])),
             'options' => $options, 'personOptions' => $personOptions, 'gridOptions' => $gridOptions, 'grids' => ApplicationFields::grids($stage),
-            'duplicates' => $duplicates, 'familyStats' => $this->familyStats(), 'goalOptions' => $people->options('goals'), 'budgetAttachments' => $this->budgetAttachments(), 'canAttachBudget' => app(\App\Services\Attachments\AttachmentService::class)->uploadTypes(auth()->user(), $city)->contains('name_en', 'Budget proposal'),
+            'duplicates' => $duplicates, 'familyStats' => $this->familyStats(), 'goalOptions' => $people->options('goals'), 'budgetAttachments' => $this->budgetAttachments(), 'canAttachBudget' => app(AttachmentService::class)->uploadTypes(auth()->user(), $city)->contains('name_en', 'Budget proposal'),
             'holders' => $this->form['person_id'] ? collect() : $people->familyHolders($city, (string) $this->form['family_number']),
             'picks' => $this->form['person_id'] === null && $this->projectId === null ? $people->pick($account, $city, $this->personSearch) : collect(),
             'suggested' => $this->projectId === null ? app(ProjectNumberAllocator::class)->suggest($city) : null,

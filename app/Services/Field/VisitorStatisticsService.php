@@ -107,7 +107,9 @@ final class VisitorStatisticsService
 
         $visits = $typed(DB::table('visits')->whereIn('city_id', $cities)->whereNull('deleted_at')->whereBetween('visit_date', [$filters['from'], $filters['to']]), 'project_id')->get(['id', 'kind']);
         foreach ($visits as $v) {
-            $events['v:'.$v->id] = match (true) { str_ends_with((string) $v->kind, 'op') => 'Opening', str_ends_with((string) $v->kind, 'cl') => 'Closing', default => '' };
+            $events['v:'.$v->id] = match (true) {
+                str_ends_with((string) $v->kind, 'op') => 'Opening', str_ends_with((string) $v->kind, 'cl') => 'Closing', default => ''
+            };
         }
         $ids = $visits->pluck('id')->all();
         foreach (DB::table('visit_visitors')->whereIn('visit_id', $ids ?: [0])->whereNull('deleted_at')->get(['visit_id', 'account_id']) as $r) {

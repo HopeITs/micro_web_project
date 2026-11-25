@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\AccountAuditTrail;
 use App\Services\Field\MonitoringVisitService;
 use App\Services\Field\VisitKinds;
 use App\Services\Field\VisitorStatisticsService;
@@ -41,7 +42,7 @@ final class VisitController
     {
         VisitKinds::has($kind) || abort(404);
         $form = $visits->form($request->user(), $project, $kind);
-        app(\App\Services\AccountAuditTrail::class)->record($request->user()->id, 'visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
+        app(AccountAuditTrail::class)->record($request->user()->id, 'visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
 
         return view('visits.form', ['project' => $form['project'], 'code' => $this->code($form['project']), 'kind' => $kind, 'exists' => $form['visit'] !== null]);
     }
@@ -49,7 +50,7 @@ final class VisitController
     public function meCreate(Request $request, string $locale, int $project, int $person, MonitoringVisitService $me): View
     {
         $form = $me->form($request->user(), $project, $person, null);
-        app(\App\Services\AccountAuditTrail::class)->record($request->user()->id, 'me_visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
+        app(AccountAuditTrail::class)->record($request->user()->id, 'me_visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
 
         return view('visits.me', ['project' => $form['project'], 'code' => $this->code($form['project']), 'person' => $person, 'visit' => null, 'number' => $request->query('number')]);
     }
@@ -57,7 +58,7 @@ final class VisitController
     public function meShow(Request $request, string $locale, int $project, int $visit, MonitoringVisitService $me): View
     {
         $form = $me->form($request->user(), $project, null, $visit);
-        app(\App\Services\AccountAuditTrail::class)->record($request->user()->id, 'me_visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
+        app(AccountAuditTrail::class)->record($request->user()->id, 'me_visits.view', 'succeeded', (int) $form['project']->city_id, subjectType: 'application_entity', subjectId: $project);
 
         return view('visits.me', ['project' => $form['project'], 'code' => $this->code($form['project']), 'person' => (int) $form['person']->id, 'visit' => $visit, 'number' => null]);
     }

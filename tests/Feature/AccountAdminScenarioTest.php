@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\RoleAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -27,7 +28,7 @@ class AccountAdminScenarioTest extends TestCase
 
     private function signIn(string $username, string $password = 'password'): void
     {
-        $this->post('/ar/login', ['login' => (array_key_exists($username, \Database\Seeders\RoleAccountsSeeder::accounts()) ? \Database\Seeders\RoleAccountsSeeder::email($username) : null) ?? $username, 'password' => $password])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => (array_key_exists($username, RoleAccountsSeeder::accounts()) ? RoleAccountsSeeder::email($username) : null) ?? $username, 'password' => $password])->assertRedirect('/ar');
     }
 
     private function desktopUser(string $username, string $code): int

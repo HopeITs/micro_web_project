@@ -179,6 +179,7 @@ final class ApplicationFields
         }
         if ($grid['owner'] === 'person') {
             $details = PersonFields::DETAILS[$kind];
+
             // The desktop grid names who the row is about: the beneficiary or a family member.
             return in_array($kind, self::MEMBER_GRIDS, true) ? ['table' => $details['table'], 'fields' => ['person_id' => ['kind' => 'member']] + $details['fields']] : $details;
         }

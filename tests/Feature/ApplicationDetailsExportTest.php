@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use App\Livewire\SearchPage;
 use App\Models\WebAccount;
+use App\Services\Applications\ApplicationService;
+use App\Services\Attachments\AttachmentService;
 use App\Services\Reports\ApplicationDetailsExport;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -72,15 +76,16 @@ class ApplicationDetailsExportTest extends TestCase
         $this->assertFalse(app(ApplicationDetailsExport::class)->canExport(auth()->user()));
         Livewire::test(SearchPage::class)->set('mode', 'applications')->assertDontSee(__('search.export_details', [], 'ar'))->call('exportDetails', 'csv')->assertForbidden();
     }
+
     public function test_the_photo_column_links_to_the_personal_photo_only_when_there_is_one(): void
     {
-        \Illuminate\Support\Facades\Storage::fake('local');
+        Storage::fake('local');
         $admin = $this->as('role.administrator');
         $dam = (int) DB::table('cities')->where('code', 'DAM')->value('id');
-        $link = DB::table('project_applicants as b')->join('projects as p', 'p.id', '=', 'b.project_id')->where('p.city_id', $dam)->where('b.role', \App\Services\Applications\ApplicationService::BENEFICIARY)->whereNull('p.deleted_at')->whereNull('b.deleted_at')->orderBy('p.id')->first(['b.person_id']);
+        $link = DB::table('project_applicants as b')->join('projects as p', 'p.id', '=', 'b.project_id')->where('p.city_id', $dam)->where('b.role', ApplicationService::BENEFICIARY)->whereNull('p.deleted_at')->whereNull('b.deleted_at')->orderBy('p.id')->first(['b.person_id']);
         $this->assertNotNull($link);
-        $png = \Illuminate\Http\UploadedFile::fake()->createWithContent('me.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
-        app(\App\Services\Attachments\AttachmentService::class)->setPhoto($admin, (int) $link->person_id, $png);
+        $png = UploadedFile::fake()->createWithContent('me.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+        app(AttachmentService::class)->setPhoto($admin, (int) $link->person_id, $png);
         $photoId = (int) DB::table('attachments')->where('person_id', $link->person_id)->whereNull('deleted_at')->value('id');
 
         $redirect = Livewire::test(SearchPage::class)->set('mode', 'applications')->set('cities', [$dam])->call('exportDetails', 'csv')->effects['redirect'];

@@ -10,6 +10,8 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
 
 /**
@@ -133,11 +135,12 @@ class MeetingPaperScenarioTest extends TestCase
         $this->get("/ar/profession-meetings/$id/print/minutes")->assertForbidden();
         $this->assertSame(1, DB::table('account_audit_events')->where('event_type', 'access.denied')->where('outcome', 'denied')->count() >= 1 ? 1 : 0, 'The refusal is audited.');
     }
+
     /** The text of word/document.xml inside a downloaded .docx. */
-    private function docx(\Symfony\Component\HttpFoundation\Response $response): string
+    private function docx(Response $response): string
     {
         $file = tempnam(sys_get_temp_dir(), 'dx');
-        file_put_contents($file, $response instanceof \Symfony\Component\HttpFoundation\StreamedResponse ? '' : $response->getContent());
+        file_put_contents($file, $response instanceof StreamedResponse ? '' : $response->getContent());
         $zip = new \ZipArchive;
         $this->assertTrue($zip->open($file) === true, 'The download is a zip (.docx).');
         $xml = (string) $zip->getFromName('word/document.xml');

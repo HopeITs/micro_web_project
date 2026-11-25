@@ -10,11 +10,15 @@ use App\Livewire\VisitResults;
 use App\Livewire\VisitSchedule;
 use App\Models\WebAccount;
 use App\Services\Field\MonitoringVisitService;
+use App\Services\Field\VisitService;
 use App\Services\Lifecycle\LifecycleService;
+use App\Services\ProjectNumberAllocator;
 use App\Services\Staff\ProjectNotices;
+use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -152,9 +156,9 @@ class VisitScenarioTest extends TestCase
         // A second opening is refused (the project became a vehicle project meanwhile, so the V form is asked for).
         DB::table('projects')->where('id', $project->id)->update(['project_subcategory_id' => DB::table('project_subcategories')->where('name_ar', 'Taxi')->value('id')]);
         Livewire::test(VisitForm::class, ['projectId' => $project->id, 'kind' => 'V-op'])->assertNotFound();
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
-        app(\App\Services\Field\VisitService::class)->save(WebAccount::where('username', 'role.data-entry')->first(), $project->id, 'V-op',
-            ['date' => '2026-02-02', 'vehicle' => 'X1', 'visitors' => [$this->visitor()]], app(\App\Services\Field\VisitService::class)->version(DB::table('projects')->find($project->id), app(\App\Services\Field\VisitService::class)->visits($project->id)));
+        $this->expectException(ValidationException::class);
+        app(VisitService::class)->save(WebAccount::where('username', 'role.data-entry')->first(), $project->id, 'V-op',
+            ['date' => '2026-02-02', 'vehicle' => 'X1', 'visitors' => [$this->visitor()]], app(VisitService::class)->version(DB::table('projects')->find($project->id), app(VisitService::class)->visits($project->id)));
     }
 
     public function test_dates_and_visitors_are_checked(): void
@@ -349,8 +353,8 @@ class VisitScenarioTest extends TestCase
         $moved = DB::table('web_notices')->where('id', $m1->id)->first();
         $this->assertSame('2026-08-20', substr((string) $moved->notice_date, 0, 10));
         $this->assertSame(substr((string) $m1->notice_date, 0, 10), substr((string) $moved->original_date, 0, 10));
-        $days = (int) \Carbon\CarbonImmutable::parse(substr((string) $m1->notice_date, 0, 10))->diffInDays('2026-08-20', false);
-        $this->assertSame(\Carbon\CarbonImmutable::parse(substr((string) $m2->notice_date, 0, 10))->addDays($days)->toDateString(), substr((string) DB::table('web_notices')->where('id', $m2->id)->value('notice_date'), 0, 10));
+        $days = (int) CarbonImmutable::parse(substr((string) $m1->notice_date, 0, 10))->diffInDays('2026-08-20', false);
+        $this->assertSame(CarbonImmutable::parse(substr((string) $m2->notice_date, 0, 10))->addDays($days)->toDateString(), substr((string) DB::table('web_notices')->where('id', $m2->id)->value('notice_date'), 0, 10));
         $this->assertTrue(DB::table('account_audit_events')->where('event_type', 'notifications.rescheduled')->exists());
 
         $this->get('/ar/visits/schedule/export?format=csv&visit=Opening')->assertOk();
@@ -374,7 +378,7 @@ class VisitScenarioTest extends TestCase
         $row = $counts->firstWhere('question', $first->name);
         $this->assertSame(1, $row->answers[0]->count, 'The chosen answer is counted once.');
         $answers = Livewire::test(VisitResults::class)->set('view', 'answers')->set('visit', 'opening')->set('cities', [(int) $project->city_id]);
-        $this->assertTrue($answers->viewData('rows')->getCollection()->contains(fn ($r) => $r[1] === \App\Services\ProjectNumberAllocator::display((string) DB::table('cities')->where('id', $project->city_id)->value('code'), (int) $project->project_number)));
+        $this->assertTrue($answers->viewData('rows')->getCollection()->contains(fn ($r) => $r[1] === ProjectNumberAllocator::display((string) DB::table('cities')->where('id', $project->city_id)->value('code'), (int) $project->project_number)));
         $this->get('/ar/visits/results/export?format=csv&view=answers&visit=M')->assertOk();
 
         // Visitor statistics: administrator only.

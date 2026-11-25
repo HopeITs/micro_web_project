@@ -8,6 +8,7 @@ use App\Services\AccountAuditTrail;
 use App\Services\AccountProvisioner;
 use App\Services\People\PeopleService;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\RoleAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,7 @@ class AuditLogScenarioTest extends TestCase
 
     private function signIn(string $username, string $password = 'password'): void
     {
-        $this->post('/ar/login', ['login' => \Database\Seeders\RoleAccountsSeeder::email($username) ?? $username, 'password' => $password])->assertRedirect('/ar');
+        $this->post('/ar/login', ['login' => RoleAccountsSeeder::email($username) ?? $username, 'password' => $password])->assertRedirect('/ar');
     }
 
     private function accountId(string $username): int

@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Reads the XLSForm exports of the Kobo forms (one <form_uid>.xlsx each; sheets survey / choices / settings) and writes
  * resources/kobo/form-rules.json: for every field path the rules the question catalogue lacks — required, relevant (show-if),
@@ -21,7 +22,7 @@ $report = ['forms' => 0, 'fields' => 0, 'unknown_reference' => [], 'not_in_catal
 
 foreach (glob($dir.'/*.xlsx') as $file) {
     $uid = basename($file, '.xlsx');
-    $reader = new Reader();
+    $reader = new Reader;
     $reader->open($file);
     $rows = [];
     foreach ($reader->getSheetIterator() as $sheet) {
@@ -146,7 +147,7 @@ ksort($out);
 file_put_contents(__DIR__.'/../../resources/kobo/form-rules.json', json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 echo json_encode(['forms' => $report['forms'], 'fields' => $report['fields'], 'group_relevant' => $report['group_relevant'], 'unknown_reference' => count($report['unknown_reference']), 'not_in_catalog' => count($report['not_in_catalog']), 'unsupported' => count($report['unsupported'])]), "\n";
 foreach (['unknown_reference', 'not_in_catalog', 'unsupported'] as $k) {
-    foreach (array_slice(array_filter($report[$k], fn ($l) => ! str_contains($l, "aLP57orWHmvSSrYgGyzWLf")), 0, 8) as $line) {
+    foreach (array_slice(array_filter($report[$k], fn ($l) => ! str_contains($l, 'aLP57orWHmvSSrYgGyzWLf')), 0, 8) as $line) {
         echo "$k: $line\n";
     }
 }

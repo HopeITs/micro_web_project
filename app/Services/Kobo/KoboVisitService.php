@@ -442,7 +442,7 @@ final class KoboVisitService
         return AccountAuditTrail::sanitize($out) ?? [];
     }
 
-    private function clean(array $field, mixed $value, string $key): string|null
+    private function clean(array $field, mixed $value, string $key): ?string
     {
         $kind = $field['kind'];
         if ($kind === 'select_multiple') {

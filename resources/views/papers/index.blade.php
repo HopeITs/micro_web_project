@@ -20,6 +20,7 @@
     </style>
     <div class="hc-page-head">
         <div><p class="hc-eyebrow">{{ __('hc.group_tools') }}</p><h1>{{ __('papers.title') }}</h1><p>{{ __('papers.intro') }}</p></div>
+        @if(! empty($manage))<x-hc.button variant="secondary" icon="settings" :href="route('papers.settings', ['locale' => $locale])">{{ __('papers.settings.open') }}</x-hc.button>@endif
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
     @if($errors->any())<x-hc.alert type="danger" style="margin-block-end:16px">{{ $errors->first() }}</x-hc.alert>@endif

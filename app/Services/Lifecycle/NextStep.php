@@ -8,6 +8,7 @@ use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountAccess;
 use App\Services\Applications\ApplicationService;
+use App\Services\Field\VisitKinds;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -76,7 +77,7 @@ final class NextStep
             ->distinct()->pluck('r.role')->all();
 
         // M4.12: a visit task (Opening Visit, M1…, Clearance) leads to the project's visits page for those who record visits.
-        if ($account !== null && $projectId !== null && in_array($task->name_ar, \App\Services\Field\VisitKinds::TASKS, true)
+        if ($account !== null && $projectId !== null && in_array($task->name_ar, VisitKinds::TASKS, true)
             && ($this->access->check($account, $city, 'visits.manage') || $this->access->check($account, $city, 'me_visits.manage'))) {
             return $this->step('task', $roles === [] ? ['administrator'] : $roles, route('visits.hub', ['locale' => app()->getLocale(), 'project' => $projectId]), 'open_visits', ['task' => $name]);
         }

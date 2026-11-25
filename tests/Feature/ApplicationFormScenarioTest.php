@@ -9,12 +9,14 @@ use App\Services\AccountProvisioner;
 use App\Services\Applications\ApplicationService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /** M4.5 user scenarios: a data-entry employee registers preliminary and full applications with the beneficiary and the internal grids. */
@@ -288,7 +290,7 @@ class ApplicationFormScenarioTest extends TestCase
         try {
             $service->save(auth()->user(), $again, $project, true);
             $this->fail('saved a row about someone outside the family');
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (HttpException $e) {
             $this->assertSame(404, $e->getStatusCode());
         }
         $work = ['person_id' => 'self', 'occupation_id' => $this->id('occupations'), 'work_type_id' => '', 'salary' => '1000'];
@@ -321,9 +323,10 @@ class ApplicationFormScenarioTest extends TestCase
     {
         $this->actingAs(WebAccount::where('username', 'super.admin')->firstOrFail());
         Storage::fake('local');
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('budget.pdf', "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n");
-        $this->newPreliminary()->set('budgetFile', $file)->call('save')->assertHasNoErrors(); fwrite(STDERR, 'DBG '.json_encode([session('warning'), session('status')], JSON_UNESCAPED_UNICODE)."
-");
+        $file = UploadedFile::fake()->createWithContent('budget.pdf', "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n");
+        $this->newPreliminary()->set('budgetFile', $file)->call('save')->assertHasNoErrors();
+        fwrite(STDERR, 'DBG '.json_encode([session('warning'), session('status')], JSON_UNESCAPED_UNICODE).'
+');
         $project = (int) DB::table('projects')->latest('id')->value('id');
         $row = DB::table('attachments as a')->join('attachment_types as t', 't.id', '=', 'a.attachment_type_id')->where('a.project_id', $project)->first(['a.original_name', 't.name_en']);
         $this->assertSame('budget.pdf', $row?->original_name);

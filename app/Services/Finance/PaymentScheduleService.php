@@ -8,10 +8,9 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\ProjectNumberAllocator;
-use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use App\Support\Datasets\InstallmentsDataset;
 use App\Support\Datasets\QuerySpec;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -57,6 +56,7 @@ final class PaymentScheduleService
             'canExport' => $permitted->contains(fn ($city) => $this->access->check($account, (int) $city->id, 'finance.export')),
         ];
     }
+
     /** The page was opened: refused without finance in any city, else audited once. Returns the permitted cities. */
     public function opened(WebAccount $account): Collection
     {
@@ -183,6 +183,7 @@ final class PaymentScheduleService
 
         return [$query->toBase(), $this->dateColumn($filters)];
     }
+
     private function view(EloquentBuilder $query, string $view): void
     {
         $today = now()->toDateString();

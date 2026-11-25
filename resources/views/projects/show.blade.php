@@ -23,12 +23,31 @@
             @endif
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'assessments.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('checklists.show', ['locale' => app()->getLocale(), 'project' => $project->id])">Checklist</x-hc.button>
+            @endif
+            {{-- The application's papers show to everyone who may open them: applications.view (owner decision, 25 Nov 2026); Special Case also needs special_cases.view. --}}
+            @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
                 <x-hc.button icon="file" variant="secondary" :href="route('applications.print', ['locale' => app()->getLocale(), 'project' => $project->id])" target="_blank" rel="noopener">{{ __('papers.print_application') }}</x-hc.button>
                 <x-hc.button icon="file" variant="secondary" :href="route('applications.file', ['locale' => app()->getLocale(), 'project' => $project->id])" target="_blank" rel="noopener">{{ __('papers.print_file') }}</x-hc.button>
+                @foreach(['audio-consent' => 'print_audio', 'special-case' => 'print_special', 'experience-test' => 'print_test'] as $paperKey => $paperLabel)
+                    @continue($paperKey === 'special-case' && ! app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'special_cases.view'))
+                    <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $paperKey])" target="_blank" rel="noopener">{{ __('paper_project.'.$paperLabel) }}</x-hc.button>
+                @endforeach
+                {{-- Hope Center's consent prints for every project; the two Caritas Polska consents only for Caritas projects (owner decisions, 25 Nov 2026). --}}
+                <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => 'photo-informed'])" target="_blank" rel="noopener">{{ __('paper_consent.print_photo_informed') }}</x-hc.button>
+                @if(\App\Services\Papers\ProjectPaper::isCaritas((int) $project->id))
+                    @foreach(['photo-adult' => 'print_photo_adult', 'photo-child' => 'print_photo_child'] as $paperKey => $paperLabel)
+                        <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $paperKey])" target="_blank" rel="noopener">{{ __('paper_consent.'.$paperLabel) }}</x-hc.button>
+                    @endforeach
+                @endif
             @endif
             @php($finance = app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'finance.view') && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
             @if($finance)
                 <x-hc.button icon="wallet" variant="secondary" :href="route('finance.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('finance.open') }}</x-hc.button>
+                @foreach(['promissory-note' => 'print_note', 'clearance' => 'print_clearance', 'disbursement-request' => 'print_disbursement', 'partnership-contract' => 'print_partnership', 'beneficiary-card' => 'print_card'] as $financeKey => $financeLabel)
+                    <x-hc.button icon="file" variant="ghost" :href="route('applications.finance-paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $financeKey])" target="_blank" rel="noopener">{{ __('paper_finance.'.$financeLabel) }}</x-hc.button>
+                @endforeach
+                <x-hc.button icon="settings" variant="ghost" :href="route('applications.paper-data', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('papers.data.open') }}</x-hc.button>
+                <x-hc.button icon="file" variant="ghost" :href="route('applications.deeds', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('paper_deeds.open_deeds') }}</x-hc.button>
             @endif
             {{-- M4.12: the project's visits (visits.view or me_visits.view, with applications.view). --}}
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view') && (app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'visits.view') || app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'me_visits.view')))
@@ -44,6 +63,11 @@
             @endif
             @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'purchasing.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('purchasing.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('purchasing.open') }}</x-hc.button>
+                @foreach(['purchase-request' => 'print_request', 'price-quote' => 'print_quote', 'equipment-receipt' => 'print_receipt', 'equipment-return' => 'print_return'] as $purchaseKey => $purchaseLabel)
+                    <x-hc.button icon="file" variant="ghost" :href="route('applications.purchase-paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $purchaseKey])" target="_blank" rel="noopener">{{ __('paper_purchase.'.$purchaseLabel) }}</x-hc.button>
+                @endforeach
+                <x-hc.button icon="settings" variant="ghost" :href="route('applications.purchase-data', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('purchase_data.open') }}</x-hc.button>
+                <x-hc.button icon="file" variant="ghost" :href="route('applications.sale-contracts', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('paper_deeds.open_sales') }}</x-hc.button>
             @endif
             @php($annex = app(\App\Services\Applications\ProjectAnnexService::class)->kind($project))
             @if($annex)

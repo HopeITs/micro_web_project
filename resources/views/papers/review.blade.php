@@ -38,7 +38,7 @@
             @if($isPdf)<iframe src="{{ $originalUrl }}" title="{{ __('papers.review_original') }}"></iframe>@else<img src="{{ $originalUrl }}" alt="{{ __('papers.review_original') }}">@endif
         </section>
         <section><h2>{{ __('papers.review_redraw') }}</h2>
-            @if($project)<iframe src="{{ route('applications.print', ['locale' => $locale, 'project' => $project]) }}" title="{{ __('papers.review_redraw') }}"></iframe>@else<p style="padding:16px">{{ __('papers.review_no_project') }}</p>@endif
+            @if($redraw)<iframe src="{{ $redraw }}" title="{{ __('papers.review_redraw') }}"></iframe>@else<p style="padding:16px">{{ __('papers.review_no_project') }}</p>@endif
         </section>
     </div>
     @endif

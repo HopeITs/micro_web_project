@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\Staff;
 
+use App\Mail\StaffMessage;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
-use App\Mail\StaffMessage;
 use App\Services\ProjectNumberAllocator;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 /**

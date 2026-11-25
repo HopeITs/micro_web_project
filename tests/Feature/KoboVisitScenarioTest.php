@@ -7,6 +7,7 @@ use App\Livewire\KoboVisitForm;
 use App\Models\WebAccount;
 use App\Services\Kobo\KoboCatalog;
 use App\Services\Kobo\KoboRules;
+use App\Services\Kobo\KoboVisitService;
 use App\Services\Lifecycle\LifecycleService;
 use App\Services\Staff\ProjectNotices;
 use Database\Seeders\DatabaseSeeder;
@@ -266,7 +267,7 @@ class KoboVisitScenarioTest extends TestCase
         $this->complete($page->set($plate, '123456'), self::VEHICLE_OPENING)->assertHasNoErrors();
         $visit = DB::table('visits')->where('project_id', $project->id)->first();
         $this->assertSame(['V-op', '123456'], [$visit->kind, $visit->vehicle_number]);
-        $forms = app(\App\Services\Kobo\KoboVisitService::class)->forms($project);
+        $forms = app(KoboVisitService::class)->forms($project);
         $this->assertSame(['vehicle'], array_values(array_unique(array_column($forms, 'category'))));
     }
 
@@ -441,8 +442,8 @@ class KoboVisitScenarioTest extends TestCase
         $this->assertFalse(KoboRules::test("selected(\${m}, 'tw')", $value(['m' => 'one two'])));
         $this->assertTrue(KoboRules::test("\${a} = 'x' or \${b} = 'y' and \${c} = 'z'", $value(['a' => 'x'])), 'and binds tighter than or');
         $this->assertFalse(KoboRules::test("\${a} = 'q' or \${b} = 'y' and \${c} = 'z'", $value(['b' => 'y'])));
-        $this->assertFalse(KoboRules::test("\${s2} != \${s1}", $value(['s1' => 'v', 's2' => 'v'])), 'the ranking constraint refuses the same choice twice');
-        $this->assertTrue(KoboRules::test("\${s2} != \${s1}", $value(['s1' => 'v', 's2' => 'w'])));
+        $this->assertFalse(KoboRules::test('${s2} != ${s1}', $value(['s1' => 'v', 's2' => 'v'])), 'the ranking constraint refuses the same choice twice');
+        $this->assertTrue(KoboRules::test('${s2} != ${s1}', $value(['s1' => 'v', 's2' => 'w'])));
         $this->assertTrue(KoboRules::test('not-a-supported-expression', $value([])), 'an unsupported expression never blocks');
         // Every expression of the 47 exported forms is inside the grammar (the exporter reports none outside it).
         foreach (KoboRules::all() as $uid => $paths) {

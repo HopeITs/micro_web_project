@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\PaymentSchedule;
+use App\Models\SavedView;
 use App\Models\WebAccount;
 use App\Services\Finance\PaymentScheduleService;
 use App\Services\ProjectNumberAllocator;
@@ -10,6 +11,7 @@ use App\Support\CityContext;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -67,7 +69,7 @@ class InstallmentSmartFilterScenarioTest extends TestCase
         return [$a, $b, $past, $soon, $later];
     }
 
-    private function usd(): \Livewire\Features\SupportTesting\Testable
+    private function usd(): Testable
     {
         return Livewire::test(PaymentSchedule::class)->set('currency', 'USD');
     }
@@ -125,7 +127,7 @@ class InstallmentSmartFilterScenarioTest extends TestCase
     {
         $this->fixture();
         $page = $this->usd()->call('toggleFilterValue', 'status', 'overdue')->set('search', 'x')->call('saveView', 'متأخرة')->assertSet('viewError', null);
-        $view = \App\Models\SavedView::where('dataset', 'installments')->firstOrFail();
+        $view = SavedView::where('dataset', 'installments')->firstOrFail();
         $this->assertSame('overdue', $view->spec['filters'][0]['values'][0]);
         $this->assertStringNotContainsString('x', json_encode($view->spec));
         $page->call('clearFilters');

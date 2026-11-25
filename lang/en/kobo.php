@@ -29,8 +29,8 @@ return [
     'unlinked' => 'Visitors without an account (:count)', 'unlinked_hint' => 'Visitor names on Kobo visits that have no website account.',
     'saved' => 'Visit saved.', 'deleted' => 'Visit deleted.', 'new_visit' => 'New Kobo visit', 'edit' => 'Open / edit',
     'origin' => ['web' => 'Entered on the website', 'kobo' => 'From Kobo'],
-        'draft' => ['found' => 'A draft saved on this device was found (:at). Restore it?', 'lost' => 'The connection was lost. Your answers are kept on this device; when it is back press "Send draft".', 'restore' => 'Restore the draft', 'send' => 'Send draft', 'discard' => 'Discard the draft'],
-'visit' => [
+    'draft' => ['found' => 'A draft saved on this device was found (:at). Restore it?', 'lost' => 'The connection was lost. Your answers are kept on this device; when it is back press "Send draft".', 'restore' => 'Restore the draft', 'send' => 'Send draft', 'discard' => 'Discard the draft'],
+    'visit' => [
         'title' => 'Kobo visit', 'back' => 'Back to Kobo', 'choose_form' => 'Choose the form', 'choose_hint' => 'Forms suggested for this project carry a star. The visit is stored as it used to arrive from Kobo, so it shows in the results, schedule and statistics.',
         'no_forms' => 'This city has no forms', 'no_forms_hint' => 'Kobo forms are added to the city with the data transfer.', 'basics' => 'Visit details', 'person' => 'Beneficiary or partner',
         'stage_production' => 'The visit number is set from the previous visit and the "production started" answer.', 'stage_fixed' => 'The form sets the visit number.', 'other_section' => 'Other questions',

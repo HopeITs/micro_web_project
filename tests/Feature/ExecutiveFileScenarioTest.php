@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\ExecutiveFileEditor;
 use App\Models\WebAccount;
 use App\Services\Finance\ExecutiveFileService;
+use App\Services\ProjectNumberAllocator;
 use App\Services\Search\GlobalSearch;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -184,7 +185,7 @@ class ExecutiveFileScenarioTest extends TestCase
     public function test_the_palette_offers_the_page_only_to_those_who_may_open_it(): void
     {
         $project = $this->project();
-        $term = \App\Services\ProjectNumberAllocator::display(DB::table('cities')->where('id', $project->city_id)->value('code'), (int) $project->project_number);
+        $term = ProjectNumberAllocator::display(DB::table('cities')->where('id', $project->city_id)->value('code'), (int) $project->project_number);
         $titles = fn (string $user) => array_column(app(GlobalSearch::class)->search(WebAccount::where('username', $user)->firstOrFail(), $term)['commands'], 'url');
         $url = route('executive.show', ['locale' => app()->getLocale(), 'project' => $project->id]);
         $this->assertContains($url, $titles('role.legal'));

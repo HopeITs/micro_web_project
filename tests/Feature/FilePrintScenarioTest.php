@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\AccessRoles;
+use App\Services\AccountAccess;
 use App\Services\AccountProvisioner;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\RoleAccountsSeeder;
@@ -68,7 +69,7 @@ class FilePrintScenarioTest extends TestCase
         $this->signIn('file.hms@hcsyria.org');
 
         $page = $this->get('/ar/applications/'.$hms.'/file/print')->assertOk()->assertSee('ملف المستفيد');
-        $manage = app(\App\Services\AccountAccess::class)->check($account->fresh(), $this->city('HMS'), 'assessments.manage');
+        $manage = app(AccountAccess::class)->check($account->fresh(), $this->city('HMS'), 'assessments.manage');
         $manage ? $page->assertSee('class="letterhead"', false) : $page->assertDontSee('class="letterhead"', false)->assertSee('غير مرفقة');
         $this->assertContains($this->get('/ar/applications/'.$dam.'/file/print')->status(), [403, 404]);
     }

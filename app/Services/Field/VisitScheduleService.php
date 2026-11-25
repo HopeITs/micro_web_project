@@ -11,7 +11,6 @@ use App\Services\Finance\Fields;
 use App\Services\ProjectNumberAllocator;
 use App\Services\Staff\NoticeService;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -211,7 +210,9 @@ final class VisitScheduleService
                     foreach ($this->decorate(collect($chunk->all())) as $r) {
                         yield [$r->display_number, $r->project_name, $r->title, $en && $r->state_en ? $r->state_en : $r->state_ar, $en && $r->donor_en ? $r->donor_en : $r->donor_ar,
                             $en && $r->type_en ? $r->type_en : $r->type_ar, $r->body, $r->notice_date, $r->home_area, $r->project_area, $r->mobile, $r->next_due,
-                            match ($r->status) { 'done' => __('visits.schedule.done'), 'na' => '—', default => __('visits.schedule.not_yet') }, $r->note];
+                            match ($r->status) {
+                                'done' => __('visits.schedule.done'), 'na' => '—', default => __('visits.schedule.not_yet')
+                            }, $r->note];
                     }
                 }
             })()];

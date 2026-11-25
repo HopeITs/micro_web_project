@@ -12,6 +12,7 @@ use App\Services\Papers\ApplicationPaper;
 use App\Services\Reports\Search\SearchModes;
 use App\Services\Reports\Search\SearchService;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * M4.18, the desktop's "all application details" (كل معلومات الاستمارة): one row per project of the applications search with every field
@@ -78,7 +79,7 @@ final class ApplicationDetailsExport
         }
         try {
             $photo = $this->attachments->photo($account, $personId);
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
+        } catch (HttpException) {
             return '';
         }
 

@@ -6,12 +6,16 @@ use App\Livewire\LookupEditor;
 use App\Livewire\ProjectPurchases;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
+use App\Services\AccountProvisioner;
 use App\Services\Finance\PurchasingService;
 use App\Services\Lifecycle\LifecycleService;
+use App\Services\ProjectNumberAllocator;
 use App\Services\Search\GlobalSearch;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -185,7 +189,7 @@ class PurchasingScenarioTest extends TestCase
         try {
             app(PurchasingService::class)->save(WebAccount::where('username', 'role.data-entry')->firstOrFail(), $project->id, $rows, $version);
             $this->fail('A foreign row was accepted.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->assertArrayHasKey('rows', $e->errors());
         }
         $this->assertSame('foreign', DB::table('purchases')->where('id', $foreign)->value('item_name'));
@@ -208,9 +212,9 @@ class PurchasingScenarioTest extends TestCase
     public function test_the_role_sync_moves_the_capabilities_of_existing_holders(): void
     {
         $city = (int) DB::table('cities')->where('code', 'DAM')->value('id');
-        $provisioner = app(\App\Services\AccountProvisioner::class);
+        $provisioner = app(AccountProvisioner::class);
         $make = function (string $name, array $roles, array $caps) use ($provisioner, $city) {
-            $account = $provisioner->createPlain($name, $name.'@hcsyria.org', \Illuminate\Support\Facades\Hash::make('a-long-test-password'), 'test:sync');
+            $account = $provisioner->createPlain($name, $name.'@hcsyria.org', Hash::make('a-long-test-password'), 'test:sync');
             foreach ($roles as $role) {
                 DB::table('account_city_roles')->insert(['account_id' => $account->id, 'city_id' => $city, 'role' => $role, 'decision_locator' => 'test:sync', 'assigned_at' => now('UTC')]);
             }
@@ -249,7 +253,7 @@ class PurchasingScenarioTest extends TestCase
         $this->assertNotContains('executive_files.manage', AccessRoles::capabilities('data-entry'));
 
         $project = $this->project();
-        $term = \App\Services\ProjectNumberAllocator::display(DB::table('cities')->where('id', $project->city_id)->value('code'), (int) $project->project_number);
+        $term = ProjectNumberAllocator::display(DB::table('cities')->where('id', $project->city_id)->value('code'), (int) $project->project_number);
         $urls = fn (string $user) => array_column(app(GlobalSearch::class)->search(WebAccount::where('username', $user)->firstOrFail(), $term)['commands'], 'url');
         $url = route('purchasing.show', ['locale' => app()->getLocale(), 'project' => $project->id]);
         $this->assertContains($url, $urls('role.data-entry'));

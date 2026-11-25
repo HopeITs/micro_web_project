@@ -6,6 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Services\Papers\ApplicationPaper;
 use App\Services\Papers\FilePaper;
+use App\Services\Papers\FinancePaper;
+use App\Services\Papers\ProjectPaper;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -23,5 +25,19 @@ final class PaperPrintController
     public function file(Request $request, string $locale, int $project, FilePaper $paper): View
     {
         return view('papers.file', $paper->forPrint($request->user(), $project));
+    }
+
+    /** M4.20 wave 1: the audio consent (F04), Special Case (F05, optionally one case) and the experience test (F06) of a project. */
+    public function project(Request $request, string $locale, int $project, string $paper, ProjectPaper $papers): View
+    {
+        $case = $request->filled('case') ? (int) $request->query('case') : null;
+
+        return view('papers.'.$paper, ['d' => $papers->forPrint($request->user(), $project, $paper, $case)]);
+    }
+
+    /** M4.20 wave 2: the promissory note (F10), clearance (F23), disbursement request (F19) and partnership contract (F18) of a project. */
+    public function finance(Request $request, string $locale, int $project, string $paper, FinancePaper $papers): View
+    {
+        return view('papers.'.$paper, ['d' => $papers->forPrint($request->user(), $project, $paper)]);
     }
 }

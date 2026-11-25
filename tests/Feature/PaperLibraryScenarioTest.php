@@ -132,7 +132,7 @@ class PaperLibraryScenarioTest extends TestCase
         $this->get('/ar/papers/original?'.http_build_query(['form' => 'F03', 'city' => 'DAM', 'variant' => 'syrian', 'format' => 'pdf']))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
         // A paper that is not redrawn has no review page; the original is also limited to the account's cities.
-        $this->get('/ar/papers/review/F10')->assertNotFound();
+        $this->get('/ar/papers/review/F01')->assertNotFound();
     }
 
     public function test_the_review_page_and_original_respect_the_account_cities(): void

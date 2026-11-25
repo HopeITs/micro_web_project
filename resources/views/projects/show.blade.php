@@ -23,9 +23,13 @@
             @endif
             @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'assessments.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('checklists.show', ['locale' => app()->getLocale(), 'project' => $project->id])">Checklist</x-hc.button>
+            @endif
+            {{-- The application's papers show to everyone who may open them: applications.view (owner decision, 25 Nov 2026); Special Case also needs special_cases.view. --}}
+            @if(app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'applications.view'))
                 <x-hc.button icon="file" variant="secondary" :href="route('applications.print', ['locale' => app()->getLocale(), 'project' => $project->id])" target="_blank" rel="noopener">{{ __('papers.print_application') }}</x-hc.button>
                 <x-hc.button icon="file" variant="secondary" :href="route('applications.file', ['locale' => app()->getLocale(), 'project' => $project->id])" target="_blank" rel="noopener">{{ __('papers.print_file') }}</x-hc.button>
                 @foreach(['audio-consent' => 'print_audio', 'special-case' => 'print_special', 'experience-test' => 'print_test'] as $paperKey => $paperLabel)
+                    @continue($paperKey === 'special-case' && ! app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'special_cases.view'))
                     <x-hc.button icon="file" variant="ghost" :href="route('applications.paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $paperKey])" target="_blank" rel="noopener">{{ __('paper_project.'.$paperLabel) }}</x-hc.button>
                 @endforeach
                 {{-- Hope Center's consent prints for every project; the two Caritas Polska consents only for Caritas projects (owner decisions, 25 Nov 2026). --}}

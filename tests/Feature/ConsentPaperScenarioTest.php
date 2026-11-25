@@ -90,6 +90,27 @@ class ConsentPaperScenarioTest extends TestCase
         $this->get('/ar/applications/'.$id.'/papers/photo-informed')->assertSee('طفلأول')->assertSee('طفلثان');
     }
 
+    /** Every role sees the buttons of exactly the application papers it can open. */
+    public function test_each_role_sees_the_print_buttons_of_the_papers_it_may_open(): void
+    {
+        $id = $this->project();
+        $this->donor($id, 'Caritas Poland');
+        $base = '/ar/applications/'.$id;
+        $papers = ['print', 'file/print', 'papers/audio-consent', 'papers/special-case', 'papers/experience-test', 'papers/photo-informed', 'papers/photo-adult', 'papers/photo-child'];
+        foreach (array_keys(\App\Services\AccessRoles::ROLES) as $role) {
+            \Illuminate\Support\Facades\Auth::guard()->logout();
+            $this->flushSession();
+            $this->post('/ar/login', ['login' => RoleAccountsSeeder::email('role.'.$role), 'password' => 'password'])->assertRedirect();
+            $page = $this->get('/ar/projects/'.$id)->assertOk()->getContent();
+            foreach ($papers as $paper) {
+                $shown = str_contains($page, $base.'/'.$paper.'"');
+                $opens = $this->get($base.'/'.$paper)->status() === 200;
+                $this->assertSame($opens, $shown, $role.' · '.$paper);
+            }
+            $this->assertSame($this->get($base.'/checklist')->status() === 200, str_contains($page, $base.'/checklist"'), $role.' · checklist');
+        }
+    }
+
     public function test_every_redrawn_paper_has_a_comparison_page_whose_redraw_can_be_framed(): void
     {
         Storage::fake('local');

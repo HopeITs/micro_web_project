@@ -51,6 +51,10 @@
             @endif
             @if($viewsApplication && app(\App\Services\AccountAccess::class)->check(auth()->user(), (int) $project->city_id, 'purchasing.view'))
                 <x-hc.button icon="clipboard" variant="secondary" :href="route('purchasing.show', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('purchasing.open') }}</x-hc.button>
+                @foreach(['purchase-request' => 'print_request', 'price-quote' => 'print_quote', 'equipment-receipt' => 'print_receipt', 'equipment-return' => 'print_return'] as $purchaseKey => $purchaseLabel)
+                    <x-hc.button icon="file" variant="ghost" :href="route('applications.purchase-paper', ['locale' => app()->getLocale(), 'project' => $project->id, 'paper' => $purchaseKey])" target="_blank" rel="noopener">{{ __('paper_purchase.'.$purchaseLabel) }}</x-hc.button>
+                @endforeach
+                <x-hc.button icon="settings" variant="ghost" :href="route('applications.purchase-data', ['locale' => app()->getLocale(), 'project' => $project->id])">{{ __('purchase_data.open') }}</x-hc.button>
             @endif
             @php($annex = app(\App\Services\Applications\ProjectAnnexService::class)->kind($project))
             @if($annex)

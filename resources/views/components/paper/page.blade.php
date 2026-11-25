@@ -5,6 +5,6 @@
     <table class="frame">
         <thead><tr><td><img src="{{ asset('assets/brand/checklist-header.png') }}" alt="Hope Center"></td></tr></thead>
         <tbody><tr><td>{{ $slot }}</td></tr></tbody>
-        <tfoot><tr><td><b>Address:</b> {{ $footer['address'] }} &nbsp; <b>Mobile:</b> <bdi dir="ltr">{{ $footer['mobile'] }}</bdi></td></tr></tfoot>
+        <tfoot><tr><td dir="ltr"><b>Address:</b> {{ $footer['address'] }} &nbsp; <b>Mobile:</b> <bdi dir="ltr">{{ $footer['mobile'] }}</bdi></td></tr></tfoot>
     </table>
 </section>

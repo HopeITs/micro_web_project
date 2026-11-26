@@ -52,5 +52,4 @@
         @endif
     </section>
 
-    @include('desk.recent')
 </div>

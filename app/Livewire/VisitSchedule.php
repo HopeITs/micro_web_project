@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\ExportsPrivately;
+use App\Livewire\Concerns\HasTableSort;
 use App\Services\Field\VisitScheduleService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
@@ -9,9 +11,11 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-/** The visit schedule page (M4.12): filters, the shared visit notices, hide / restore, note and reschedule. */
+/** The visit schedule page (M4.12): filters, header sorting, the shared visit notices, hide / restore, note and reschedule. */
 class VisitSchedule extends Component
 {
+    use ExportsPrivately;
+    use HasTableSort;
     use WithPagination;
 
     /** @var list<int> */
@@ -83,12 +87,27 @@ class VisitSchedule extends Component
         $this->resetPage();
     }
 
+    protected function sortableKeys(): array
+    {
+        return VisitScheduleService::SORT_KEYS;
+    }
+
+    protected function exportTarget(): array
+    {
+        return ['visit-schedule', 'visits.schedule.export'];
+    }
+
+    protected function exportFilters(): array
+    {
+        return array_filter($this->filters(), fn ($v) => $v !== null && $v !== [] && $v !== false);
+    }
+
     /** @return array<string, mixed> */
     public function filters(): array
     {
         $int = fn (string $v, int $min, int $max) => ($i = filter_var($v, FILTER_VALIDATE_INT, ['options' => ['min_range' => $min, 'max_range' => $max]])) === false ? null : $i;
 
-        return [
+        return $this->sortFilters() + [
             'cities' => array_values(array_filter(array_map('intval', $this->cities))), 'year' => $int($this->year, 2000, 2100),
             'months' => array_values(array_filter(array_map('intval', $this->months), fn ($m) => $m >= 1 && $m <= 12)),
             'kind' => in_array($this->kind, ['V', 'O'], true) ? $this->kind : null, 'visit' => in_array($this->visit, VisitScheduleService::VISITS, true) ? $this->visit : null,
@@ -154,9 +173,10 @@ class VisitSchedule extends Component
     {
         $filters = $this->filters();
 
-        // The export link carries the filters but never the search text (a name must not land in a URL or an access log).
+        // The export link carries the filters but never the search text (a name must not land in a URL or an access log); while a
+        // search is typed the export goes through a server-side token instead (ExportsPrivately), so the file matches the screen.
         $link = array_filter(array_diff_key($filters, ['q' => true]), fn ($v) => $v !== null && $v !== [] && $v !== false);
 
-        return view('livewire.visit-schedule', $schedule->schedule(auth()->user(), $filters) + ['filters' => $link]);
+        return view('livewire.visit-schedule', $schedule->schedule(auth()->user(), $filters) + ['filters' => $link, 'searching' => $filters['q'] !== null]);
     }
 }

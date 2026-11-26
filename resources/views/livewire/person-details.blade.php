@@ -1,4 +1,4 @@
-<div>
+<div @if($editable) x-data x-on:person-add.window="if ($event.detail === '{{ $kind }}') $wire.set('adding', true)" @endif>
     @php
         $gates = collect($fields)->pluck('when')->filter()->unique()->all();
         $show = function ($row, $field, $spec) {

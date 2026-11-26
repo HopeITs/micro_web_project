@@ -53,7 +53,8 @@
             @if($rows->isEmpty())
                 <x-hc.empty :title="__('lookups.empty')">{{ __('lookups.empty_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
+            {{-- The search above is the server's; the browser adds header sorting and value lists. --}}
+            <table class="hc-table stack" data-smart="sort">
                 <thead><tr><th>{{ __('lookups.name_ar') }}</th><th>{{ __('lookups.name_en') }}</th>@foreach($fields as $field => $_)<th>{{ __('lookups.fields.'.$field) }}</th>@endforeach<th class="num">{{ __('lookups.used') }}</th><th>{{ __('lookups.status') }}</th>@if($editable)<th></th>@endif</tr></thead>
                 <tbody>
                 @foreach($rows as $row)

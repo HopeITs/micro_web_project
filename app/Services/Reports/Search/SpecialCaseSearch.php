@@ -53,6 +53,13 @@ final class SpecialCaseSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts([
+            'career' => 'cr', 'category' => 'pc', 'subcategory' => 'ps', 'case_date' => ['s.case_date'], 'recorder' => ['w.username'], 'case_type' => 't', 'reason' => ['s.reason'],
+        ]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderByDesc('s.case_date')->orderBy('p.city_id')->orderByDesc('s.id');

@@ -15,6 +15,8 @@ final class AuditLogController
 {
     private const DATE = ['nullable', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before_or_equal:2100-12-31'];
 
+    private const SORT = ['sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc']];
+
     /** @return array<string, mixed> */
     private function webFilters(Request $request): array
     {
@@ -22,7 +24,7 @@ final class AuditLogController
             'city' => ['nullable', 'integer', 'min:1'], 'from' => self::DATE, 'to' => self::DATE,
             'kind' => ['nullable', 'in:change,view,security,denied'], 'area' => ['nullable', 'in:'.implode(',', array_keys(AuditLogService::AREAS))],
             'actor' => ['nullable', 'string', 'max:100'], 'format' => ['nullable', 'in:xlsx,csv'],
-        ]);
+        ] + self::SORT);
     }
 
     /** @return array<string, mixed> */
@@ -32,7 +34,7 @@ final class AuditLogController
             'city' => ['nullable', 'integer', 'min:1'], 'from' => self::DATE, 'to' => self::DATE,
             'table' => ['nullable', 'string', 'max:100'], 'user' => ['nullable', 'string', 'max:100'], 'q' => ['nullable', 'string', 'max:100'],
             'format' => ['nullable', 'in:xlsx,csv'],
-        ]);
+        ] + self::SORT);
     }
 
     public function index(Request $request, string $locale, AuditLogService $log): View

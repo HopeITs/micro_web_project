@@ -28,6 +28,10 @@ class AttachmentsPanel extends Component
     #[Locked]
     public int $ownerId;
 
+    /** Whether the card says how many files there are (the project page shows that on its tab instead). */
+    #[Locked]
+    public bool $counted = true;
+
     public ?int $type = null;
 
     public string $uploadType = '';
@@ -39,11 +43,31 @@ class AttachmentsPanel extends Component
 
     public string $message = '';
 
-    public function mount(string $owner, int $ownerId): void
+    public function mount(string $owner, int $ownerId, bool $counted = true): void
     {
         array_key_exists($owner, AttachmentService::OWNERS) || abort(404);
         $this->owner = $owner;
         $this->ownerId = $ownerId;
+        $this->counted = $counted;
+    }
+
+    /** Tells the page around the panel (tab counter, "needs attention") how many files there are now. */
+    private function announce(): void
+    {
+        $list = app(AttachmentService::class)->list(auth()->user(), $this->owner, $this->ownerId);
+        $visible = array_sum($list['counts']);
+        $this->dispatch('attachments-changed', visible: $visible, total: $visible + $list['hidden']);
+    }
+
+    /**
+     * The temporary upload itself failed (too large for the server, connection lost): Livewire's own message is English and names
+     * "files.0", so the same refusal is said in the reader's language beside the field it belongs to.
+     */
+    public function _uploadErrored($name, $errorsInJson, $isMultiple): void
+    {
+        $this->dispatch('upload:errored', name: $name)->self();
+
+        throw ValidationException::withMessages([$name === 'photo' ? 'photo' : 'files' => __('attachments.errors.upload', ['max' => (int) config('attachments.upload.max_kb') / 1024])]);
     }
 
     public function filter(?int $type): void
@@ -77,6 +101,7 @@ class AttachmentsPanel extends Component
         if ($ok) {
             $this->files = [];
             $this->message = trans_choice('attachments.saved', count($ids), ['count' => count($ids)]);
+            $this->announce();
         }
     }
 
@@ -101,6 +126,7 @@ class AttachmentsPanel extends Component
     {
         app(AttachmentService::class)->delete(auth()->user(), $id);
         $this->message = __('attachments.deleted');
+        $this->announce();
     }
 
     public function render(AttachmentService $service): View

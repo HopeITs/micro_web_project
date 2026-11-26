@@ -134,6 +134,9 @@ final class PersonFields
         ]],
     ];
 
+    /** The person columns of the desktop family grid (written with the family row). */
+    public const MEMBER_PERSON = ['first_name', 'father_name', 'last_name', 'sex', 'birth_date', 'national_number', 'person_state_id'];
+
     /** Family member row (desktop FamilyMember grid). */
     public const MEMBER = [
         'relation_id' => ['kind' => 'lookup', 'table' => 'relations'],

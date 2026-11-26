@@ -79,6 +79,16 @@ final class ChecklistSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts([
+            'beneficiary' => ['b.first_name', 'b.last_name'], 'father' => ['b.father_name'], 'career' => 'cr', 'category' => 'pc', 'subcategory' => 'ps', 'subtype' => 'pst', 'state' => 'st',
+            'work_years' => ['wa.work_years'], 'home_visit_date' => ['ch.home_visit_date'], 'project_visit_date' => ['ch.project_visit_date'], 'test_date' => ['ch.professional_test_date'],
+            'pro_start' => ['ch.professional_training_start'], 'pro_end' => ['ch.professional_training_end'], 'mgmt_date' => ['ch.management_training_date'],
+            'rejection_date' => ['ch.rejection_message_date'], 'team_date' => ['ch.team_date'], 'committee_date' => ['ch.committee_date'],
+        ]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderByDesc('p.project_number')->orderBy('p.city_id')->orderBy('ch.id');

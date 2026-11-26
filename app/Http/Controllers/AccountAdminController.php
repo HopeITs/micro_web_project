@@ -15,7 +15,8 @@ final class AccountAdminController
 {
     public function index(Request $request, string $locale, AccountAdminService $accounts): View
     {
-        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'city' => ['nullable', 'integer', 'min:1'], 'status' => ['nullable', 'in:active,disabled'], 'role' => ['nullable', 'string', 'in:'.implode(',', array_keys(AccessRoles::ROLES))]]);
+        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'city' => ['nullable', 'integer', 'min:1'], 'status' => ['nullable', 'in:active,disabled'], 'role' => ['nullable', 'string', 'in:'.implode(',', array_keys(AccessRoles::ROLES))],
+            'sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc']]);
 
         return view('admin.accounts', $accounts->index($request->user(), $filters) + ['filters' => $filters]);
     }

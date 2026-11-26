@@ -12,6 +12,7 @@ use App\Services\Field\VisitResultsService;
 use App\Services\Field\VisitScheduleService;
 use App\Services\Field\VisitService;
 use App\Services\Reports\TableExport;
+use App\Support\TableTools\ExportSnapshot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -72,12 +73,16 @@ final class VisitController
 
     public function scheduleExport(Request $request, string $locale, VisitScheduleService $schedule, TableExport $export): StreamedResponse
     {
+        // While the schedule is searched the filters arrive through a single-use token (the text stays out of the address).
+        $held = ExportSnapshot::pull($request, 'visit-schedule');
         $filters = $request->validate([
+            'sort' => ['nullable', 'string', 'max:40'], 'dir' => ['nullable', 'in:asc,desc'],
             'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'year' => ['nullable', 'integer', 'between:2000,2100'],
             'months' => ['sometimes', 'array', 'max:12'], 'months.*' => ['integer', 'between:1,12'], 'kind' => ['nullable', Rule::in(['V', 'O'])],
             'visit' => ['nullable', Rule::in(VisitScheduleService::VISITS)], 'street' => ['nullable', 'integer', 'min:1'], 'type' => ['nullable', 'integer', 'min:1'],
             'hidden' => ['nullable', 'boolean'], 'q' => ['nullable', 'string', 'max:100'], 'format' => ['nullable', 'in:xlsx,csv'],
         ]);
+        $filters = $held === null ? $filters : $held + ['format' => $filters['format'] ?? null];
         [$headings, $rows] = $schedule->export($request->user(), $filters);
 
         return $export->stream(TableExport::format($filters['format'] ?? null), 'visit-schedule-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));
@@ -92,7 +97,7 @@ final class VisitController
 
     public function resultsExport(Request $request, string $locale, VisitResultsService $results, TableExport $export): StreamedResponse
     {
-        $filters = VisitResultsService::clean($request->query());
+        $filters = VisitResultsService::clean(ExportSnapshot::pull($request, 'visit-results') ?? $request->query());
         [$headings, $rows] = $results->export($request->user(), $filters);
 
         return $export->stream(TableExport::format($request->query('format')), 'visit-results-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));

@@ -175,7 +175,13 @@ final class ApplicationFields
         if ($kind === 'family_work') {
             $work = PersonFields::DETAILS['work_experiences'];
 
-            return ['table' => $work['table'], 'fields' => ['person_id' => ['kind' => 'member']] + array_intersect_key($work['fields'], array_flip(['occupation_id', 'work_type_id', 'salary']))];
+            // Name, the job's text (desktop FP_Exp_WorkDiscription), nature of work and income, after the occupation list.
+            $columns = [];
+            foreach (['occupation_id', 'description', 'work_type_id', 'salary'] as $column) {
+                $columns[$column] = $work['fields'][$column];
+            }
+
+            return ['table' => $work['table'], 'fields' => ['person_id' => ['kind' => 'member']] + $columns];
         }
         if ($grid['owner'] === 'person') {
             $details = PersonFields::DETAILS[$kind];

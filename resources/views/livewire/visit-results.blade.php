@@ -64,6 +64,10 @@
             <div class="hc-field" style="align-self:center">
                 <label class="hc-check"><input type="checkbox" wire:model.live="last" @disabled(! str_starts_with($visit, 'M'))> {{ __('visits.results.last') }}</label>
             </div>
+            <div class="hc-field grow">
+                <label class="hc-label" for="vr-q">{{ __('tables.search') }}</label>
+                <input id="vr-q" class="hc-input" type="search" wire:model.live.debounce.400ms="q" maxlength="100" placeholder="{{ __('tables.results_placeholder') }}" autocomplete="off">
+            </div>
         </div></div>
         <div class="hc-toolbar" style="align-items:center;flex-wrap:wrap">
             @if($cityOptions->count() > 1)
@@ -75,8 +79,7 @@
             @endif
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('visits.results.total', ['count' => number_format($total)]) }}</span>
             @if($canExport)
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('visits.results.export', ['locale' => $locale] + $query + ['format' => 'xlsx'])">Excel</x-hc.button>
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('visits.results.export', ['locale' => $locale] + $query + ['format' => 'csv'])">CSV</x-hc.button>
+                <x-hc.export-buttons to="visits.results.export" :query="$query" :private="$filters['q'] !== ''"/>
             @endif
             <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('visits.schedule.clear') }}</x-hc.button>
         </div>
@@ -85,7 +88,7 @@
             @if($total === 0)
                 <x-hc.empty :title="__('visits.results.none')" icon="chart">{{ __('visits.schedule.none_hint') }}</x-hc.empty>
             @elseif($filters['view'] === 'counts')
-                <table class="hc-table">
+                <table class="hc-table" data-smart="off">
                     <thead><tr><th>{{ __('visits.results.columns.question') }}</th><th>{{ __('visits.results.columns.answer') }}</th><th class="num">{{ __('visits.results.columns.count') }}</th></tr></thead>
                     <tbody>
                     @foreach($counts as $qi => $q)
@@ -99,8 +102,9 @@
                     </tbody>
                 </table>
             @else
-                <table class="hc-table">
-                    <thead><tr>@foreach($columns as $c)<th style="min-width:8rem">{{ $c }}</th>@endforeach</tr></thead>
+                @php($sortKeys = \App\Services\Field\VisitResultsService::sortKeys($filters['visit']))
+                <table class="hc-table" data-smart="off">
+                    <thead><tr>@foreach($columns as $i => $c)@if(isset($sortKeys[$i]))<x-hc.sort-th wire:key="vrh-{{ $sortKeys[$i] }}" :column="$sortKeys[$i]" :label="$c" :sort="$sortKey" :dir="$sortDir" style="min-width:8rem"/>@else<th style="min-width:8rem">{{ $c }}</th>@endif @endforeach</tr></thead>
                     <tbody>
                     @foreach($rows as $i => $row)
                         <tr wire:key="r-{{ $rows->currentPage() }}-{{ $i }}">@foreach($row as $cell)<td>{{ $cell === '' ? '—' : $cell }}</td>@endforeach</tr>

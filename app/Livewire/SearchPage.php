@@ -2,9 +2,12 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasReportFilters;
+use App\Livewire\Concerns\HasReportViews;
 use App\Models\WebAccount;
 use App\Services\Reports\ApplicationDetailsExport;
-use App\Services\Reports\ProjectReportFilters;
+use App\Services\Reports\ReportFilterFields;
+use App\Services\Reports\Search\SearchMode;
 use App\Services\Reports\Search\SearchModes;
 use App\Services\Reports\Search\SearchService;
 use App\Services\Reports\TableExport;
@@ -16,27 +19,27 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 /**
- * The search page (M4.17 part A): one of the 22 search types, the cities, the common filters, a text box and the result table. Mode, cities and
- * the lookup/date/amount filters may be in the URL; the text never is (it can hold a name or a national number): it lives only in the Livewire
- * request body and reaches the export through a single-use token kept server-side.
+ * The search page (M4.17 part A): one of the 22 search types, the cities, the shared filter bar, a text box and the result table, sortable
+ * over every page. Mode, cities, filters (lookup ids, years, dates, amounts) and the sort column may be in the URL; the text never is (it
+ * can hold a name or a national number): it lives only in the Livewire request body and reaches the export through a single-use token kept
+ * server-side.
  */
 class SearchPage extends Component
 {
-    use WithPagination;
+    use HasReportFilters, HasReportViews, WithPagination;
 
     #[Url(as: 'mode', except: '')]
     public string $mode = '';
 
-    /** @var list<int> */
-    #[Url(as: 'city', except: [])]
-    public array $cities = [];
-
-    /** @var array<string, mixed> */
-    #[Url(as: 'f', except: [])]
-    public array $filters = [];
-
     #[Url(except: false)]
     public bool $last = false;
+
+    /** The column the results are ordered by ("" = the type's own order). */
+    #[Url(except: '')]
+    public string $sort = '';
+
+    #[Url(except: 'asc')]
+    public string $dir = 'asc';
 
     public string $term = '';
 
@@ -45,7 +48,8 @@ class SearchPage extends Component
         $available = $search->available($this->account());
         $this->mode = isset($available[$this->mode]) ? $this->mode : (string) array_key_first($available);
         $this->cities = array_values(array_filter(array_map('intval', $this->cities)));
-        $this->filters = $this->cleanFilters();
+        $this->filters = $this->keptFilters();
+        $this->dir = $this->dir === 'desc' ? 'desc' : 'asc';
         $search->opened($this->account(), $this->mode);
     }
 
@@ -54,24 +58,98 @@ class SearchPage extends Component
         return auth()->user();
     }
 
-    /** @return array<string, mixed> the common filters worth keeping in the URL (no text) */
-    private function cleanFilters(): array
+    private function currentMode(): ?SearchMode
     {
-        return array_filter(ProjectReportFilters::clean($this->filters), fn ($v, $k) => $k !== 'q' && $v !== [] && $v !== '', ARRAY_FILTER_USE_BOTH);
+        return in_array($this->mode, SearchModes::keys(), true) ? SearchModes::make($this->mode)->for($this->account()) : null;
+    }
+
+    protected function reportFilterKind(): string
+    {
+        return $this->currentMode()?->filterKind() ?? 'none';
+    }
+
+    protected function permittedCityIds(): array
+    {
+        $mode = $this->currentMode();
+
+        return $mode === null ? [] : app(SearchService::class)->cities($this->account(), $mode)->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    protected function facetCountsFor(string $field): array
+    {
+        return app(SearchService::class)->facetCounts($this->account(), $this->mode, $field, $this->state());
+    }
+
+    protected function filtersChanged(): void
+    {
+        $this->resetPage();
+    }
+
+    protected function viewDataset(): string
+    {
+        return 'search';
+    }
+
+    protected function viewShareCapability(): string
+    {
+        return 'projects.view';
+    }
+
+    protected function viewSettings(): array
+    {
+        return ['mode' => $this->mode, 'last' => $this->last, 'sort' => $this->sort, 'dir' => $this->dir];
+    }
+
+    protected function applyViewSettings(array $settings): bool
+    {
+        $mode = is_string($settings['mode'] ?? null) ? $settings['mode'] : '';
+        if (! isset(app(SearchService::class)->available($this->account())[$mode])) {
+            return false;
+        }
+        if ($mode !== $this->mode) {
+            $this->mode = $mode;
+            $this->modeChanged(app(SearchService::class));
+        }
+        $this->last = (bool) ($settings['last'] ?? false);
+        $sort = is_string($settings['sort'] ?? null) ? $settings['sort'] : '';
+        $this->sort = isset($this->currentMode()->sorts()[$sort]) ? $sort : '';
+        $this->dir = ($settings['dir'] ?? '') === 'desc' ? 'desc' : 'asc';
+
+        return $this->sort === $sort;
     }
 
     /** @return array<string, mixed> everything that decides the rows, text included */
     private function state(): array
     {
-        return ['q' => $this->term, 'cities' => $this->cities, 'last' => $this->last] + $this->filters;
+        return ['q' => $this->term, 'cities' => $this->cities, 'last' => $this->last, 'sort' => $this->sort, 'dir' => $this->dir] + $this->filters;
     }
 
     public function updatedMode(SearchService $search): void
     {
+        $this->modeChanged($search);
+    }
+
+    /** A type chosen in the picker. */
+    public function setMode(string $key, SearchService $search): void
+    {
+        if ($key !== $this->mode) {
+            $this->mode = $key;
+            $this->modeChanged($search);
+        }
+    }
+
+    /** Audits the type; the filters the new type also honours stay, the others are dropped. */
+    private function modeChanged(SearchService $search): void
+    {
         $search->opened($this->account(), $this->mode);
-        $this->filters = [];
-        $this->term = '';
+        $this->permittedMemo = null;
+        $this->filters = ReportFilterFields::applicable($this->keptFilters(), $this->reportFilterKind());
+        $this->editing = null;
+        $this->filterNotice = null;
+        $this->activeViewId = null;
         $this->last = false;
+        $this->sort = '';
+        $this->dir = 'asc';
         $this->resetPage();
     }
 
@@ -82,20 +160,36 @@ class SearchPage extends Component
         }
     }
 
-    public function toggleCity(int $city): void
+    /** A column header: ascending, then descending, then the type's own order again. */
+    public function sortBy(string $column): void
     {
-        $this->cities = in_array($city, $this->cities, true) ? array_values(array_diff($this->cities, [$city])) : [...$this->cities, $city];
+        if (! isset($this->currentMode()?->sorts()[$column])) {
+            return;
+        }
+        if ($this->sort !== $column) {
+            [$this->sort, $this->dir] = [$column, 'asc'];
+        } elseif ($this->dir === 'asc') {
+            $this->dir = 'desc';
+        } else {
+            [$this->sort, $this->dir] = ['', 'asc'];
+        }
         $this->resetPage();
     }
 
     public function clearFilters(): void
     {
-        $this->filters = [];
+        $this->editing = null;
         $this->last = false;
+        $this->changed([]);
+    }
+
+    public function clearTerm(): void
+    {
+        $this->term = '';
         $this->resetPage();
     }
 
-    /** Hands the search (filters, cities, text) to the export route through a single-use token, so the text never appears in an address. */
+    /** Hands the search (filters, cities, text, order) to the export route through a single-use token, so the text never appears in an address. */
     public function exportTable(string $format, SearchService $search): void
     {
         abort_unless(in_array($format, TableExport::FORMATS, true), 422);
@@ -122,6 +216,7 @@ class SearchPage extends Component
         abort_if($available === [], 403);
         if (! isset($available[$this->mode])) {
             $this->mode = (string) array_key_first($available);
+            $this->permittedMemo = null;
         }
         $result = $search->page($account, $this->mode, $this->state(), $this->getPage());
         // `mode` and `cities` are the component's own (chosen) properties; the objects go to the view as searchMode and cityOptions.
@@ -134,13 +229,16 @@ class SearchPage extends Component
             $items = array_filter($available, fn ($m) => $m->group() === $group);
             $items !== [] && $groups[$group] = $items;
         }
-        $filters = ProjectReportFilters::clean($this->filters);
-        $options = $mode->filterKind() === 'none' ? [] : ProjectReportFilters::options($cityOptions->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $bar = $this->reportFilterBar();
+        $keys = ['city', ...$mode->columns()];
+        $sorts = $mode->sorts();
 
         return view('livewire.search-page', $result + [
-            'cityOptions' => $cityOptions, 'groups' => $groups, 'options' => $options, 'filterKind' => $mode->filterKind(), 'headings' => $mode->headings(), 'numeric' => $mode->numeric(),
-            'linkColumn' => $mode->linkColumn(), 'canExport' => $search->canExport($account, $this->mode), 'canExportDetails' => $this->mode === 'applications' && $search->canExport($account, 'applications'),
-            'activeFilters' => count(array_filter($filters, fn ($v, $k) => $k !== 'q' && $v !== [] && $v !== '', ARRAY_FILTER_USE_BOTH)) + ($this->last ? 1 : 0),
+            'cityOptions' => $cityOptions, 'groups' => $groups, 'filterKind' => $mode->filterKind(), 'headings' => $mode->headings(), 'columnKeys' => $keys,
+            'sortable' => array_values(array_intersect($keys, array_keys($sorts))), 'sortedBy' => isset($sorts[$this->sort]) ? $this->sort : '',
+            'numeric' => $mode->numeric(), 'linkColumn' => $mode->linkColumn(), 'canExport' => $search->canExport($account, $this->mode),
+            'canExportDetails' => $this->mode === 'applications' && $search->canExport($account, 'applications'),
+            'bar' => $bar, 'views' => $this->reportViewsBar(), 'sentences' => $this->filterSentences($bar),
         ]);
     }
 }

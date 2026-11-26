@@ -78,6 +78,16 @@ final class LoanSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts([
+            'career' => 'cr', 'category' => 'pc', 'subcategory' => 'ps', 'state' => 'st', 'loan_date' => ['l.taken_on'], 'currency' => ['l.currency'], 'exchange_rate' => ['l.exchange_rate'],
+            'loan_sp' => ["CASE WHEN l.currency IN ('SYP', 'SP') THEN l.amount WHEN l.currency = 'USD' THEN l.amount * l.exchange_rate END"],
+            'loan_usd' => [ProjectReportFilters::usdSql('l')], 'to_return' => ['l.currency', 'l.returned_amount'], 'installment' => ['l.currency', 'l.installment_amount'],
+            'donor' => 'dn', 'group' => 'dg', 'receipt' => ['l.receipt_number'],
+        ]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('l.id');

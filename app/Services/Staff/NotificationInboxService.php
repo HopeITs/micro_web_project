@@ -11,6 +11,8 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
 use App\Services\ProjectNumberAllocator;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -28,6 +30,9 @@ final class NotificationInboxService
     public const PER_PAGE = 50;
 
     public const AHEAD_DAYS = 3;
+
+    /** The sortable columns of the box. */
+    public const SORT_KEYS = ['project', 'kind', 'title', 'date', 'sender'];
 
     public function __construct(private AccessRoles $roles, private AccountAccess $access, private AccountAuditTrail $audit, private NoticeService $notices) {}
 
@@ -52,13 +57,13 @@ final class NotificationInboxService
     }
 
     /**
-     * @param  array{cities?: list<int>}  $filters
+     * @param  array{cities?: list<int>, kind?: ?string, q?: ?string, sort?: ?string, dir?: ?string}  $filters
      * @return array{rows: LengthAwarePaginator, cities: Collection}
      */
     public function inbox(WebAccount $account, array $filters): array
     {
         [$permitted, $ids] = $this->scope($account, $filters, 'notifications.list');
-        $rows = $this->withKind($this->query($account, $ids), $filters)->orderByDesc('n.notice_date')->orderByDesc('n.id')->paginate(self::PER_PAGE)->withQueryString();
+        $rows = $this->listed($account, $ids, $filters)->paginate(self::PER_PAGE)->withQueryString();
         $senders = DB::table('web_accounts')->whereIn('id', $rows->getCollection()->pluck('sender_account_id')->filter()->unique()->all())->pluck('username', 'id');
         $capabilities = [];
         foreach ($ids as $city) {
@@ -104,7 +109,7 @@ final class NotificationInboxService
     public function exportRows(WebAccount $account, array $filters): \Generator
     {
         [, $ids] = $this->scope($account, $filters, 'reports.exported');
-        $query = $this->withKind($this->query($account, $ids), $filters)->orderByDesc('n.notice_date')->orderByDesc('n.id');
+        $query = $this->listed($account, $ids, $filters);
 
         return (function () use ($query) {
             foreach ($query->lazy(500)->chunk(500) as $chunk) {
@@ -222,6 +227,41 @@ final class NotificationInboxService
         }
 
         return ['sent' => $count, 'emailed' => $emailed, 'failed' => $failed];
+    }
+
+    /** The box as the screen and its file show it: kind, search and sort applied, newest first by default. */
+    private function listed(WebAccount $account, array $ids, array $filters): Builder
+    {
+        $query = $this->withKind($this->query($account, $ids), $filters);
+        $this->search($query, (string) ($filters['q'] ?? ''));
+        TableSort::apply($query, [
+            'project' => ['c.code', 'n.project_number'], 'kind' => 'n.kind', 'title' => "NULLIF(n.title, '')", 'date' => 'n.notice_date',
+            'sender' => DB::table('web_accounts as sa')->whereColumn('sa.id', 'n.sender_account_id')->select('sa.username')->limit(1),
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
+
+        return $query->orderByDesc('n.notice_date')->orderByDesc('n.id');
+    }
+
+    /** A project number ("DAM-12"), or every word in the subject, the message, the sender or a project number. */
+    private function search(Builder $query, string $term): void
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return;
+        }
+        $number = ProjectNumberAllocator::parse($term);
+        if ($number !== null && $number[0] !== null) {
+            $query->where('c.code', $number[0])->where('n.project_number', $number[1]);
+
+            return;
+        }
+        TableSearch::apply($query, ['n.title', 'n.body'], $term, function (Builder $any, string $word) {
+            ctype_digit($word) && $any->orWhere('n.project_number', (int) $word);
+            $any->orWhereExists(function (Builder $sender) use ($word) {
+                $sender->selectRaw('1')->from('web_accounts as qs')->whereColumn('qs.id', 'n.sender_account_id')
+                    ->where(fn (Builder $name) => TableSearch::orLike($name, 'qs.username', $word));
+            });
+        });
     }
 
     /** Narrows the box to one kind of notice (message, visit, payment, ...) when the filter asks for it. */

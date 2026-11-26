@@ -9,7 +9,10 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
 use App\Services\ProjectNumberAllocator;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -28,10 +31,16 @@ final class ProfessionMeetingService
 {
     public const PER_PAGE = 30;
 
+    /** The sortable columns of the meetings list. */
+    public const SORT_KEYS = ['date', 'career', 'city', 'place', 'invited', 'attendance', 'absent', 'state'];
+
     /** Competition levels of question 6, by sort order (`SaveCompetitionRows`). */
     public const LEVELS = [1 => 'منافسة شديدة', 2 => 'منافسة متوسطة', 3 => 'منافسة ضعيفة'];
 
     public const DEFAULT_CHALLENGES = ['الوضع الاقتصادي', 'اليد العاملة', 'التسويق', 'مكان المشروع', 'نقص المعدات', 'تنفيذ مرحلة من مراحل عملك خارج مكان المشروع'];
+
+    /** The most beneficiaries the eligibility list shows at once (highest project numbers first). */
+    public const BENEFICIARY_LIMIT = 300;
 
     /** Participant questions: who can provide content, trainers, trainees, bazaar (the participants' interests). */
     public const INTEREST_QUESTIONS = [19, 20, 21, 22];
@@ -89,6 +98,27 @@ final class ProfessionMeetingService
         ! empty($filters['state']) && $query->where('m.record_state', $filters['state']);
         ! empty($filters['career']) && $query->whereExists(fn ($q) => $q->selectRaw('1')->from('profession_meeting_careers as mc')->whereColumn('mc.profession_meeting_id', 'm.id')
             ->whereNull('mc.deleted_at')->where('mc.career_id', (int) $filters['career']));
+        ! empty($filters['q']) && TableSearch::apply($query, ['m.place'], (string) $filters['q'], function (Builder $any, string $word) {
+            // Any profession of the meeting: its list, or the single one of an older record.
+            $any->orWhereExists(fn (Builder $e) => $e->selectRaw('1')->from('careers as qc')
+                ->where(fn (Builder $mine) => $mine->whereColumn('qc.id', 'm.career_id')->orWhereIn('qc.id', fn (Builder $list) => $list->select('qmc.career_id')->from('profession_meeting_careers as qmc')
+                    ->whereColumn('qmc.profession_meeting_id', 'm.id')->whereNull('qmc.deleted_at')))
+                ->where(function (Builder $names) use ($word) {
+                    TableSearch::orLike($names, 'qc.name_ar', $word);
+                    TableSearch::orLike($names, 'qc.name_en', $word);
+                }));
+        });
+        // The career as the list shows it first: the meeting's first listed profession, else the single one of an older record.
+        $career = app()->isLocale('en') ? "COALESCE(NULLIF(sc.name_en, ''), sc.name_ar)" : 'sc.name_ar';
+        $listed = DB::table('profession_meeting_careers as smc')->join('careers as sc', 'sc.id', '=', 'smc.career_id')->whereColumn('smc.profession_meeting_id', 'm.id')
+            ->whereNull('smc.deleted_at')->orderBy('smc.id')->selectRaw($career)->limit(1);
+        $single = DB::table('careers as sc')->whereColumn('sc.id', 'm.career_id')->selectRaw($career);
+        TableSort::apply($query, [
+            'date' => 'm.meeting_date',
+            'career' => 'COALESCE(('.$listed->toSql().'), ('.$single->toSql().'))',
+            'city' => app()->isLocale('en') ? 'ci.name_en' : 'ci.name_ar', 'place' => "NULLIF(m.place, '')", 'invited' => 'm.invited_count', 'attendance' => 'm.attendance_count',
+            'absent' => 'm.absence_count', 'state' => 'm.record_state',
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
         $rows = $query->orderByDesc('m.meeting_date')->orderByDesc('m.id')->select(['m.id', 'm.city_id', 'm.career_id', 'm.meeting_date', 'm.place', 'm.invited_count', 'm.attendance_count', 'm.absence_count', 'm.record_state', 'ci.name_ar as city_ar', 'ci.name_en as city_en'])
             ->paginate(self::PER_PAGE);
         $careers = DB::table('profession_meeting_careers as mc')->join('careers as c', 'c.id', '=', 'mc.career_id')->whereIn('mc.profession_meeting_id', $rows->getCollection()->pluck('id')->all() ?: [0])
@@ -261,14 +291,15 @@ final class ProfessionMeetingService
      *
      * @param  list<int>  $careerIds
      */
-    public function beneficiaries(WebAccount $account, int $city, array $careerIds): Collection
+    public function beneficiaries(WebAccount $account, int $city, array $careerIds, string $search = ''): Collection
     {
         $this->authorize($account, $city);
         if ($careerIds === []) {
             return collect();
         }
-        $projects = DB::table('projects as p')->join('cities as c', 'c.id', '=', 'p.city_id')->where('p.city_id', $city)->whereIn('p.career_id', array_map('intval', $careerIds))->whereNull('p.deleted_at')
-            ->orderByDesc('p.project_number')->limit(300)->get(['p.id', 'p.project_number', 'c.code']);
+        $query = DB::table('projects as p')->join('cities as c', 'c.id', '=', 'p.city_id')->where('p.city_id', $city)->whereIn('p.career_id', array_map('intval', $careerIds))->whereNull('p.deleted_at');
+        $this->searchBeneficiaries($query, trim($search));
+        $projects = $query->orderByDesc('p.project_number')->limit(self::BENEFICIARY_LIMIT)->get(['p.id', 'p.project_number', 'c.code']);
         $ids = $projects->pluck('id')->all() ?: [0];
         $states = DB::table('project_state_history as h')->join('project_states as s', 's.id', '=', 'h.project_state_id')->whereIn('h.project_id', $ids)->where('h.is_current', true)->whereNull('h.deleted_at')
             ->get(['h.project_id', 's.name_ar', 's.name_en'])->keyBy('project_id');
@@ -284,6 +315,24 @@ final class ProfessionMeetingService
                 'name' => $who === null ? '' : trim(($who->first_name ?? '').' '.($who->last_name ?? '').' '.__('staff.tasks.son_of').' '.($who->father_name ?? '')),
                 'state' => isset($states[$p->id]) ? $this->name($states[$p->id]) : '—', 'funded' => isset($funded[$p->id]),
             ];
+        });
+    }
+
+    /** Narrows the eligibility list before it is cut: a project number, or every word in a name of one of the project's people. */
+    private function searchBeneficiaries(Builder $query, string $term): void
+    {
+        if ($term === '') {
+            return;
+        }
+        $number = ProjectNumberAllocator::parse($term);
+        if ($number !== null) {
+            $query->where('p.project_number', $number[1])->when($number[0] !== null, fn (Builder $q) => $q->where('c.code', $number[0]));
+
+            return;
+        }
+        $query->whereExists(function (Builder $e) use ($term) {
+            $e->selectRaw('1')->from('project_applicants as qa')->join('people as qp', 'qp.id', '=', 'qa.person_id')->whereColumn('qa.project_id', 'p.id')->whereNull('qa.deleted_at');
+            TableSearch::apply($e, ['qp.first_name', 'qp.father_name', 'qp.last_name'], $term);
         });
     }
 

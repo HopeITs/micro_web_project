@@ -6,5 +6,6 @@
         @endif
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
+    @include('people._tabs', ['current' => 'individuals'])
     <livewire:people-index />
 </x-layouts.hc>

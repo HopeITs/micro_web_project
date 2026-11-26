@@ -23,7 +23,8 @@ use Illuminate\Validation\ValidationException;
  * reading needs `people.view` in the person's city, writing `people.manage`. Duplicates are found as the desktop does
  * (Check_National_Number: the national number with and without its leading zero; Check_Family_Num: other beneficiaries with the same
  * family book number) plus the same full name in the city; saving over a found duplicate needs an explicit confirmation.
- * A beneficiary joins its family as "مستفيد" and is its own provider; the members it adds have it as provider.
+ * A beneficiary joins its family as "مستفيد", resident, and is its own provider; the members of its household have it as provider
+ * whoever adds them, and the household's stored counts are recomputed on every member change (see {@see Households}).
  */
 final class PeopleService
 {
@@ -384,6 +385,8 @@ final class PeopleService
     {
         $this->canManage($account, $city) || $this->deny($account);
         $values = $this->personValues($input, $city);
+        // The desktop registers a new beneficiary as resident.
+        $values['person_state_id'] ??= Households::residentStateId();
         $this->guardDuplicates($account, $city, $values, null, $familyNumber, $confirmed);
         $familyNumber = trim((string) $familyNumber);
         if (mb_strlen($familyNumber) > 50) {
@@ -411,8 +414,10 @@ final class PeopleService
         $family = $familyNumber === '' ? null : DB::table('families')->where('city_id', $city)->where('family_number', $familyNumber)->whereNull('deleted_at')->value('id');
         $family ??= DB::table('families')->insertGetId(['city_id' => $city, 'family_number' => $familyNumber !== '' ? $familyNumber : $this->nextFamilyNumber($city), 'created_at' => $now, 'updated_at' => $now]);
         DB::table('family_members')->insert([
-            'city_id' => $city, 'family_id' => $family, 'person_id' => $personId, 'relation_id' => $this->beneficiaryRelation(), 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now,
+            'city_id' => $city, 'family_id' => $family, 'person_id' => $personId, 'relation_id' => Households::beneficiaryRelationId(), 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now,
         ]);
+        // After the whole save (the application form writes the family rows in the same transaction), as the desktop counts them.
+        DB::afterCommit(fn () => Households::recount($personId));
 
         return (int) $family;
     }
@@ -425,8 +430,26 @@ final class PeopleService
         if ($values['national_number'] !== $person->national_number || $values['first_name'] !== $person->first_name || $values['last_name'] !== $person->last_name || $values['father_name'] !== $person->father_name) {
             $this->guardDuplicates($account, $city, $values, $id, null, $confirmed);
         }
-        DB::table('people')->where('id', $id)->update($values + ['updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id, details: AccountAuditTrail::changes($person, $values));
+        DB::transaction(function () use ($account, $id, $city, $person, $values) {
+            DB::table('people')->where('id', $id)->update($values + ['updated_at' => now()]);
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $id, details: AccountAuditTrail::changes($person, $values));
+            // A changed residence state changes who is at home: only the households this person is in are recounted.
+            if ((int) ($person->person_state_id ?? 0) !== (int) ($values['person_state_id'] ?? 0)) {
+                foreach (Households::membershipsOf($id)->pluck('head_id')->unique() as $head) {
+                    $this->recounted($account, (int) $head);
+                }
+            }
+        });
+    }
+
+    /** Recounts one household and records the change on its beneficiary. */
+    private function recounted(WebAccount $account, int $headId): void
+    {
+        $changes = Households::recount($headId);
+        if ($changes !== []) {
+            $city = (int) DB::table('people')->where('id', $headId)->value('city_id');
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $headId, details: $changes);
+        }
     }
 
     private function guardDuplicates(WebAccount $account, int $city, array $values, ?int $except, ?string $familyNumber, bool $confirmed): void
@@ -437,13 +460,6 @@ final class PeopleService
         if ($this->duplicates($account, $city, $values, $except) !== [] || ($familyNumber !== null && $this->familyHolders($city, $familyNumber, $except)->isNotEmpty())) {
             throw ValidationException::withMessages(['confirm' => __('people.errors.duplicates')]);
         }
-    }
-
-    private function beneficiaryRelation(): ?int
-    {
-        $id = DB::table('relations')->where('name_ar', self::BENEFICIARY)->value('id');
-
-        return $id === null ? null : (int) $id;
     }
 
     /** A family book number for a person whose book number is unknown: "<CODE>-W<n>", unique in the city. */
@@ -458,90 +474,204 @@ final class PeopleService
         return $code.'-W'.$n;
     }
 
-    // ---------------------------------------------------------------- family
+    // ---------------------------------------------------------------- household (desktop family grid)
 
-    /** The person's family (the first one it belongs to) with its members. */
-    public function family(WebAccount $account, int $personId): ?array
+    /** A four-digit year typed for a birth date is stored as the first of January, as in the application form. */
+    public static function birthDate(mixed $value): mixed
     {
-        $this->person($account, $personId);
-        $familyId = DB::table('family_members')->where('person_id', $personId)->whereNull('deleted_at')->orderBy('id')->value('family_id');
-        if ($familyId === null) {
-            return null;
-        }
-        $en = app()->getLocale() === 'en';
-        $label = fn (string $alias, string $as) => DB::raw(($en ? "COALESCE($alias.name_en, $alias.name_ar)" : "$alias.name_ar")." as $as");
-        $members = DB::table('family_members as m')->join('people as p', 'p.id', '=', 'm.person_id')
-            ->leftJoin('relations as r', 'r.id', '=', 'm.relation_id')->leftJoin('education_levels as el', 'el.id', '=', 'm.education_level_id')
-            ->leftJoin('education_specialties as es', 'es.id', '=', 'm.education_specialty_id')
-            ->where('m.family_id', $familyId)->whereNull('m.deleted_at')->whereNull('p.deleted_at')->orderByRaw('CASE WHEN m.person_id = m.provider_person_id THEN 0 ELSE 1 END')->orderBy('p.birth_date')->orderBy('m.id')
-            ->get(['m.id', 'm.person_id', 'm.relation_id', 'm.education_level_id', 'm.education_specialty_id', 'm.has_work', 'm.work_name', 'm.provider_person_id',
-                'p.first_name', 'p.father_name', 'p.last_name', 'p.sex', 'p.birth_date', 'p.national_number',
-                $label('r', 'relation'), $label('el', 'education_level'), $label('es', 'education_specialty')]);
-
-        return ['family' => DB::table('families')->where('id', $familyId)->first(), 'members' => $members];
+        return is_string($value) && preg_match('/\A\d{4}\z/', trim($value)) ? trim($value).'-01-01' : $value;
     }
 
     /**
-     * Adds a member to the person's family: an existing person of the city (`person_id`) or a new one (first/last/father name, sex,
-     * birth date, national number, as the desktop family grid).
+     * The household a change is made in: the one named (the person must be in it), or the person's own household (the one they
+     * head, else the first they belong to). Writing needs `people.manage` in the family's city.
+     *
+     * @param  ?array{0: int, 1: int}  $household  [family id, head person id]
+     * @return array{family: object, head: int, city: int}
      */
-    public function addMember(WebAccount $account, int $personId, array $input): int
+    private function householdFor(WebAccount $account, int $personId, ?array $household): array
     {
-        $person = $this->writable($account, $personId);
-        $city = (int) $person->city_id;
-        $family = $this->family($account, $personId) ?? abort(404);
+        $this->writable($account, $personId);
+        if ($household === null) {
+            $own = Households::membershipsOf($personId)->first() ?? abort(404);
+            [$familyId, $head] = [$own->family_id, $own->head_id];
+        } else {
+            [$familyId, $head] = [(int) $household[0], (int) $household[1]];
+            Households::rows($familyId, $head)->where('m.person_id', $personId)->exists() || abort(404);
+        }
+        $family = DB::table('families')->where('id', $familyId)->whereNull('deleted_at')->first() ?? abort(404);
+        in_array((int) $family->city_id, $this->cityIds($account), true) || abort(404);
+        $this->canManage($account, (int) $family->city_id) || $this->deny($account);
+
+        return ['family' => $family, 'head' => $head, 'city' => (int) $family->city_id];
+    }
+
+    private function memberRow(array $household, int $memberId): object
+    {
+        $row = Households::rows((int) $household['family']->id, $household['head'])->where('m.id', $memberId)->first('m.*');
+        abort_if($row === null, 404);
+
+        return $row;
+    }
+
+    /** "مستفيد" is the head's own relation (the desktop leaves it out of the member list); a member keeps it only if already stored so. */
+    private function guardRelation(array $values, ?int $current, string $prefix): void
+    {
+        $beneficiary = Households::beneficiaryRelationId();
+        if ($beneficiary !== null && ($values['relation_id'] ?? null) === $beneficiary && $current !== $beneficiary) {
+            throw ValidationException::withMessages([$prefix.'relation_id' => __('families.errors.beneficiary_relation')]);
+        }
+    }
+
+    /**
+     * Adds a member to a household: an existing person of the city (`person_id`) or a new one with the desktop family grid's columns.
+     * The new row's provider is the household's head, whoever's page it was added from; a person without a residence state gets
+     * "resident"; the head's stored counts are recomputed.
+     *
+     * @param  ?array{0: int, 1: int}  $household  [family id, head person id]; the person's own household when null
+     */
+    public function addMember(WebAccount $account, int $personId, array $input, ?array $household = null): int
+    {
+        $home = $this->householdFor($account, $personId, $household);
+        [$city, $family, $head] = [$home['city'], $home['family'], $home['head']];
+        if (! DB::table('people')->where('id', $head)->where('city_id', $city)->whereNull('deleted_at')->exists()) {
+            throw ValidationException::withMessages(['member' => __('families.errors.no_head')]);
+        }
         $member = $this->validate(PersonFields::MEMBER, $input, $city, [], 'member.');
+        $this->guardRelation($member, null, 'member.');
         $existing = (int) ($input['person_id'] ?? 0);
         $new = [];
-        $now = now();
+        $state = null;
         if ($existing > 0) {
-            DB::table('people')->where('id', $existing)->where('city_id', $city)->whereNull('deleted_at')->exists()
-                || throw ValidationException::withMessages(['member.person_id' => __('people.errors.choice')]);
-            $family['members']->contains('person_id', $existing) && throw ValidationException::withMessages(['member.person_id' => __('people.errors.already_member')]);
+            $found = DB::table('people')->where('id', $existing)->where('city_id', $city)->whereNull('deleted_at')->first()
+                ?? throw ValidationException::withMessages(['member.person_id' => __('people.errors.choice')]);
+            if (DB::table('family_members')->where('family_id', $family->id)->where('person_id', $existing)->whereNull('deleted_at')->exists()) {
+                throw ValidationException::withMessages(['member.person_id' => __('people.errors.already_member')]);
+            }
+            if ($found->person_state_id === null) {
+                $fields = ['person_state_id' => PersonFields::personFlat()['person_state_id']];
+                $state = $this->validate($fields, $input, $city, [], 'member.')['person_state_id'] ?? Households::residentStateId();
+            }
         } else {
-            $fields = array_intersect_key(PersonFields::personFlat(), array_flip(['first_name', 'last_name', 'father_name', 'sex', 'birth_date', 'national_number']));
+            $input['birth_date'] = self::birthDate($input['birth_date'] ?? null);
+            $fields = array_intersect_key(PersonFields::personFlat(), array_flip(PersonFields::MEMBER_PERSON));
             $new = $this->validate($fields, $input, $city, [], 'member.');
+            $new['person_state_id'] ??= Households::residentStateId();
         }
 
-        return DB::transaction(function () use ($account, $city, $family, $member, $existing, $personId, $now, $new) {
+        return DB::transaction(function () use ($account, $city, $family, $head, $member, $existing, $new, $state) {
+            $now = now();
             $memberPerson = $existing > 0 ? $existing : (int) DB::table('people')->insertGetId($new + ['city_id' => $city, 'created_at' => $now, 'updated_at' => $now]);
-            $id = (int) DB::table('family_members')->insertGetId($member + ['city_id' => $city, 'family_id' => $family['family']->id, 'person_id' => $memberPerson, 'provider_person_id' => $personId, 'created_at' => $now, 'updated_at' => $now]);
+            if ($state !== null) {
+                DB::table('people')->where('id', $memberPerson)->update(['person_state_id' => $state, 'updated_at' => $now]);
+                $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $memberPerson,
+                    details: [['field' => 'person_state_id', 'before' => null, 'after' => $state]]);
+            }
+            $id = (int) DB::table('family_members')->insertGetId($member + ['city_id' => $city, 'family_id' => $family->id, 'person_id' => $memberPerson, 'provider_person_id' => $head, 'created_at' => $now, 'updated_at' => $now]);
             $name = self::fullName(DB::table('people')->where('id', $memberPerson)->first());
-            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $personId,
-                details: [['field' => 'family.member', 'before' => null, 'after' => $name]]);
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $head,
+                details: [['field' => 'family.member', 'before' => null, 'after' => $name], ...Households::recount($head)]);
 
             return $id;
         });
     }
 
-    public function updateMember(WebAccount $account, int $personId, int $memberId, array $input): void
+    /**
+     * Changes a member's family row and, when sent, the person columns of the desktop family grid (names, sex, birth date, national
+     * number, residence state). Only changed person values are checked and written; a new name or national number that matches
+     * someone else needs `$confirmed`. The head's relation stays as it is.
+     *
+     * @param  ?array{0: int, 1: int}  $household
+     */
+    public function updateMember(WebAccount $account, int $personId, int $memberId, array $input, ?array $household = null, bool $confirmed = false): void
     {
-        $person = $this->writable($account, $personId);
-        $row = $this->memberRow($personId, $memberId);
-        $values = $this->validate(PersonFields::MEMBER, $input, (int) $person->city_id, (array) $row, 'edit.');
-        DB::table('family_members')->where('id', $memberId)->update($values + ['updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId,
-            details: self::prefixed('family', AccountAuditTrail::changes($row, $values)));
+        $home = $this->householdFor($account, $personId, $household);
+        [$city, $head] = [$home['city'], $home['head']];
+        $row = $this->memberRow($home, $memberId);
+        $current = array_intersect_key((array) $row, PersonFields::MEMBER);
+        $isHead = (int) $row->person_id === $head;
+        // Fields not sent keep their value.
+        $family = array_intersect_key($input, PersonFields::MEMBER) + $current;
+        if ($isHead) {
+            $family['relation_id'] = $current['relation_id'];
+        }
+        $family['has_work'] = $family['has_work'] === null || $family['has_work'] === '' ? '' : ((int) $family['has_work'] === 1 ? '1' : '0');
+        $values = $this->validate(PersonFields::MEMBER, $family, $city, (array) $row, 'edit.');
+        if (! $isHead) {
+            $this->guardRelation($values, $current['relation_id'] === null ? null : (int) $current['relation_id'], 'edit.');
+        }
+
+        $person = DB::table('people')->where('id', $row->person_id)->where('city_id', $city)->whereNull('deleted_at')->first() ?? abort(404);
+        $sent = array_intersect_key($input, array_flip(PersonFields::MEMBER_PERSON));
+        if (array_key_exists('birth_date', $sent)) {
+            $sent['birth_date'] = self::birthDate($sent['birth_date']);
+        }
+        $stored = fn (string $field) => trim((string) ($field === 'birth_date' ? substr((string) $person->birth_date, 0, 10) : $person->{$field}));
+        $sent = array_filter($sent, fn ($value, $field) => trim((string) $value) !== $stored($field), ARRAY_FILTER_USE_BOTH);
+        $changed = [];
+        if ($sent !== []) {
+            $changed = $this->validate(array_intersect_key(PersonFields::personFlat(), $sent), $sent, $city, (array) $person, 'edit.');
+            if (($changed['sex'] ?? null) === 'female') {
+                $changed += array_fill_keys(array_keys(PersonFields::PERSON['military']), null);
+            }
+            if (! $confirmed && array_intersect_key($changed, array_flip(['national_number', 'first_name', 'father_name', 'last_name'])) !== []
+                && $this->duplicates($account, $city, $changed + (array) $person, (int) $person->id) !== []) {
+                throw ValidationException::withMessages(['confirm' => __('people.errors.duplicates')]);
+            }
+        }
+
+        DB::transaction(function () use ($account, $city, $head, $row, $person, $values, $changed, $memberId) {
+            $now = now();
+            DB::table('family_members')->where('id', $memberId)->update($values + ['updated_at' => $now]);
+            if ($changed !== []) {
+                DB::table('people')->where('id', $person->id)->update($changed + ['updated_at' => $now]);
+                $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: (int) $person->id,
+                    details: AccountAuditTrail::changes($person, $changed));
+            }
+            $subject = DB::table('people')->where('id', $head)->where('city_id', $city)->exists() ? $head : (int) $person->id;
+            $details = [...(self::prefixed('family', AccountAuditTrail::changes($row, $values)) ?? []), ...Households::recount($head)];
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $subject,
+                details: $details === [] ? null : $details);
+            // A person who also belongs to other households changes who is at home there too.
+            if (array_key_exists('person_state_id', $changed)) {
+                foreach (Households::membershipsOf((int) $person->id)->pluck('head_id')->unique()->reject(fn ($other) => $other === $head) as $other) {
+                    $this->recounted($account, (int) $other);
+                }
+            }
+        });
     }
 
-    /** Takes a member out of the family (the person record stays); the person itself cannot be removed from its own family here. */
-    public function removeMember(WebAccount $account, int $personId, int $memberId): void
+    /**
+     * Takes a member out of a household (the person record stays). The head cannot be removed; from a person's own page that person
+     * cannot be removed either (`$self` allows it on the family page).
+     *
+     * @param  ?array{0: int, 1: int}  $household
+     */
+    public function removeMember(WebAccount $account, int $personId, int $memberId, ?array $household = null, bool $self = false): void
     {
-        $person = $this->writable($account, $personId);
-        $row = $this->memberRow($personId, $memberId);
-        (int) $row->person_id !== $personId || throw ValidationException::withMessages(['member' => __('people.errors.self_member')]);
-        DB::table('family_members')->where('id', $memberId)->update(['deleted_at' => now(), 'updated_at' => now()]);
-        $this->audit->record($account->id, 'people.updated', 'succeeded', (int) $person->city_id, subjectType: 'person_entity', subjectId: $personId,
-            details: [['field' => 'family.member', 'before' => self::fullName(DB::table('people')->where('id', $row->person_id)->first()), 'after' => null]]);
+        $home = $this->householdFor($account, $personId, $household);
+        [$city, $head] = [$home['city'], $home['head']];
+        $row = $this->memberRow($home, $memberId);
+        (int) $row->person_id !== $head || throw ValidationException::withMessages(['member' => __('families.errors.head_member')]);
+        $self || (int) $row->person_id !== $personId || throw ValidationException::withMessages(['member' => __('people.errors.self_member')]);
+        DB::transaction(function () use ($account, $city, $head, $row, $memberId) {
+            DB::table('family_members')->where('id', $memberId)->update(['deleted_at' => now(), 'updated_at' => now()]);
+            $subject = DB::table('people')->where('id', $head)->where('city_id', $city)->exists() ? $head : (int) $row->person_id;
+            $this->audit->record($account->id, 'people.updated', 'succeeded', $city, subjectType: 'person_entity', subjectId: $subject,
+                details: [['field' => 'family.member', 'before' => self::fullName(DB::table('people')->where('id', $row->person_id)->first()), 'after' => null], ...Households::recount($head)]);
+        });
     }
 
-    private function memberRow(int $personId, int $memberId): object
+    /**
+     * Writes the household's computed counts on its beneficiary, on request (the family page shows when they differ).
+     *
+     * @param  array{0: int, 1: int}  $household
+     */
+    public function recountHousehold(WebAccount $account, int $personId, array $household): void
     {
-        $familyId = DB::table('family_members')->where('person_id', $personId)->whereNull('deleted_at')->orderBy('id')->value('family_id');
-        $row = DB::table('family_members')->where('id', $memberId)->where('family_id', $familyId)->whereNull('deleted_at')->first();
-        abort_if($row === null, 404);
-
-        return $row;
+        $home = $this->householdFor($account, $personId, $household);
+        $home['head'] > 0 || abort(404);
+        $this->recounted($account, $home['head']);
     }
 
     /** People of the city for the "existing person" picker, by name or national number. */
@@ -558,8 +688,9 @@ final class PeopleService
             $query->where(fn ($q) => $q->where('first_name', 'like', $like)->orWhere('father_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('national_number', 'like', $like));
         }
 
-        return $query->orderBy('first_name')->limit(8)->get(['id', 'first_name', 'father_name', 'last_name', 'national_number', 'birth_date'])
-            ->map(fn ($p) => (object) ['id' => (int) $p->id, 'name' => self::fullName($p), 'national_number' => $p->national_number, 'birth_year' => $p->birth_date ? substr((string) $p->birth_date, 0, 4) : null]);
+        return $query->orderBy('first_name')->limit(8)->get(['id', 'first_name', 'father_name', 'last_name', 'national_number', 'birth_date', 'person_state_id'])
+            ->map(fn ($p) => (object) ['id' => (int) $p->id, 'name' => self::fullName($p), 'national_number' => $p->national_number, 'birth_year' => $p->birth_date ? substr((string) $p->birth_date, 0, 4) : null,
+                'person_state_id' => $p->person_state_id === null ? null : (int) $p->person_state_id]);
     }
 
     // ---------------------------------------------------------------- sub-tables
@@ -568,9 +699,20 @@ final class PeopleService
     public function details(WebAccount $account, string $kind, int $personId): Collection
     {
         $this->person($account, $personId);
+
+        return $this->detailRows($kind, [$personId]);
+    }
+
+    /**
+     * Rows of one sub-table for several people (the family page), with the labels of their lookup values. Callers authorize.
+     *
+     * @param  list<int>  $personIds
+     */
+    public function detailRows(string $kind, array $personIds): Collection
+    {
         $definition = PersonFields::DETAILS[$kind] ?? abort(404);
-        $query = DB::table($definition['table'].' as t')->where('t.person_id', $personId)->whereNull('t.deleted_at');
-        $columns = ['t.id'];
+        $query = DB::table($definition['table'].' as t')->whereIn('t.person_id', $personIds ?: [0])->whereNull('t.deleted_at');
+        $columns = ['t.id', 't.person_id'];
         $en = app()->getLocale() === 'en';
         foreach ($definition['fields'] as $field => $spec) {
             $columns[] = 't.'.$field;
@@ -627,14 +769,6 @@ final class PeopleService
         abort_if($row === null, 404);
 
         return $row;
-    }
-
-    /** Projects the person applied to (any role), newest first. */
-    public function projects(int $personId): Collection
-    {
-        return DB::table('project_applicants as a')->join('projects as p', 'p.id', '=', 'a.project_id')->join('cities as c', 'c.id', '=', 'p.city_id')
-            ->whereNull('a.deleted_at')->whereNull('p.deleted_at')->where('a.person_id', $personId)->orderByDesc('p.request_date')
-            ->get(['p.id', 'p.project_number', 'p.name', 'p.application_stage', 'p.request_date', 'c.code', 'a.role']);
     }
 
     public function audit(WebAccount $account, string $event, ?int $city = null, ?int $personId = null): void

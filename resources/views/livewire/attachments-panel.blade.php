@@ -8,7 +8,7 @@
         $maxMb = (int) config('attachments.upload.max_kb') / 1024;
         $size = fn (?int $b) => $b === null ? '—' : ($b >= 1048576 ? number_format($b / 1048576, 1).' MB' : max(1, (int) round($b / 1024)).' KB');
     @endphp
-    <x-hc.card :title="__('attachments.panel')" :subtitle="trans_choice('attachments.count', $total, ['count' => $total])" :flush="true" id="attachments">
+    <x-hc.card :title="__('attachments.panel')" :subtitle="$counted ? trans_choice('attachments.count', $total, ['count' => $total]) : null" :flush="true" id="attachments">
         @if($message !== '')<div style="padding:12px 20px 0"><x-hc.alert type="success">{{ $message }}</x-hc.alert></div>@endif
 
         @if($showPhoto)
@@ -82,7 +82,7 @@
                         <td data-label="{{ __('attachments.type') }}">{{ $r->type_label ?? __('attachments.uncategorised') }}</td>
                         <td data-label="{{ __('attachments.uploaded') }}"><span class="num">{{ $r->uploaded_at ? substr((string) $r->uploaded_at, 0, 10) : '—' }}</span>@if($r->uploader) <span class="muted">· {{ $r->uploader }}</span>@endif</td>
                         <td data-label="{{ __('attachments.size') }}" class="num"><span dir="ltr">{{ $size($r->size) }}</span></td>
-                        <td style="white-space:nowrap">
+                        <td class="full hc-attach-ops">
                             @if($identityPerson && $r->available && in_array(strtolower((string) $r->extension), \App\Services\Identity\IdentityReviewService::READABLE, true))<x-hc.button size="sm" variant="ghost" icon="id" :href="route('people.identity', ['locale' => $locale, 'person' => $identityPerson, 'attachment' => $r->id])">{{ __('identity.attach_button') }}</x-hc.button>@endif
                             @if($r->available)<x-hc.button size="sm" variant="ghost" icon="install" :href="$url.'?download=1'">{{ __('attachments.download') }}</x-hc.button>@endif
                             @if($types->isNotEmpty())
@@ -99,11 +99,14 @@
 
         @if($types->isNotEmpty())
         <x-slot:footer>
-            <form wire:submit="saveFiles" style="display:grid;gap:12px">
-                <strong>{{ __('attachments.add') }}</strong>
-                <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr));align-items:end">
+            @php($filesError = $errors->first('files') ?: $errors->first('files.*'))
+            <form wire:submit="saveFiles" class="hc-attach" x-data="attachDrop" x-on:dragover.prevent x-on:drop.prevent
+                x-on:livewire-upload-start="start()"x-on:livewire-upload-progress="progress = $event.detail.progress"
+                x-on:livewire-upload-finish="stop()" x-on:livewire-upload-error="stop()" x-on:livewire-upload-cancel="stop()">
+                <h3>{{ __('attachments.add') }}</h3>
+                <div class="hc-attach-grid">
                     <x-hc.field :label="__('attachments.type')" for="att-type-{{ $owner }}" :error="$errors->first('uploadType')" :required="true">
-                        <select id="att-type-{{ $owner }}" class="hc-select" wire:model="uploadType">
+                        <select id="att-type-{{ $owner }}" class="hc-select" wire:model="uploadType" aria-invalid="{{ $errors->has('uploadType') ? 'true' : 'false' }}">
                             <option value="">{{ __('attachments.choose_type') }}</option>
                             @foreach($types->groupBy('category') as $category => $group)
                                 <optgroup label="{{ __('attachments.categories.'.$category) }}">
@@ -112,20 +115,50 @@
                             @endforeach
                         </select>
                     </x-hc.field>
-                    <x-hc.field :label="__('attachments.files')" for="att-files-{{ $owner }}" :error="$errors->first('files') ?: $errors->first('files.*')" :hint="__('attachments.hint', ['kinds' => $kinds, 'max' => $maxMb, 'files' => config('attachments.upload.max_files')])" :required="true">
-                        <input id="att-files-{{ $owner }}" class="hc-input" type="file" multiple wire:model="files" accept="{{ collect(array_keys(config('attachments.upload.types')))->map(fn ($k) => '.'.$k)->implode(',') }}">
-                    </x-hc.field>
+                    <div class="hc-field">
+                        <span class="hc-label">{{ __('attachments.files') }}<span class="req" aria-hidden="true">*</span></span>
+                        <div @class(['hc-drop', 'is-invalid' => $filesError !== '']) :class="{ 'is-over': over }"
+                            @dragenter.prevent="over = true" @dragover.prevent="over = true" @dragleave="leave($event)" @drop.prevent="drop($event)">
+                            <x-hc.icon name="upload" :size="26"/>
+                            <p class="hc-drop-text" x-text="over ? $el.dataset.over : $el.dataset.idle" data-idle="{{ __('attachments.drop') }}" data-over="{{ __('attachments.drop_now') }}">{{ __('attachments.drop') }}</p>
+                            <label class="hc-btn hc-btn-secondary hc-btn-sm hc-drop-button">
+                                <x-hc.icon name="plus" :size="16"/>{{ __('attachments.choose_files') }}
+                                <input id="att-files-{{ $owner }}" x-ref="input" class="hc-drop-input" type="file" multiple wire:model="files"
+                                    accept="{{ collect(array_keys(config('attachments.upload.types')))->map(fn ($k) => '.'.$k)->implode(',') }}"
+                                    aria-describedby="att-files-{{ $owner }}-hint att-files-{{ $owner }}-error" aria-invalid="{{ $filesError !== '' ? 'true' : 'false' }}">
+                            </label>
+                            {{-- The kinds are Latin: isolated so their order survives a right-to-left sentence. --}}
+                            <p class="hc-hint" id="att-files-{{ $owner }}-hint">{{ __('attachments.hint', ['kinds' => "\u{2066}".$kinds."\u{2069}", 'max' => $maxMb, 'files' => config('attachments.upload.max_files')]) }}</p>
+                        </div>
+                        <div class="hc-drop-progress" x-show="uploading" x-cloak role="status">
+                            <div class="hc-progress" role="progressbar" aria-label="{{ __('attachments.upload_progress') }}" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="progress"><span :style="'width: ' + progress + '%'"></span></div>
+                            <span>{{ __('attachments.uploading') }} <span class="num" dir="ltr" x-text="progress + '%'"></span></span>
+                        </div>
+                        @if($filesError !== '')<p class="hc-error" id="att-files-{{ $owner }}-error" role="alert">{{ $filesError }}</p>@endif
+                    </div>
                 </div>
                 @if($files)
-                    <ul style="display:flex;gap:6px;flex-wrap:wrap;margin:0;padding:0;list-style:none">
-                        @foreach($files as $i => $f)
-                            <li wire:key="pick-{{ $i }}"><span class="hc-chip">{{ method_exists($f, 'getClientOriginalName') ? $f->getClientOriginalName() : '' }} <button type="button" wire:click="removeFile({{ $i }})" aria-label="{{ __('hc.clear') }}" style="background:none;border:0;cursor:pointer;color:inherit;padding:0"><x-hc.icon name="x" :size="14"/></button></span></li>
-                        @endforeach
-                    </ul>
+                    <div class="hc-picked">
+                        <p class="hc-label">{{ __('attachments.selected') }} <span class="num">({{ count($files) }})</span></p>
+                        <ul aria-label="{{ __('attachments.selected') }}">
+                            @foreach($files as $i => $f)
+                                {{-- Inline form only: a block php directive after the inline ones above would swallow the markup between. --}}
+                                @php($upload = $f instanceof \Illuminate\Http\UploadedFile)
+                                @php($picked = $upload ? $f->getClientOriginalName() : '')
+                                @php($bytes = $upload ? rescue(fn () => (int) $f->getSize(), null, false) : null)
+                                <li wire:key="pick-{{ $i }}-{{ md5($picked) }}">
+                                    <x-hc.icon name="file" :size="18"/>
+                                    <span class="hc-picked-name" dir="auto">{{ $picked }}</span>
+                                    <span class="muted num" dir="ltr">{{ $size($bytes) }}</span>
+                                    <button type="button" class="hc-picked-remove" wire:click="removeFile({{ $i }})" aria-label="{{ __('attachments.remove', ['name' => $picked]) }}" title="{{ __('attachments.remove', ['name' => $picked]) }}"><x-hc.icon name="x" :size="16"/></button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
                 @endif
-                <div>
-                    <x-hc.button type="submit" icon="plus" wire:loading.attr="disabled" wire:target="files,saveFiles">
-                        <span wire:loading.remove wire:target="files,saveFiles">{{ __('attachments.upload') }}</span><span wire:loading wire:target="files,saveFiles">{{ __('attachments.uploading') }}</span>
+                <div class="hc-attach-actions">
+                    <x-hc.button type="submit" icon="upload" wire:loading.attr="disabled" wire:target="files,saveFiles">
+                        <span wire:loading.remove wire:target="saveFiles">{{ __('attachments.upload') }}</span><span wire:loading wire:target="saveFiles">{{ __('attachments.uploading') }}</span>
                     </x-hc.button>
                 </div>
             </form>

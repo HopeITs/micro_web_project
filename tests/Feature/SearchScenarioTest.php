@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Livewire\SearchPage;
+use App\Models\SavedView;
 use App\Models\WebAccount;
 use App\Services\AccessRoles;
 use App\Services\AccountProvisioner;
 use App\Services\Reports\ProjectReportFilters;
+use App\Services\Reports\ReportFilterFields;
 use App\Services\Reports\Search\ApplicationSearch;
 use App\Services\Reports\Search\SearchModes;
 use App\Services\Reports\Search\SearchService;
@@ -27,6 +29,9 @@ use Tests\TestCase;
  * the financial role sees loans with the SYP/USD summary; guest, legal, media and monitoring see what their capabilities allow; a one-city
  * account never sees another city's rows; the common filters narrow (two age ranges both apply); the search text never reaches an address;
  * the export is token based, authorised and audited.
+ *
+ * Filter bar (25 November 2026): every type sorts over all pages by its listed columns; the count beside a value is what ticking it gives
+ * and "is none of" is its complement, in every type; changing the type keeps the filters it also takes; saved views never hold the text.
  */
 class SearchScenarioTest extends TestCase
 {
@@ -344,6 +349,133 @@ class SearchScenarioTest extends TestCase
         $clean = ProjectReportFilters::clean(['fund_type' => ['3', 'x', '0'], 'request_from' => '2025-02-30', 'usd_from' => '-4', 'sex' => ['male', 'robot']]);
         $this->assertSame([3], $clean['fund_type']);
         $this->assertSame(['', '', ['male']], [$clean['request_from'], $clean['usd_from'], $clean['sex']]);
+    }
+
+    public function test_every_sortable_column_of_every_type_orders_all_pages_and_keeps_the_rows(): void
+    {
+        $admin = $this->as('role.administrator');
+        $service = app(SearchService::class);
+        foreach (['ar', 'en'] as $locale) {
+            app()->setLocale($locale);
+            foreach (self::ALL as $key) {
+                $mode = SearchModes::make($key);
+                $this->assertSame([], array_diff(array_keys($mode->sorts()), ['city', ...$mode->columns()]), "$key sorts only by its own columns");
+                $this->assertNotEmpty($mode->sorts(), $key);
+                $plain = $service->page($admin, $key, [])['rows']->total();
+                foreach (array_keys($mode->sorts()) as $column) {
+                    $sorted = $service->page($admin, $key, ['sort' => $column, 'dir' => $locale === 'ar' ? 'desc' : 'asc']);
+                    $this->assertSame($plain, $sorted['rows']->total(), "$key by $column");
+                    $this->assertNotEmpty($sorted['cells'], "$key by $column");
+                }
+                // A hidden or computed column is never sorted by.
+                foreach (array_intersect_key(['city', ...$mode->columns()], array_flip($mode->sensitive())) as $hidden) {
+                    $this->assertArrayNotHasKey($hidden, $mode->sorts(), "$key never orders by a column some readers cannot see");
+                }
+            }
+        }
+        app()->setLocale('ar');
+    }
+
+    public function test_sorting_runs_over_every_page_and_the_export_follows_it(): void
+    {
+        $admin = $this->as('role.administrator');
+        $column = array_search(__('search.columns.request_date'), SearchModes::make('applications')->headings(), true);
+
+        $page = Livewire::test(SearchPage::class)->set('mode', 'applications')->call('sortBy', 'request_date')->assertSet('sort', 'request_date')->assertSet('dir', 'asc');
+        $first = array_map(fn ($l) => $l['cells'][$column], $page->viewData('cells'));
+        $second = array_map(fn ($l) => $l['cells'][$column], $page->call('nextPage')->viewData('cells'));
+        $all = [...$first, ...$second];
+        $ordered = $all;
+        sort($ordered);
+        $this->assertSame($ordered, $all, 'The second page continues the first.');
+        $this->assertSame(substr((string) DB::table('projects')->whereNull('deleted_at')->min('request_date'), 0, 10), $first[0]);
+        // Descending starts from the newest and goes back to page one; a third press restores the type's own order.
+        $page->call('sortBy', 'request_date')->assertSet('dir', 'desc')->assertSet('paginators.page', 1);
+        $this->assertSame(substr((string) DB::table('projects')->whereNull('deleted_at')->max('request_date'), 0, 10), $page->viewData('cells')[0]['cells'][$column]);
+        [, $rows] = app(SearchService::class)->export($admin, 'applications', ['sort' => 'request_date', 'dir' => 'desc']);
+        $exported = array_map(fn ($l) => $l[$column], iterator_to_array($rows, false));
+        $expected = $exported;
+        rsort($expected);
+        $this->assertSame($expected, $exported);
+        $page->call('sortBy', 'request_date')->assertSet('sort', '');
+        // Unlisted keys do nothing, from the page or from the address, and never reach the query.
+        $page->call('sortBy', 'national_number')->assertSet('sort', '')->call('sortBy', 'p.id; drop table projects')->assertSet('sort', '');
+        Livewire::withQueryParams(['mode' => 'applications', 'sort' => 'national_number', 'dir' => 'sideways'])->test(SearchPage::class)->assertOk()->assertSet('dir', 'asc')->assertViewHas('sortedBy', '');
+    }
+
+    public function test_the_count_beside_a_value_equals_the_result_of_ticking_it_in_every_type(): void
+    {
+        $admin = $this->as('role.administrator');
+        $service = app(SearchService::class);
+        $checked = [];
+        foreach (self::ALL as $key) {
+            $mode = SearchModes::make($key)->for($admin);
+            if ($mode->filterKind() === 'none') {
+                $this->assertSame([], $service->facetCounts($admin, $key, 'fund_type', []));
+
+                continue;
+            }
+            foreach (ReportFilterFields::for($mode->filterKind()) as $field => [$type]) {
+                if ($type !== 'list' && $type !== 'choice') {
+                    continue;
+                }
+                $counts = $service->facetCounts($admin, $key, $field, []);
+                foreach (array_slice(array_filter($counts), 0, 1, true) as $value => $count) {
+                    $filters = [$field => $type === 'list' ? [$value] : $value];
+                    $this->assertSame($count, $service->page($admin, $key, $filters)['total'], "$key: $field = $value");
+                    $checked[$key] = ($checked[$key] ?? 0) + 1;
+                    if ($type === 'list') {
+                        // Included and excluded together are every row, each once.
+                        $rows = fn (array $f) => $service->page($admin, $key, $f)['rows']->total();
+                        $this->assertSame($rows([]), $rows($filters) + $rows($filters + ['not' => [$field]]), "$key: $field complement");
+                    }
+                }
+            }
+        }
+        $this->assertGreaterThanOrEqual(10, $checked['applications']);
+        $this->assertSame(3, $checked['meetings'] ?? 0, 'Career, category and sub category of the meetings.');
+    }
+
+    public function test_the_filter_bar_the_type_picker_and_the_year_filters(): void
+    {
+        $this->as('role.administrator');
+        $fund = (string) DB::table('fund_types')->orderBy('id')->value('id');
+        $career = (string) DB::table('profession_meetings')->whereNotNull('career_id')->orderBy('id')->value('career_id');
+        $page = $this->page('visit-dates')->call('openFilter', 'fund_type');
+        $this->assertSame(DB::table('projects')->where('fund_type_id', $fund)->count(), collect($page->viewData('bar')['editor']['options'])->firstWhere('value', $fund)['count']);
+        $page->call('toggleValue', 'fund_type', $fund)->call('openFilter', 'career')->call('toggleValue', 'career', $career);
+        $page->assertSee(__('search.ui.add'))->assertSeeHtml('data-flt-trigger="fund_type"');
+        // The filters the next type also takes stay; the others go.
+        $page->call('setMode', 'loans')->assertSet('mode', 'loans')->assertSet('filters', ['fund_type' => [(int) $fund], 'career' => [(int) $career]]);
+        $page->call('setMode', 'meetings')->assertSet('filters', ['career' => [(int) $career]])->call('openFilter', 'fund_type')->assertSet('editing', null);
+        $page->call('setMode', 'family')->assertSet('filters', [])->assertSee(__('search.ui.no_filters'));
+
+        $year = (int) substr((string) DB::table('projects')->orderBy('id')->value('request_date'), 0, 4);
+        $inYear = DB::table('projects')->where('request_date', '>=', "$year-01-01")->where('request_date', '<', ($year + 1).'-01-01')->count();
+        $this->assertSame($inYear, $this->page('visit-dates', ['filters.request_year' => [$year]])->viewData('rows')->total());
+        $this->assertSame(200 - $inYear, $this->page('visit-dates', ['filters.request_year' => [$year], 'filters.not' => ['request_year']])->viewData('rows')->total());
+        // The text narrows the counts too, and it is in neither the printed header nor the address.
+        $counted = $this->page('visit-dates', ['term' => 'DAM-1001'])->call('openFilter', 'status');
+        $this->assertSame(1, array_sum(array_column($counted->viewData('bar')['editor']['options'], 'count')));
+    }
+
+    public function test_a_saved_search_keeps_the_type_filters_and_order_but_never_the_text(): void
+    {
+        $this->as('role.administrator');
+        $fund = (int) DB::table('fund_types')->orderBy('id')->value('id');
+        $page = $this->page('loans', ['term' => 'secretterm'])->call('openFilter', 'fund_type')->call('setExclude', 'fund_type', true)->call('toggleValue', 'fund_type', (string) $fund)
+            ->call('sortBy', 'loan_date')->call('saveView', 'قروض');
+        $view = SavedView::query()->where('dataset', 'search')->firstOrFail();
+        $this->assertSame([['field' => 'fund_type', 'op' => 'not_in', 'values' => [$fund]]], $view->spec['filters']);
+        $this->assertSame(['mode' => 'loans', 'last' => false, 'sort' => 'loan_date', 'dir' => 'asc'], $view->spec['view']);
+        $this->assertStringNotContainsString('secretterm', json_encode($view->getAttributes(), JSON_UNESCAPED_UNICODE));
+        $page->call('setMode', 'visit-dates')->call('applyView', $view->id)->assertSet('mode', 'loans')->assertSet('sort', 'loan_date')
+            ->assertSet('filters', ['fund_type' => [$fund], 'not' => ['fund_type']]);
+
+        // An account without the type keeps its own type and is told that something was left out.
+        $view->update(['is_shared' => true]);
+        $this->custom('search.viewer', ['applications.view', 'people.view'], [1]);
+        Livewire::test(SearchPage::class)->call('applyView', $view->id)->assertSet('mode', 'applications')->assertSet('viewNotice', __('hc.view_filters_dropped'));
     }
 
     public function test_m_and_e_visits_evaluation_last_only_and_visit_dates(): void

@@ -79,6 +79,11 @@ final class AttachmentSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts(['career' => 'cr', 'attachment_type' => 'aty', 'category' => ['aty.category'], 'uploaded_at' => ['at.uploaded_at']]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('at.id');

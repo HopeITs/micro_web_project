@@ -1,5 +1,21 @@
 # Delivery task board
 
+## UX restructure: project page, families, tables, statistics and search — 25–26 November 2026
+
+Owner request of 25 November (project page buttons and attachments form unusable, repeated status; people page does not show families; search/filter/sort missing on most tables; heavy filters on statistics and search). No schema change. Owner acceptance is still open.
+
+| Area | Delivered |
+|---|---|
+| Project page | One header with one status; stage bar joined to the next step; "needs your attention" list; module tiles with live summaries; tabs (overview, state and tasks, attachments, papers); all printed papers in one searchable hub with recently used; permission rules in `ProjectWorkspace` (same conditions as before) |
+| Attachments | Localized drag-and-drop upload with selected-file list, progress and errors beside their control (project, person and meeting pages) |
+| People and families | `/families` list (one row per household) and family page grouped by household with labelled head, member details, family-wide work/health/property/aid/projects, add/edit drawer; person page with role in family and tabs; household counts recomputed on member save as the desktop does |
+| Tables | Browser search/sort/value filters on full tables of 6+ rows; server search and whitelisted header sorting on paginated lists; search text that can hold names kept out of the address on task board, special cases, notifications and meetings |
+| Statistics and search | Filter chips with searchable lists, live counts, exclude mode, date presets, saved views, print; KPI tiles, sort/top-N, second dimension, ready reports; search type picker and server sorting |
+
+Verification (26 November): full suite on SQLite, 467 tests, no failures; browser walkthrough on an isolated preview database with invented data (administrator and guest, desktop and 375px). Not verified: real transferred data and speed at real volume.
+
+**Open owner questions:** loan and contact visibility for the guest role on the project page; required fields in the family member form; removing a member (desktop deletes the person, web removes from the family); changing a family book number after registration; households without a recorded head; definitions of "children" (under 18) and "working"; application family grid still merges households sharing a book and offers «مستفيد»; partnership filter vs statistics axis; owner vs any beneficiary on person-based statistics axes; names still kept in the address of the checklist, accounts and audit searches.
+
 ## Rebuild plan M0–M7 (approved by the user 19 November 2026) — canonical from now on
 
 Full plan: [rebuild-plan-2026-11.md](../planning/rebuild-plan-2026-11.md). User decisions: reuse existing code; **one database with clean unified tables only** (drop `legacy_*`, `op_*`, `shared_*`; keep original sources as hashed SQL archives outside the operational database); project number suggested from each city's own sequence, editable, unique per city with a locked check, shown as `CITY-####`, new internal `id` on every table; each city continues its own sequence; Kobo sync, extended profession meetings and cross-program national-number check are in scope; Lebanon is out of scope; UI is Livewire 4 + Tailwind 4 with HC identity (`#BE1F24`, Somar Sans, RTL); build on synthetic data first, then import real data. No task starts before all of its dependencies are closed. The phase tables below this section are history.

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Services\Field\SpecialCaseListService;
 use App\Services\Field\SpecialCaseService;
 use App\Services\Reports\TableExport;
+use App\Support\TableTools\ExportSnapshot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -35,8 +36,10 @@ final class SpecialCaseController
 
     public function export(Request $request, string $locale, SpecialCaseListService $list, TableExport $export): StreamedResponse
     {
+        // While the list is searched the filters arrive through a single-use token (the text stays out of the address).
+        $held = ExportSnapshot::pull($request, 'special-cases');
         try {
-            $filters = SpecialCaseListService::clean($request->query());
+            $filters = SpecialCaseListService::clean($held ?? $request->query());
         } catch (ValidationException) {
             abort(422);
         }

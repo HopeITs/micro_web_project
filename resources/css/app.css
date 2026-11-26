@@ -513,3 +513,9 @@ h3 { font-size: 1rem; font-weight: 700; }
 .hc-table tfoot th, .hc-table tfoot td { border-block-start: 2px solid var(--line-strong); background: var(--surface-2); }
 .hc-table tbody th[scope="row"] { text-align: start; font-weight: 500; color: var(--ink); background: transparent; font-size: inherit; white-space: normal; padding: 12px 16px; border-block-end: 1px solid var(--line); }
 .hc-table tfoot th[scope="row"] { color: var(--ink); font-size: inherit; padding: 12px 16px; }
+
+/* Page modules: each file belongs to one screen family. */
+@import './modules/project.css';
+@import './modules/people.css';
+@import './modules/tables.css';
+@import './modules/insights.css';

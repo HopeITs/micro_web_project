@@ -9,7 +9,9 @@ use App\Services\AccountAuditTrail;
 use App\Services\Kobo\KoboReadService;
 use App\Services\Kobo\KoboResultsService;
 use App\Services\Kobo\KoboVisitService;
+use App\Services\ProjectNumberAllocator;
 use App\Services\Reports\TableExport;
+use App\Support\TableTools\ExportSnapshot;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -51,12 +53,17 @@ final class KoboController
 
     public function export(Request $request, string $locale, KoboResultsService $results, AccountAccess $access, AccountAuditTrail $audit, TableExport $export): StreamedResponse
     {
+        // While the answers are searched by text the filters arrive through a single-use token (the text stays out of the address).
+        $held = ExportSnapshot::pull($request, 'kobo-answers');
         $input = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'], 'sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc'],
             'city' => ['nullable', 'array'], 'city.*' => ['integer', 'min:1'], 'form' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9]+$/'],
             'from' => self::DATE, 'to' => self::DATE, 'last' => ['nullable', 'boolean'], 'format' => ['nullable', 'in:xlsx,csv'],
         ]);
-        [$headings, $rows] = $results->export($request->user(), [
+        [$headings, $rows] = $results->export($request->user(), $held ?? [
             'cities' => $input['city'] ?? [], 'form' => $input['form'] ?? '', 'from' => $input['from'] ?? null, 'to' => $input['to'] ?? null, 'last' => (bool) ($input['last'] ?? false),
+            // A project number is not personal data and may travel in the address, as the page puts it there.
+            'q' => ProjectNumberAllocator::parse((string) ($input['q'] ?? '')) !== null ? $input['q'] : '', 'sort' => $input['sort'] ?? null, 'dir' => $input['dir'] ?? null,
         ], $access, $audit);
 
         return $export->stream(TableExport::format($input['format'] ?? null), 'kobo-answers-'.now()->format('Ymd-His'), $headings, $rows, [], app()->isLocale('ar'));

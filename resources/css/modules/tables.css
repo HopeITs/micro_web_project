@@ -1,0 +1,46 @@
+/* Module styles: tables (UX restructure, 25 November 2026). Imported by ../app.css; uses its colour tokens. */
+
+/* ---- Smart tables (resources/js/modules/tables.js): toolbar, hidden rows, sortable headers, footer note. */
+.hc-ts { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 10px 20px; border-block-end: 1px solid var(--line); min-width: 0; }
+.hc-ts .hc-input, .hc-ts .hc-select { min-height: 36px; padding-block: 4px; font-size: .88rem; }
+.hc-ts .hc-ts-search { flex: 1 1 220px; width: auto; min-width: 0; max-width: 360px; }
+.hc-ts .hc-select { flex: 0 1 200px; width: auto; min-width: 0; max-width: 100%; }
+.hc-ts .hc-ts-order { display: none; }
+.hc-ts-count { margin-inline-start: auto; font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hc-ts-clear[hidden] { display: none; }
+.hc-ts-empty { margin: 0; padding: 20px; text-align: center; color: var(--muted); }
+.hc-ts-empty[hidden] { display: none; }
+/* Inside a padded body the toolbar lines up with the table, not with the card edge. */
+.hc-card-body .hc-ts, .hc-section-body .hc-ts, details .hc-ts { padding-inline: 0; }
+/* `.stack` rows are grids on phones, which would beat the hidden attribute: hide with their own rule. */
+.hc-table tbody tr[data-ts-hidden] { display: none !important; }
+.hc-table tfoot [data-ts-note]::after { content: attr(data-ts-note); display: block; margin-block-start: 2px; font-size: .72rem; font-weight: 700; color: var(--warn); white-space: normal; }
+
+/* Sort control of a header (client tables and x-hc.sort-th): a button or a link that looks like the heading. */
+.hc-table th .hc-sort { font-weight: inherit; text-align: start; text-decoration: none; min-height: 24px; }
+.hc-table th.num .hc-sort { flex-direction: row-reverse; }
+.hc-table th a.hc-sort:hover { color: var(--ink); }
+
+/* ---- Server lists: the "sort by" list for phones (x-hc.sort-select) and the private search form (x-hc.table-search). */
+.hc-sort-mobile { display: none; }
+.hc-ts-server { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 16px 20px 0; }
+.hc-ts-server .hc-field { flex: 1 1 240px; min-width: 0; max-width: 520px; }
+
+@media (max-width: 720px) {
+    .hc-ts { padding-inline: 16px; }
+    .hc-ts .hc-ts-search { flex-basis: 100%; max-width: none; }
+    .hc-ts .hc-select { flex: 1 1 140px; }
+    .hc-ts .hc-ts-order { display: block; }
+    .hc-sort-mobile { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-block-end: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
+    .hc-sort-mobile .hc-select { flex: 1; min-width: 0; min-height: 40px; }
+    .hc-ts-server { padding-inline: 16px; }
+}
+@media (pointer: coarse) {
+    .hc-ts .hc-input, .hc-ts .hc-select, .hc-ts .hc-btn { min-height: 42px; }
+    .hc-table th .hc-sort { min-height: 34px; }
+}
+/* Paper shows what is on screen; the controls stay off it, but a filtered table says how many rows it shows. */
+@media print {
+    .hc-ts { border: 0; padding-inline: 0; }
+    .hc-ts:not(.is-filtered), .hc-ts input, .hc-ts select, .hc-ts button, .hc-sort-ind, .hc-sort-mobile, .hc-ts-server { display: none !important; }
+}

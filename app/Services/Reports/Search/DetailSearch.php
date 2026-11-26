@@ -117,6 +117,16 @@ final class DetailSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        $columns = $this->kind() === 'person' ? ['person' => ['pe.first_name', 'pe.last_name'], 'relation' => 'rl'] : [];
+        foreach ($this->definition() as $i => $c) {
+            $columns[$c[0]] = $c[1] === 'lookup' ? 'k'.$i : ['d.'.$c[2]];
+        }
+
+        return $this->projectSorts($columns);
+    }
+
     public function order(Builder $query): Builder
     {
         $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('d.id');

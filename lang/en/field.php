@@ -108,7 +108,7 @@ return [
         'interests_hint' => 'Content providers, trainers, trainees and bazaar participants named in the meetings (questions 19 to 22).', 'report_none' => 'No final meetings match.',
         'answers' => 'Survey answers', 'option' => 'Option', 'persons' => 'Persons',
         'title' => 'Profession meetings', 'intro' => 'Surveys and minutes of meetings with the practitioners of a profession, in the cities you can read.',
-        'new' => 'New meeting', 'empty' => 'No meetings found.', 'header' => 'Meeting', 'career' => 'Profession', 'date' => 'Meeting date', 'place' => 'Place', 'invited' => 'Number invited', 'attendance' => 'Number attending',
+        'new' => 'New meeting', 'empty' => 'No meetings found.', 'header' => 'Meeting', 'career' => 'Profession', 'date' => 'Meeting date', 'place' => 'Place', 'invited' => 'Number invited', 'attendance' => 'Number attending', 'absent' => 'Number absent',
         'totals_hint' => 'Absent = invited − attending. Counts in the counted questions, the season table, the competition levels and the challenges must each add up to the number attending.',
         'details' => 'Details', 'reason' => 'Reason', 'count' => 'Count', 'from' => 'From', 'to' => 'To', 'spec' => 'Specialization', 'items' => 'Equipment', 'challenge' => 'Challenge', 'solution' => 'Suggested solutions',
         'project' => 'Project number', 'name' => 'Name', 'speciality' => 'Speciality', 'brands_hint' => 'One brand per line', 'minutes' => 'Meeting minutes', 'attendees' => 'Attendees',

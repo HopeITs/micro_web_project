@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Support\ProjectWorkspace;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/** Projects list (Livewire) and a read-only project page. Other cities are invisible through CityScope (404). */
+/** Projects list (Livewire) and the project page (ProjectWorkspace). Other cities are invisible through CityScope (404). */
 class ProjectController
 {
     public function index(): View
@@ -13,15 +15,15 @@ class ProjectController
         return view('projects.index');
     }
 
-    public function show(string $locale, int $project): View
+    public function show(Request $request, string $locale, int $project, ProjectWorkspace $workspace): View
     {
         $project = Project::with([
-            'city', 'career', 'projectCategory', 'projectType', 'donor', 'street',
-            'projectApplicants.person.maritalStatus',
-            'projectStateHistory' => fn ($q) => $q->with(['projectState', 'stateReason'])->orderBy('changed_on')->orderBy('id'),
-            'loans.loanInstallments' => fn ($q) => $q->orderBy('due_on'),
+            'city', 'career', 'projectCategory', 'projectType', 'donor',
+            'projectApplicants' => fn ($q) => $q->orderBy('id'), 'projectApplicants.person',
+            'projectStateHistory' => fn ($q) => $q->with('projectState')->orderBy('changed_on')->orderBy('id'),
+            'loans' => fn ($q) => $q->orderBy('id'), 'loans.loanInstallments' => fn ($q) => $q->orderBy('due_on')->orderBy('id'),
         ])->findOrFail($project);
 
-        return view('projects.show', ['project' => $project]);
+        return view('projects.show', ['project' => $project, 'page' => $workspace->build($request->user(), $project)]);
     }
 }

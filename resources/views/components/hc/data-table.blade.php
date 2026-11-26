@@ -5,7 +5,7 @@
     labelled by data-label.
 --}}
 @props(['rows', 'table'])
-<table class="hc-table stack">
+<table class="hc-table stack" data-smart="off">
     <thead><tr>
         @foreach($table['columns'] as $col)
             @php($dir = $col['dir'])

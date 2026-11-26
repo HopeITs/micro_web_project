@@ -8,6 +8,7 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Reports\ProjectReportFilters;
+use App\Services\Reports\ReportFacets;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,12 +25,15 @@ final class SearchService
 
     public function __construct(private AccountAccess $access, private AccountAuditTrail $audit) {}
 
-    /** The filter state of the page or an export, cleaned: common filters, the cities chosen and the "last visit only" switch. */
+    /** The filter state of the page or an export, cleaned: common filters, the cities chosen, the "last visit only" switch and the order. */
     public static function filters(array $input): array
     {
         return ProjectReportFilters::clean($input) + [
             'cities' => array_values(array_unique(array_filter(array_map(fn ($c) => (is_int($c) || (is_string($c) && ctype_digit($c))) ? (int) $c : 0, (array) ($input['cities'] ?? []))))),
             'last' => in_array($input['last'] ?? false, [true, 1, '1', 'on', 'true'], true),
+            // A column key; each type orders only by the keys it lists in sorts().
+            'sort' => is_string($input['sort'] ?? null) && preg_match('/\A[a-z0-9_]{1,40}\z/', $input['sort']) === 1 ? $input['sort'] : '',
+            'dir' => ($input['dir'] ?? '') === 'desc' ? 'desc' : 'asc',
         ];
     }
 
@@ -114,10 +118,31 @@ final class SearchService
         }
         $filters = self::filters($filters);
         $query = $mode->query($this->ids($permitted, $filters), $filters);
-        $paginator = $mode->order(clone $query)->paginate(SearchMode::PER_PAGE, ['*'], 'page', max(1, $page));
+        $paginator = $mode->sorted(clone $query, $filters['sort'] ?: null, $filters['dir'])->paginate(SearchMode::PER_PAGE, ['*'], 'page', max(1, $page));
 
         return ['rows' => $paginator, 'cells' => $this->assemble($mode, $paginator->getCollection(), $held), 'total' => $mode->counter($query), 'summary' => $mode->summary($query),
             'cities' => $permitted, 'mode' => $mode];
+    }
+
+    /**
+     * Records per value of one filter of a type, under every other filter, the text and the cities (the permitted ones only).
+     *
+     * @return array<int|string, int>
+     */
+    public function facetCounts(WebAccount $account, string $key, string $filter, array $filters): array
+    {
+        $mode = SearchModes::make($key)->for($account);
+        $permitted = $this->cities($account, $mode);
+        if ($permitted->isEmpty() || $mode->filterKind() === 'none') {
+            return [];
+        }
+        $filters = self::filters($filters);
+        $ids = $this->ids($permitted, $filters);
+        $facets = app(ReportFacets::class);
+
+        return $mode->filterKind() === 'meeting'
+            ? $facets->meetings($filter, $filters, fn (array $without) => $mode->ids($mode->query($ids, $without), 'm.id'))
+            : $facets->projects($filter, $filters, fn (array $without) => $mode->ids($mode->query($ids, $without)));
     }
 
     /** @return bool whether the account may export the type somewhere */
@@ -141,7 +166,7 @@ final class SearchService
             abort(403);
         }
         $filters = self::filters($filters);
-        $query = $mode->order($mode->query($this->ids($permitted, $filters), $filters));
+        $query = $mode->sorted($mode->query($this->ids($permitted, $filters), $filters), $filters['sort'] ?: null, $filters['dir']);
         $count = $mode->rows($query);
         $this->audit->record($account->id, 'reports.exported', 'succeeded', decision: 'search:'.$key.'/rows:'.$count);
 

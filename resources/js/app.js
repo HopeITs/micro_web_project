@@ -1,5 +1,9 @@
 // Alpine is provided by Livewire; do not initialize a second instance.
 import Sortable from 'sortablejs';
+import './modules/project';
+import './modules/people';
+import './modules/tables';
+import './modules/insights';
 
 // Column picker (x-hc.column-picker, smart-search phase 2): drag or arrow buttons reorder, checkboxes show/hide;
 // every change sends the ticked keys in their order to the Livewire list's setColumns(). At least one stays shown.
@@ -39,19 +43,23 @@ document.addEventListener('alpine:init', () => {
 // that has a chart, from our own origin (the CSP allows no CDN). The component reads its data from the figure's data-chart attribute,
 // which Livewire updates on every render; a MutationObserver redraws in place (same type) or rebuilds (other type), and destroy()
 // releases the instance, observers and listeners when the figure leaves the page, so nothing leaks across updates or navigation.
+// Optional attributes on the figure (statistics page): data-height (pixels, as the drawing area is outside Livewire's updates),
+// data-horizontal="1" (bars lie down, for long labels), data-other="series"|"slice" (the last series or slice is "others": grey),
+// data-keys (JSON, one per label; a press on a mark then sends "hc-chart-pick" with the key, "" = nothing to pick).
 document.addEventListener('alpine:init', () => {
     let loading = null;
     const loadChart = () => (loading ??= import('chart.js/auto').then((module) => module.default ?? module.Chart));
     const FALLBACK = ['#2a63b8', '#d2690a', '#1d8a52', '#8a46b0', '#0f8fa3', '#be1f24', '#8f7500', '#5d6572'];
     const POINTS = ['circle', 'rect', 'triangle', 'rectRot', 'star', 'cross', 'crossRot', 'rectRounded'];
     const charts = new WeakMap(); // Chart instances stay outside Alpine's reactive state (a proxied chart recurses forever)
+    const looks = new WeakMap(); // per canvas: the colours and number format of the last draw, for the value labels
     const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
     window.Alpine.data('hcChart', () => ({
         kind: null, gone: false, observer: null, themeObserver: null, media: null, onTheme: null,
         init() {
             this.observer = new MutationObserver(() => this.draw());
-            this.observer.observe(this.$el, { attributes: true, attributeFilter: ['data-chart'] });
+            this.observer.observe(this.$el, { attributes: true, attributeFilter: ['data-chart', 'data-height', 'data-horizontal', 'data-other', 'data-keys'] });
             this.onTheme = () => this.draw(true);
             this.media = window.matchMedia('(prefers-color-scheme: dark)');
             this.media.addEventListener('change', this.onTheme);
@@ -78,8 +86,15 @@ document.addEventListener('alpine:init', () => {
             const canvas = this.$el.querySelector('canvas');
             if (!canvas) return;
 
+            const figure = this.$el;
             const pie = cfg.type === 'pie' || cfg.type === 'doughnut';
             const kind = pie ? cfg.type : (cfg.type === 'line' ? 'line' : 'bar');
+            const horizontal = kind === 'bar' && figure.dataset.horizontal === '1';
+            const pickable = figure.dataset.keys !== undefined;
+            const other = figure.dataset.other || '';
+            const shape = horizontal ? `${cfg.type}-h` : cfg.type;
+            const height = Number(figure.dataset.height || 0);
+            if (height > 0) figure.querySelector('.hc-chart-canvas').style.height = `${height}px`;
             const rtl = document.documentElement.dir === 'rtl';
             const ink = css('--ink-2', '#555');
             const grid = css('--line', '#ddd');
@@ -91,32 +106,40 @@ document.addEventListener('alpine:init', () => {
             Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
             Chart.defaults.color = ink;
 
+            const neutral = palette[palette.length - 1];
             const datasets = cfg.datasets.map((set, i) => {
-                const color = palette[i % palette.length];
+                const color = other === 'series' && i === cfg.datasets.length - 1 ? neutral : palette[i % palette.length];
                 if (pie) {
-                    return { label: set.label, data: set.data, backgroundColor: cfg.labels.map((_, j) => palette[j % palette.length]), borderColor: surface, borderWidth: 2 };
+                    const slice = (j) => (other === 'slice' && j === cfg.labels.length - 1 ? neutral : palette[j % palette.length]);
+                    return { label: set.label, data: set.data, backgroundColor: cfg.labels.map((_, j) => slice(j)), borderColor: surface, borderWidth: 2 };
                 }
                 return kind === 'line'
                     ? { label: set.label, data: set.data, borderColor: color, backgroundColor: color, tension: 0.25, pointStyle: POINTS[i % POINTS.length], pointRadius: 5, pointHoverRadius: 7, spanGaps: false }
-                    : { label: set.label, data: set.data, backgroundColor: color, borderColor: color, borderWidth: 0, borderRadius: 3 };
+                    : { label: set.label, data: set.data, backgroundColor: color, borderColor: cfg.type === 'stacked' ? surface : color, borderWidth: cfg.type === 'stacked' ? 1 : 0, borderRadius: 3, maxBarThickness: 48 };
             });
 
             // Values written on the marks (no colour-only reading); skipped when there are too many marks to stay legible.
-            const total = cfg.labels.length * cfg.datasets.length;
+            // The plugin stays with the chart across updates, so it reads everything from the chart as it is now.
             const valueLabels = {
                 id: 'hcValueLabels',
                 afterDatasetsDraw(chart) {
-                    if (pie || cfg.type === 'stacked' || total > 36) return;
+                    const look = looks.get(chart.canvas);
+                    const stacked = chart.options.scales?.x?.stacked || chart.options.scales?.y?.stacked;
+                    const marks = chart.data.labels.length * chart.data.datasets.length;
+                    const lying = chart.options.indexAxis === 'y';
+                    if (!look || chart.config.type === 'pie' || chart.config.type === 'doughnut' || stacked || marks > (lying ? 60 : 36)) return;
                     const { ctx } = chart;
                     ctx.save();
-                    ctx.fillStyle = ink;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'bottom';
+                    ctx.fillStyle = look.ink;
+                    ctx.textAlign = lying ? (look.rtl ? 'right' : 'left') : 'center';
+                    ctx.textBaseline = lying ? 'middle' : 'bottom';
                     ctx.font = `600 11px ${Chart.defaults.font.family}`;
                     chart.data.datasets.forEach((set, i) => {
                         chart.getDatasetMeta(i).data.forEach((element, j) => {
                             const value = set.data[j];
-                            if (value !== null && value !== undefined) ctx.fillText(fmt(value), element.x, element.y - 4);
+                            if (value === null || value === undefined) return;
+                            if (lying) ctx.fillText(look.fmt(value), element.x + (look.rtl ? -6 : 6), element.y);
+                            else ctx.fillText(look.fmt(value), element.x, element.y - 4);
                         });
                     });
                     ctx.restore();
@@ -127,7 +150,9 @@ document.addEventListener('alpine:init', () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: reduced ? false : { duration: 350 },
-                layout: { padding: { top: 18 } },
+                indexAxis: horizontal ? 'y' : 'x',
+                // Room for the numbers at the end of lying bars; on a narrow card, for slanted labels on the side they run to.
+                layout: { padding: horizontal ? { [rtl ? 'left' : 'right']: 44 } : { top: 18, [rtl ? 'left' : 'right']: !pie && figure.clientWidth < 480 ? 28 : 0 } },
                 plugins: {
                     legend: {
                         display: pie || cfg.datasets.length > 1,
@@ -135,7 +160,9 @@ document.addEventListener('alpine:init', () => {
                         labels: {
                             color: ink, usePointStyle: true, boxWidth: 10,
                             generateLabels: (chart) => {
-                                const items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                // A pie names its slices (the type's own list); other charts name their series.
+                                const source = (pie && Chart.overrides[kind]?.plugins?.legend?.labels?.generateLabels) || Chart.defaults.plugins.legend.labels.generateLabels;
+                                const items = source(chart);
                                 if (pie) items.forEach((item) => { item.text = `${item.text}: ${fmt(chart.data.datasets[0].data[item.index])}`; item.fontColor = ink; });
                                 else items.forEach((item) => { item.fontColor = ink; });
                                 return items;
@@ -144,17 +171,33 @@ document.addEventListener('alpine:init', () => {
                     },
                     tooltip: {
                         rtl, textDirection: rtl ? 'rtl' : 'ltr',
-                        callbacks: { label: (item) => `${item.dataset.label ? item.dataset.label + ': ' : ''}${fmt(item.parsed.y ?? item.parsed)}` },
+                        callbacks: { label: (item) => `${item.dataset.label ? item.dataset.label + ': ' : ''}${fmt((horizontal ? item.parsed.x : item.parsed.y) ?? item.parsed)}` },
                     },
                 },
-                scales: pie ? {} : {
+                scales: pie ? {} : (horizontal ? {
+                    x: { stacked: cfg.type === 'stacked', beginAtZero: true, reverse: rtl, grid: { color: grid }, border: { display: false }, ticks: { color: ink, precision: 0, callback: (value) => fmt(value) } },
+                    y: { stacked: cfg.type === 'stacked', position: rtl ? 'right' : 'left', grid: { display: false }, ticks: { color: ink, autoSkip: false } },
+                } : {
                     x: { stacked: cfg.type === 'stacked', reverse: rtl, grid: { display: false }, ticks: { color: ink } },
                     y: { stacked: cfg.type === 'stacked', beginAtZero: true, position: rtl ? 'right' : 'left', grid: { color: grid }, border: { display: false }, ticks: { color: ink, callback: (value) => fmt(value) } },
-                },
+                }),
             };
+            if (pickable) {
+                // The whole column or row answers the pointer, not only the painted bar.
+                if (!pie) options.interaction = { mode: 'index', axis: horizontal ? 'y' : 'x', intersect: false };
+                options.onHover = (event, elements) => { if (event.native?.target) event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; };
+                options.onClick = (_, elements) => {
+                    if (!elements.length) return;
+                    let keys = [];
+                    try { keys = JSON.parse(figure.dataset.keys || '[]'); } catch (_error) { return; }
+                    const key = String(keys[elements[0].index] ?? '');
+                    if (key !== '') figure.dispatchEvent(new CustomEvent('hc-chart-pick', { bubbles: true, detail: { key } }));
+                };
+            }
 
+            looks.set(canvas, { ink, rtl, fmt });
             const existing = charts.get(this.$el);
-            if (existing && this.kind === cfg.type && !rebuild) {
+            if (existing && this.kind === shape && !rebuild) {
                 existing.data.labels = cfg.labels;
                 existing.data.datasets = datasets;
                 existing.options = options;
@@ -162,7 +205,7 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
             existing?.destroy();
-            this.kind = cfg.type;
+            this.kind = shape;
             charts.set(this.$el, new Chart(canvas, { type: kind, data: { labels: cfg.labels, datasets }, options, plugins: [valueLabels] }));
         },
     }));

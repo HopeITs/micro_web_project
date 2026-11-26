@@ -28,7 +28,7 @@ return [
         'quantity' => 'Quantity', 'price' => 'Price', 'local_contribution' => 'Local contribution', 'comments' => 'Comments', 'risk_id' => 'Risk',
         'person_id' => 'Name', 'contact' => 'Contact number', 'family_number' => 'Family book number', 'current' => 'Current job',
     ],
-    'grid_fields' => ['family_work' => ['person_id' => 'Name', 'occupation_id' => 'Occupation', 'work_type_id' => 'Nature of work', 'salary' => 'Income'], 'materials' => ['name' => 'Item name', 'comments' => 'Kind', 'quantity' => 'Quantity', 'price' => 'Price per piece', 'local_contribution' => 'Local contribution']],
+    'grid_fields' => ['family_work' => ['person_id' => 'Name', 'occupation_id' => 'Occupation', 'work_type_id' => 'Nature of work', 'description' => 'Job description', 'salary' => 'Income'], 'materials' => ['name' => 'Item name', 'comments' => 'Kind', 'quantity' => 'Quantity', 'price' => 'Price per piece', 'local_contribution' => 'Local contribution']],
     'grids' => [
         'family' => 'Family members', 'work_experiences' => 'Work experience', 'educations' => 'Education', 'courses' => 'Courses', 'losses' => 'Losses', 'illnesses' => 'Health conditions',
         'assets' => 'Property', 'aid_sources' => 'Help from organisations', 'aid_received' => 'Aid received', 'power_sources' => 'Home power sources', 'goals' => 'Beneficiary goal from the loan', 'family_work' => 'Work of the beneficiary family',

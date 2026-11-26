@@ -10,26 +10,32 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\ChecklistListController;
 use App\Http\Controllers\ExecutiveFileController;
+use App\Http\Controllers\FamiliesController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KoboController;
+use App\Http\Controllers\LegalPaperController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\MeetingPaperController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaperDataController;
 use App\Http\Controllers\PaperLibraryController;
 use App\Http\Controllers\PaperPrintController;
+use App\Http\Controllers\PaperSettingsController;
 use App\Http\Controllers\PaymentExportController;
 use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\PeopleExportController;
 use App\Http\Controllers\ProfessionMeetingController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectExportController;
+use App\Http\Controllers\PurchasePaperController;
 use App\Http\Controllers\PurchasingController;
 use App\Http\Controllers\ReportBuilderExportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SpecialCaseController;
 use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\TableSearchController;
 use App\Http\Controllers\TaskBoardController;
 use App\Http\Controllers\VisitController;
 use App\Http\Middleware\RequireCurrentAccount;
@@ -128,6 +134,9 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::get('/notifications/send', [NotificationController::class, 'create'])->name('notifications.create');
             Route::post('/notifications/send', [NotificationController::class, 'send'])->block(10, 10)->name('notifications.send');
 
+            // Table tools: the search box of a plain list page, posted so its text stays out of the address (PrivateSearch; the list page rechecks access).
+            Route::post('/table-search/{list}', TableSearchController::class)->where('list', '[a-z]+')->name('tables.search');
+
             // M4.13 special cases (SpecialCaseService / SpecialCaseListService recheck applications.view + special_cases.view, manage, delete and reports.export per city).
             Route::get('/applications/{project}/special-cases', [SpecialCaseController::class, 'project'])->whereNumber('project')->name('special-cases.project');
             Route::get('/special-cases', [SpecialCaseController::class, 'index'])->name('special-cases.index');
@@ -146,33 +155,36 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             Route::post('/papers/files', [PaperLibraryController::class, 'upload'])->middleware('throttle:30,1')->name('papers.upload');
             Route::delete('/papers/files', [PaperLibraryController::class, 'remove'])->middleware('throttle:30,1')->name('papers.remove');
             Route::post('/papers/files/restore', [PaperLibraryController::class, 'restore'])->middleware('throttle:30,1')->name('papers.restore');
-            Route::get('/papers/settings', [\App\Http\Controllers\PaperSettingsController::class, 'show'])->name('papers.settings');
-            Route::post('/papers/settings', [\App\Http\Controllers\PaperSettingsController::class, 'save'])->middleware('throttle:30,1')->name('papers.settings.save');
-            Route::post('/papers/settings/signatory', [\App\Http\Controllers\PaperSettingsController::class, 'saveSignatory'])->middleware('throttle:30,1')->name('papers.settings.signatory');
-            Route::delete('/papers/settings/signatory', [\App\Http\Controllers\PaperSettingsController::class, 'removeSignatory'])->middleware('throttle:30,1')->name('papers.settings.signatory.remove');
+            Route::get('/papers/settings', [PaperSettingsController::class, 'show'])->name('papers.settings');
+            Route::post('/papers/settings', [PaperSettingsController::class, 'save'])->middleware('throttle:30,1')->name('papers.settings.save');
+            Route::post('/papers/settings/signatory', [PaperSettingsController::class, 'saveSignatory'])->middleware('throttle:30,1')->name('papers.settings.signatory');
+            Route::delete('/papers/settings/signatory', [PaperSettingsController::class, 'removeSignatory'])->middleware('throttle:30,1')->name('papers.settings.signatory.remove');
             Route::get('/papers/review/{form}', [PaperLibraryController::class, 'review'])->where('form', 'F[0-9]{2}')->name('papers.review');
             Route::get('/applications/{project}/print', [PaperPrintController::class, 'application'])->whereNumber('project')->name('applications.print');
-            Route::get('/applications/{project}/papers/{paper}', [\App\Http\Controllers\PaperPrintController::class, 'project'])->whereNumber('project')->where('paper', 'audio-consent|special-case|experience-test|photo-adult|photo-child|photo-informed')->name('applications.paper');
-            Route::get('/applications/{project}/finance-papers/{paper}', [\App\Http\Controllers\PaperPrintController::class, 'finance'])->whereNumber('project')->where('paper', 'promissory-note|clearance|disbursement-request|partnership-contract|beneficiary-card')->name('applications.finance-paper');
-            Route::get('/applications/{project}/paper-data', [\App\Http\Controllers\PaperDataController::class, 'show'])->whereNumber('project')->name('applications.paper-data');
-            Route::post('/applications/{project}/paper-data/{form}', [\App\Http\Controllers\PaperDataController::class, 'save'])->whereNumber('project')->where('form', 'disbursement|contract')->middleware('throttle:30,1')->name('applications.paper-data.save');
+            Route::get('/applications/{project}/papers/{paper}', [PaperPrintController::class, 'project'])->whereNumber('project')->where('paper', 'audio-consent|special-case|experience-test|photo-adult|photo-child|photo-informed')->name('applications.paper');
+            Route::get('/applications/{project}/finance-papers/{paper}', [PaperPrintController::class, 'finance'])->whereNumber('project')->where('paper', 'promissory-note|clearance|disbursement-request|partnership-contract|beneficiary-card')->name('applications.finance-paper');
+            Route::get('/applications/{project}/paper-data', [PaperDataController::class, 'show'])->whereNumber('project')->name('applications.paper-data');
+            Route::post('/applications/{project}/paper-data/{form}', [PaperDataController::class, 'save'])->whereNumber('project')->where('form', 'disbursement|contract')->middleware('throttle:30,1')->name('applications.paper-data.save');
             // M4.20 wave 3: the purchasing papers and their entry page (applications.view + purchasing.view / purchasing.manage per city).
-            Route::get('/applications/{project}/purchase-papers/{paper}', [\App\Http\Controllers\PurchasePaperController::class, 'print'])->whereNumber('project')->where('paper', 'purchase-request|price-quote|equipment-receipt|equipment-return')->name('applications.purchase-paper');
-            Route::get('/applications/{project}/purchase-data', [\App\Http\Controllers\PurchasePaperController::class, 'show'])->whereNumber('project')->name('applications.purchase-data');
-            Route::post('/applications/{project}/purchase-data/{form}', [\App\Http\Controllers\PurchasePaperController::class, 'save'])->whereNumber('project')->where('form', 'request|quote|receipt|return')->middleware('throttle:30,1')->name('applications.purchase-data.save');
+            Route::get('/applications/{project}/purchase-papers/{paper}', [PurchasePaperController::class, 'print'])->whereNumber('project')->where('paper', 'purchase-request|price-quote|equipment-receipt|equipment-return')->name('applications.purchase-paper');
+            Route::get('/applications/{project}/purchase-data', [PurchasePaperController::class, 'show'])->whereNumber('project')->name('applications.purchase-data');
+            Route::post('/applications/{project}/purchase-data/{form}', [PurchasePaperController::class, 'save'])->whereNumber('project')->where('form', 'request|quote|receipt|return')->middleware('throttle:30,1')->name('applications.purchase-data.save');
             // M4.20 wave 4: pledge deeds (finance.view; saving finance.manage or executive_files.manage) and sale contracts (purchasing.view / manage).
-            Route::get('/applications/{project}/deeds', [\App\Http\Controllers\LegalPaperController::class, 'deeds'])->whereNumber('project')->name('applications.deeds');
-            Route::post('/applications/{project}/deeds/{kind}', [\App\Http\Controllers\LegalPaperController::class, 'saveDeed'])->whereNumber('project')->where('kind', 'tools|tools_agri|solar|solar_agri|vehicles')->middleware('throttle:30,1')->name('applications.deeds.save');
-            Route::get('/applications/{project}/deeds/{kind}/print', [\App\Http\Controllers\LegalPaperController::class, 'printDeed'])->whereNumber('project')->where('kind', 'tools|tools_agri|solar|solar_agri|vehicles')->name('applications.deeds.print');
-            Route::get('/applications/{project}/sale-contracts', [\App\Http\Controllers\LegalPaperController::class, 'sales'])->whereNumber('project')->name('applications.sale-contracts');
-            Route::post('/applications/{project}/sale-contracts/{kind}', [\App\Http\Controllers\LegalPaperController::class, 'saveSale'])->whereNumber('project')->where('kind', 'car|device')->middleware('throttle:30,1')->name('applications.sale-contracts.save');
-            Route::get('/applications/{project}/sale-contracts/{kind}/print', [\App\Http\Controllers\LegalPaperController::class, 'printSale'])->whereNumber('project')->where('kind', 'car|device')->name('applications.sale-contracts.print');
+            Route::get('/applications/{project}/deeds', [LegalPaperController::class, 'deeds'])->whereNumber('project')->name('applications.deeds');
+            Route::post('/applications/{project}/deeds/{kind}', [LegalPaperController::class, 'saveDeed'])->whereNumber('project')->where('kind', 'tools|tools_agri|solar|solar_agri|vehicles')->middleware('throttle:30,1')->name('applications.deeds.save');
+            Route::get('/applications/{project}/deeds/{kind}/print', [LegalPaperController::class, 'printDeed'])->whereNumber('project')->where('kind', 'tools|tools_agri|solar|solar_agri|vehicles')->name('applications.deeds.print');
+            Route::get('/applications/{project}/sale-contracts', [LegalPaperController::class, 'sales'])->whereNumber('project')->name('applications.sale-contracts');
+            Route::post('/applications/{project}/sale-contracts/{kind}', [LegalPaperController::class, 'saveSale'])->whereNumber('project')->where('kind', 'car|device')->middleware('throttle:30,1')->name('applications.sale-contracts.save');
+            Route::get('/applications/{project}/sale-contracts/{kind}/print', [LegalPaperController::class, 'printSale'])->whereNumber('project')->where('kind', 'car|device')->name('applications.sale-contracts.print');
             Route::get('/applications/{project}/file/print', [PaperPrintController::class, 'file'])->whereNumber('project')->name('applications.file');
             // M4.10 executive file and purchasing (the services recheck applications.view + executive_files.view / purchasing.view and the manage capability per city).
             Route::get('/applications/{project}/executive-file', [ExecutiveFileController::class, 'show'])->whereNumber('project')->name('executive.show');
             Route::get('/applications/{project}/purchases', [PurchasingController::class, 'show'])->whereNumber('project')->name('purchasing.show');
 
             // M4.3 people and families (PeopleService rechecks people.view / people.manage per city on every action).
+            // The families view: households by their beneficiary, and one family book with its households.
+            Route::get('/families', [FamiliesController::class, 'index'])->name('families.index');
+            Route::get('/families/{family}', [FamiliesController::class, 'show'])->whereNumber('family')->name('families.show');
             Route::get('/people', [PeopleController::class, 'index'])->name('people.index');
             Route::get('/people/create', [PeopleController::class, 'create'])->name('people.create');
             Route::get('/national-check', [PeopleController::class, 'national'])->name('people.national');

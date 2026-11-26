@@ -156,9 +156,15 @@
         @if($beneficiaries->isEmpty())
             <p>{{ empty($state['careerIds']) ? __('field.meeting.eligibility_pick') : __('field.meeting.eligibility_none') }}</p>
         @else
-            <div class="hc-table-wrap"><table class="hc-table">
+            <div class="hc-field" style="max-width:420px;margin-block-end:12px"><label class="hc-label" for="ben-q">{{ __('tables.search') }}</label>
+                <input id="ben-q" class="hc-input" type="search" maxlength="100" wire:model.live.debounce.400ms="beneficiarySearch" wire:keydown.enter.prevent placeholder="{{ __('tables.beneficiary_placeholder') }}" autocomplete="off"></div>
+            @php($cut = $eligible->count() >= \App\Services\Field\ProfessionMeetingService::BENEFICIARY_LIMIT)
+            @if($cut)<p class="hc-hint" style="margin-block-end:8px">{{ __('tables.beneficiaries_limit', ['count' => $eligible->count()]) }}</p>@endif
+            @if($eligible->isEmpty())<p class="muted">{{ __('hc.no_results') }}</p>@endif
+            {{-- Sorting in the browser only while every match is on the page. --}}
+            <div class="hc-table-wrap" @if($eligible->isEmpty()) hidden @endif><table class="hc-table" data-smart="{{ $cut ? 'off' : 'sort' }}">
                 <thead><tr><th>{{ __('field.meeting.project') }}</th><th>{{ __('field.meeting.name') }}</th><th>{{ __('staff.tasks.state') }}</th><th>{{ __('field.meeting.funded') }}</th><th></th></tr></thead>
-                <tbody>@foreach($beneficiaries as $b)
+                <tbody>@foreach($eligible as $b)
                     <tr wire:key="ben-{{ $b->project }}"><td class="num ltr">{{ $b->project }}</td><td>{{ $b->name ?: '—' }}</td><td>{{ $b->state }}</td><td>{{ $b->funded ? __('field.meeting.yes') : __('field.meeting.no') }}</td>
                         <td>@if(! $dis)<x-hc.button type="button" variant="ghost" size="sm" icon="plus" wire:click="addAttendee(@js($b->project), @js($b->name))">{{ __('field.meeting.add_attendee') }}</x-hc.button>@endif</td></tr>
                 @endforeach</tbody>

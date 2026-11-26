@@ -7,6 +7,7 @@ use App\Models\EducationLevel;
 use App\Models\MaritalStatus;
 use App\Models\Person;
 use App\Models\ProjectState;
+use App\Services\People\Households;
 use App\Services\People\PeopleService;
 use App\Services\ProjectNumberAllocator;
 use App\Support\ArabicSearch;
@@ -17,7 +18,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * People of the permitted cities with their family book, project count and latest education (the people list).
- * Aliases on the base query: people, c (city), fm/f (first family and its book), pa (project count), le/pe (latest education row).
+ * Aliases on the base query: people, c (city), fm/f (the person's own household row — the one they head, else their first — and its
+ * book, see Households), pa (project count), le/pe (latest education row).
  * Names, national number, mobile and family book number are sensitive (visible on screen today, so exportable but logged as sensitive).
  */
 final class PeopleDataset extends Dataset
@@ -44,14 +46,15 @@ final class PeopleDataset extends Dataset
 
     public function query(): Builder
     {
-        $family = DB::table('family_members')->whereNull('deleted_at')->selectRaw('person_id, MIN(family_id) as family_id')->groupBy('person_id');
+        $own = DB::table('family_members as x')->whereNull('x.deleted_at')->groupBy('x.person_id')
+            ->selectRaw('x.person_id, COALESCE(MIN(CASE WHEN '.Households::keySql('x').' = x.person_id THEN x.id END), MIN(x.id)) as member_id');
         $projects = DB::table('project_applicants')->whereNull('deleted_at')->selectRaw('person_id, COUNT(*) as n')->groupBy('person_id');
         $latestEducation = DB::table('person_educations')->whereNull('deleted_at')->selectRaw('person_id, MAX(id) as education_id')->groupBy('person_id');
 
         // Person::query() carries CityScope (and the soft-delete scope): the permitted cities apply before any filter.
         return Person::query()
             ->join('cities as c', 'c.id', '=', 'people.city_id')
-            ->leftJoinSub($family, 'fm', 'fm.person_id', '=', 'people.id')->leftJoin('families as f', 'f.id', '=', 'fm.family_id')
+            ->leftJoinSub($own, 'own', 'own.person_id', '=', 'people.id')->leftJoin('family_members as fm', 'fm.id', '=', 'own.member_id')->leftJoin('families as f', 'f.id', '=', 'fm.family_id')
             ->leftJoinSub($projects, 'pa', 'pa.person_id', '=', 'people.id')
             ->leftJoinSub($latestEducation, 'le', 'le.person_id', '=', 'people.id')->leftJoin('person_educations as pe', 'pe.id', '=', 'le.education_id');
     }
@@ -69,7 +72,9 @@ final class PeopleDataset extends Dataset
         // Related values as correlated scalar subqueries (one value per person, no GROUP BY); the latest project is the highest project id the person applied to.
         $latest = '(SELECT pr.id FROM project_applicants la JOIN projects pr ON pr.id = la.project_id WHERE la.person_id = people.id AND la.deleted_at IS NULL AND pr.deleted_at IS NULL ORDER BY pr.id DESC LIMIT 1)';
         $latestState = "(SELECT h.project_state_id FROM project_state_history h WHERE h.project_id = {$latest} AND h.is_current = 1 AND h.deleted_at IS NULL LIMIT 1)";
-        $familySize = '(SELECT COUNT(*) FROM family_members fs WHERE fs.family_id = fm.family_id AND fs.deleted_at IS NULL)';
+        // The household's members only: households sharing a book number are counted apart.
+        $familySize = '(SELECT COUNT(*) FROM family_members fs JOIN people ps ON ps.id = fs.person_id WHERE fs.family_id = fm.family_id AND fs.deleted_at IS NULL AND ps.deleted_at IS NULL AND '
+            .Households::keySql('fs').' = '.Households::keySql('fm').')';
 
         return [
             new Field('name', 'people.name', 'text', 'people.first_name', filterable: false, sensitive: true,
@@ -81,7 +86,22 @@ final class PeopleDataset extends Dataset
                 ]),
             new Field('national_number', 'people.fields.national_number', 'text', 'people.national_number', filterable: false, sortable: false, sensitive: true, cell: fn () => ['ltr' => true]),
             new Field('mobile', 'people.fields.mobile', 'text', 'people.mobile', filterable: false, sortable: false, sensitive: true, searchColumns: ['people.mobile', 'people.mobile_2'], cell: fn () => ['ltr' => true]),
-            new Field('family_number', 'people.family_number', 'text', 'f.family_number', filterable: false, sortable: false, sensitive: true, cell: fn () => ['ltr' => true]),
+            // Opens the family page on the person's household.
+            new Field('family_number', 'people.family_number', 'text', 'f.family_number', filterable: false, sortable: false, sensitive: true,
+                with: ['row_family_id' => 'fm.family_id', 'row_head_id' => Households::keySql('fm')],
+                cell: fn (object $row) => ['ltr' => true, 'href' => $row->row_family_id === null ? null : self::familyUrl($row)]),
+            new Field('family_role', 'families.role_column', 'text', '(SELECT rl.name_ar FROM relations rl WHERE rl.id = fm.relation_id)', filterable: false, sortable: false,
+                with: ['row_family_id' => 'fm.family_id', 'row_head_id' => Households::keySql('fm'),
+                    'row_role_en' => '(SELECT rl2.name_en FROM relations rl2 WHERE rl2.id = fm.relation_id)'],
+                cell: function (object $row) {
+                    if ($row->row_family_id === null) {
+                        return [];
+                    }
+                    $relation = app()->getLocale() === 'en' && $row->row_role_en ? $row->row_role_en : $row->col_family_role;
+                    $text = (int) $row->row_head_id === (int) $row->id ? __('families.head') : (string) ($relation ?? __('families.no_relation'));
+
+                    return ['text' => $text, 'export' => $text, 'href' => self::familyUrl($row), 'ltr' => false];
+                }),
             new Field('city', 'hc.city', 'lookup', 'people.city_id', groupable: true, options: function () use ($en) {
                 $context = app(CityContext::class);
                 $query = City::query()->orderBy('id');
@@ -114,6 +134,11 @@ final class PeopleDataset extends Dataset
                 with: ['row_state_en' => "(SELECT st2.name_en FROM project_states st2 WHERE st2.id = {$latestState})"],
                 cell: fn (object $row) => $row->col_latest_state === null ? [] : ['badge' => true, 'tone' => ProjectStatus::tone($row->row_state_en), 'icon' => ProjectStatus::icon($row->row_state_en)]),
         ];
+    }
+
+    private static function familyUrl(object $row): string
+    {
+        return route('families.show', ['locale' => app()->getLocale(), 'family' => $row->row_family_id]).'#h-'.(int) $row->row_head_id;
     }
 
     public function defaultColumns(): array

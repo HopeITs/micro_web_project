@@ -8,6 +8,7 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\Lifecycle\LifecycleService;
+use App\Services\People\Households;
 use App\Services\People\PeopleService;
 use App\Services\People\PersonFields;
 use App\Services\ProjectNumberAllocator;
@@ -384,6 +385,10 @@ final class ApplicationService
             }
             foreach ($rowCounts as $kind => $counts) {
                 $details[] = ['field' => 'rows.'.$kind, 'before' => null, 'after' => $counts];
+            }
+            // The desktop recounts the household after its family grid is saved (a new registration is counted by PeopleService).
+            if ($existing !== null && isset($rowCounts['family'])) {
+                array_push($details, ...Households::recount($personId));
             }
             // Each changed score by its criterion and option names (field score.c<id>).
             if ($values['scores'] !== null) {

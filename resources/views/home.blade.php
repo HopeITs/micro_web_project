@@ -43,7 +43,8 @@
         <x-hc.card :title="__('hc.recent')" :flush="true">
             <x-slot:actions><x-hc.button variant="ghost" size="sm" :href="route('projects.index', ['locale' => app()->getLocale()])">{{ __('hc.all_projects') }}</x-hc.button></x-slot:actions>
             <div class="hc-table-wrap">
-            <table class="hc-table">
+            {{-- Only the latest few projects: searching them here would mislead. --}}
+            <table class="hc-table" data-smart="off">
                 <tbody>
                 @foreach($recent as $p)
                     @php($person = $p->projectApplicants->first()?->person)

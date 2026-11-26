@@ -71,6 +71,55 @@ abstract class SearchMode
      */
     abstract public function lines(Collection $rows): array;
 
+    /**
+     * The columns the rows can be ordered by in the database, over every page: column key => SQL expressions (constants of this class,
+     * written into the query as they are). A column worked out row by row, or hidden from some readers, is not listed.
+     *
+     * @return array<string, list<string>>
+     */
+    public function sorts(): array
+    {
+        return [];
+    }
+
+    /** Orders by a chosen column before the type's own order, which stays as the tie-breaker so pages never overlap. */
+    public function sorted(Builder $query, ?string $column, string $dir): Builder
+    {
+        foreach ($column === null ? [] : ($this->sorts()[$column] ?? []) as $expression) {
+            $query->orderByRaw($expression.($dir === 'desc' ? ' DESC' : ' ASC'));
+        }
+
+        return $this->order($query);
+    }
+
+    /** The ids a query matches, for counting the values of a filter beside it: projects, or the type's own records. */
+    public function ids(Builder $query, string $column = 'p.id'): Builder
+    {
+        return $this->bare($query)->select($column);
+    }
+
+    /** The name of a joined lookup in the current language, as SQL. */
+    protected function byName(string $alias): string
+    {
+        return app()->getLocale() === 'en' ? "COALESCE(NULLIF($alias.name_en, ''), $alias.name_ar)" : "$alias.name_ar";
+    }
+
+    /**
+     * City and project number, plus the type's own columns; a value that is a string names a joined lookup.
+     *
+     * @param  array<string, string|list<string>>  $columns
+     * @return array<string, list<string>>
+     */
+    protected function projectSorts(array $columns = []): array
+    {
+        $out = ['city' => [$this->byName('ci')], 'number' => ['p.project_number', 'p.city_id']];
+        foreach ($columns as $key => $value) {
+            $out[$key] = is_array($value) ? $value : [$this->byName($value)];
+        }
+
+        return $out;
+    }
+
     /** Capabilities an export needs in a city on top of the mode's own. */
     public function exportCapabilities(): array
     {

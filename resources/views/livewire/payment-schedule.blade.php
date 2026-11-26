@@ -96,7 +96,7 @@
             @if($rows->isEmpty())
                 <x-hc.empty :title="__('finance.payments.none')" icon="calendar">{{ __('finance.payments.none_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
+            <table class="hc-table stack" data-smart="off">
                 <thead><tr>
                     @foreach($table['columns'] as $col)
                         @php($dir = $col['dir'])

@@ -82,6 +82,17 @@ final class ApplicationSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts([
+            'beneficiary' => ['pe.first_name', 'pe.last_name'], 'beneficiary_en' => ['pe.full_name_en'], 'father' => ['pe.father_name'], 'mother' => ['pe.mother_name'], 'career' => 'cr',
+            'description' => ['p.name'], 'speciality' => ['p.speciality'], 'category' => 'pc', 'subcategory' => 'ps', 'project_type' => 'pt', 'subtype' => 'pst', 'fund_type' => 'ft',
+            'request_date' => ['p.request_date'], 'state' => 'st', 'state_date' => ['cs.changed_on'], 'fund_date' => ['l.taken_on'], 'fund_amount' => ['l.currency', 'l.amount'],
+            'currency' => ['l.currency'], 'donor' => 'dn', 'group' => 'dg', 'birth_date' => ['pe.birth_date'], 'parish' => 'pa', 'home_street' => 'hs', 'family_size' => ['pe.family_size'],
+            'at_home' => ['pe.household_size'], 'sex' => ['pe.sex'], 'marital' => 'ms', 'project_street' => 'ps2', 'role' => ['a.role'],
+        ]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('p.id')->orderBy('a.id')->orderBy('l.id');

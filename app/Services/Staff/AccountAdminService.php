@@ -11,6 +11,8 @@ use App\Services\AccountAuditTrail;
 use App\Services\AccountPasswords;
 use App\Services\AccountProvisioner;
 use App\Support\InstitutionEmail;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -29,6 +31,9 @@ use InvalidArgumentException;
 final class AccountAdminService
 {
     public const PER_PAGE = 30;
+
+    /** The sortable columns of the accounts list. */
+    public const SORT_KEYS = ['username', 'email', 'identities', 'status', 'created'];
 
     /** Desktop role "Out of Service" (`UserRoles`): such users are never offered for linking. */
     public const OUT_OF_SERVICE = 6;
@@ -94,7 +99,7 @@ final class AccountAdminService
     }
 
     /**
-     * @param  array{q?: ?string, city?: ?int, status?: ?string, role?: ?string}  $filters
+     * @param  array{q?: ?string, city?: ?int, status?: ?string, role?: ?string, sort?: ?string, dir?: ?string}  $filters
      * @return array{rows: LengthAwarePaginator, cities: Collection}
      */
     public function index(WebAccount $admin, array $filters): array
@@ -105,8 +110,7 @@ final class AccountAdminService
         $query = $this->visible($managed);
         $search = trim((string) ($filters['q'] ?? ''));
         if ($search !== '') {
-            $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%';
-            $query->where(fn (Builder $q) => $q->whereRaw("a.username LIKE ? ESCAPE '!'", [$like])->orWhereRaw("a.email LIKE ? ESCAPE '!'", [$like]));
+            TableSearch::apply($query, ['a.username', 'a.email'], $search);
         }
         if (in_array($filters['status'] ?? '', ['active', 'disabled'], true)) {
             $filters['status'] === 'disabled' ? $query->whereNotNull('a.disabled_at') : $query->whereNull('a.disabled_at');
@@ -123,6 +127,11 @@ final class AccountAdminService
             $query->whereExists(fn (Builder $q) => $q->selectRaw('1')->from('account_city_roles as r2')->whereColumn('r2.account_id', 'a.id')->whereNull('r2.revoked_at')
                 ->where('r2.role', $role)->whereIn('r2.city_id', $city !== null ? [$city] : $managed));
         }
+        TableSort::apply($query, [
+            'username' => 'a.username', 'email' => "NULLIF(a.email, '')",
+            'identities' => DB::table('account_legacy_links as sl')->whereColumn('sl.account_id', 'a.id')->whereIn('sl.city_id', $managed)->whereNull('sl.revoked_at')->selectRaw('COUNT(*)'),
+            'status' => 'CASE WHEN a.disabled_at IS NULL THEN 0 ELSE 1 END', 'created' => 'a.created_at',
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
         $rows = $query->orderBy('a.username')->orderBy('a.id')->paginate(self::PER_PAGE, ['a.id', 'a.username', 'a.email', 'a.disabled_at', 'a.created_at', 'a.credential_legacy_user_id'])->withQueryString();
         $ids = $rows->getCollection()->pluck('id')->all();
         $roles = collect();

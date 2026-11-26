@@ -71,8 +71,7 @@
             @endif
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('hc.results', ['count' => number_format($rows->total())]) }}</span>
             @if($canExport)
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('visits.schedule.export', ['locale' => $locale] + $filters + ['format' => 'xlsx'])">{{ __('visits.schedule.export_xlsx') }}</x-hc.button>
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('visits.schedule.export', ['locale' => $locale] + $filters + ['format' => 'csv'])">{{ __('visits.schedule.export_csv') }}</x-hc.button>
+                <x-hc.export-buttons to="visits.schedule.export" :query="$filters" :private="$searching" :xlsx="__('visits.schedule.export_xlsx')" :csv="__('visits.schedule.export_csv')"/>
             @endif
             <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('visits.schedule.clear') }}</x-hc.button>
         </div>
@@ -81,9 +80,11 @@
             @if($rows->isEmpty())
                 <x-hc.empty :title="__('visits.schedule.none')" icon="calendar">{{ __('visits.schedule.none_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
+            @php($sortable = \App\Services\Field\VisitScheduleService::SORT_KEYS)
+            <x-hc.sort-select :columns="collect($sortable)->mapWithKeys(fn ($col) => [$col => __('visits.schedule.columns.'.$col)])->all()" :sort="$sortKey" :dir="$sortDir"/>
+            <table class="hc-table stack" data-smart="off">
                 <thead><tr>
-                    @foreach(['number', 'project', 'beneficiary', 'state', 'donor', 'type', 'visit', 'date', 'home_area', 'project_area', 'mobile', 'next_due', 'status', 'note'] as $col)<th>{{ __('visits.schedule.columns.'.$col) }}</th>@endforeach
+                    @foreach(['number', 'project', 'beneficiary', 'state', 'donor', 'type', 'visit', 'date', 'home_area', 'project_area', 'mobile', 'next_due', 'status', 'note'] as $col)@if(in_array($col, $sortable, true))<x-hc.sort-th :column="$col" :label="__('visits.schedule.columns.'.$col)" :sort="$sortKey" :dir="$sortDir"/>@else<th>{{ __('visits.schedule.columns.'.$col) }}</th>@endif @endforeach
                     <th></th>
                 </tr></thead>
                 <tbody>

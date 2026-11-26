@@ -13,7 +13,8 @@ final class ChecklistListController
 {
     public function index(Request $request, string $locale, ChecklistListService $list): View
     {
-        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1']]);
+        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'],
+            'state' => ['nullable', 'integer', 'min:1'], 'sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc']]);
         $list->opened($request->user());
 
         return view('checklists.index', $list->page($request->user(), $filters) + ['filters' => $filters]);

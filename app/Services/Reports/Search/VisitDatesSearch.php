@@ -46,6 +46,11 @@ final class VisitDatesSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts(['career' => 'cr', 'category' => 'pc', 'subcategory' => 'ps']);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('p.id');

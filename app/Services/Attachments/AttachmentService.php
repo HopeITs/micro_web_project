@@ -7,6 +7,8 @@ namespace App\Services\Attachments;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -135,6 +137,9 @@ final class AttachmentService
      *
      * @param  array{q?: string, cities?: list<int>, category?: string, missing?: bool}  $filters
      */
+    /** The sortable columns of the attachments page. */
+    public const SORT_KEYS = ['name', 'type', 'owner', 'city', 'uploaded'];
+
     public function search(WebAccount $account, array $filters, int $perPage = 25): LengthAwarePaginator
     {
         $projects = $this->access->cities($account, 'projects.view')->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -175,13 +180,13 @@ final class AttachmentService
         if (preg_match('/\A[A-Za-z]{0,3}-?\s*(\d{1,10})\z/', $term, $m) === 1) {
             $query->where('p.project_number', (int) $m[1]);
         } elseif ($term !== '') {
-            // Every word must appear in the file name, the project name or the person's name.
-            foreach (preg_split('/\s+/u', $term) ?: [] as $word) {
-                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%';
-                $query->where(fn ($q) => $q->where('a.original_name', 'like', $like)->orWhere('p.name', 'like', $like)
-                    ->orWhere('h.first_name', 'like', $like)->orWhere('h.father_name', 'like', $like)->orWhere('h.last_name', 'like', $like));
-            }
+            // Every word must appear in the file name, the project name or the person's name (Arabic letters folded).
+            TableSearch::apply($query, ['a.original_name', 'p.name', 'h.first_name', 'h.father_name', 'h.last_name'], $term);
         }
+        TableSort::apply($query, [
+            'name' => 'a.original_name', 'type' => app()->isLocale('en') ? "COALESCE(NULLIF(t.name_en, ''), t.name_ar)" : 't.name_ar',
+            'owner' => ['c.code', 'p.project_number', 'h.first_name', 'h.last_name'], 'city' => app()->isLocale('en') ? 'c.name_en' : 'c.name_ar', 'uploaded' => 'a.uploaded_at',
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
 
         return $query->orderByDesc('a.uploaded_at')->orderByDesc('a.id')->paginate($perPage)->through(fn ($r) => $this->describe($r));
     }

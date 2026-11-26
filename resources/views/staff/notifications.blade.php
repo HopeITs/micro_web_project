@@ -4,6 +4,7 @@
     $selectedCities = array_map('intval', $filters['cities'] ?? []);
     $canSend = app(\App\Services\Staff\NotificationInboxService::class)->sendCities(auth()->user())->isNotEmpty();
     $kinds = ['message', 'visit', 'clearance', 'payment', 'trophy', 'executive_file', 'state', 'purchases'];
+    [$sort, $dir] = \App\Support\TableTools\TableSort::clean($filters['sort'] ?? null, $filters['dir'] ?? null, \App\Services\Staff\NotificationInboxService::SORT_KEYS);
 @endphp
 <x-layouts.hc :title="__('staff.notifications.title')">
     <div class="hc-page-head"><div><h1>{{ __('staff.notifications.title') }}</h1><p>{{ __('staff.notifications.intro') }}</p></div>
@@ -11,7 +12,9 @@
     </div>
     @if(session('status'))<x-hc.alert type="success" style="margin-block-end:16px">{{ session('status') }}</x-hc.alert>@endif
     <x-hc.card :flush="true">
+        <x-hc.table-search list="notifications" :value="$filters['q']" :placeholder="__('tables.notifications_placeholder')"/>
         <form method="GET" action="{{ route('notifications.index', ['locale' => $locale]) }}" class="hc-toolbar" style="align-items:center;flex-wrap:wrap;gap:12px">
+            @if($sort)<input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">@endif
             <div class="hc-field"><label class="hc-label" for="n-kind">{{ __('staff.notifications.kind') }}</label>
                 <select id="n-kind" class="hc-select" name="kind" onchange="this.form.submit()"><option value="">{{ __('staff.tasks.any') }}</option>
                     @foreach($kinds as $k)<option value="{{ $k }}" @selected(($filters['kind'] ?? '') === $k)>{{ __('staff.notifications.kinds.'.$k) }}</option>@endforeach</select></div>
@@ -28,8 +31,15 @@
             @if($rows->count() === 0)
                 <x-hc.empty :title="__('staff.notifications.empty')" icon="bell"/>
             @else
-            <div class="hc-table-wrap"><table class="hc-table">
-                <thead><tr><th>{{ __('staff.notifications.mark') }}</th><th>{{ __('staff.notifications.project') }}</th><th>{{ __('staff.notifications.kind') }}</th><th>{{ __('staff.notifications.about') }}</th><th>{{ __('staff.notifications.body') }}</th><th>{{ __('staff.notifications.date') }}</th><th>{{ __('staff.notifications.sent_by') }}</th><th>{{ __('staff.notifications.open') }}</th></tr></thead>
+            <div class="hc-table-wrap"><table class="hc-table" data-smart="off">
+                <thead><tr><th>{{ __('staff.notifications.mark') }}</th>
+                    <x-hc.sort-th column="project" :label="__('staff.notifications.project')" :sort="$sort" :dir="$dir" link/>
+                    <x-hc.sort-th column="kind" :label="__('staff.notifications.kind')" :sort="$sort" :dir="$dir" link/>
+                    <x-hc.sort-th column="title" :label="__('staff.notifications.about')" :sort="$sort" :dir="$dir" link/>
+                    <th>{{ __('staff.notifications.body') }}</th>
+                    <x-hc.sort-th column="date" :label="__('staff.notifications.date')" :sort="$sort" :dir="$dir" link/>
+                    <x-hc.sort-th column="sender" :label="__('staff.notifications.sent_by')" :sort="$sort" :dir="$dir" link/>
+                    <th>{{ __('staff.notifications.open') }}</th></tr></thead>
                 <tbody>
                 @foreach($rows as $row)
                     <tr>

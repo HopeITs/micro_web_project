@@ -65,8 +65,7 @@
             @endif
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('staff.tasks.total', ['count' => number_format($rows->total())]) }}</span>
             @if($canExport)
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('tasks.board.export', ['locale' => $locale] + $query + ['format' => 'xlsx'])">Excel</x-hc.button>
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('tasks.board.export', ['locale' => $locale] + $query + ['format' => 'csv'])">CSV</x-hc.button>
+                <x-hc.export-buttons to="tasks.board.export" :query="$query" :private="trim($this->q) !== ''"/>
             @endif
             <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('projects.clear_filters') }}</x-hc.button>
         </div>
@@ -74,11 +73,13 @@
             @if($rows->total() === 0)
                 <x-hc.empty :title="__('staff.tasks.empty')" icon="task"/>
             @else
-                <table class="hc-table">
+                <table class="hc-table" data-smart="off">
                     <thead><tr>
-                        <th>{{ __('staff.tasks.project') }}</th><th>{{ __('staff.tasks.beneficiary') }}</th><th>{{ __('staff.tasks.state') }}</th>
-                        @if($kind === 'f')<th>{{ __('staff.tasks.loan_date') }}</th>@endif
-                        @foreach($columns as $c)<th style="min-width:6rem" title="{{ collect($responsible)->flatMap(fn ($byTask) => $byTask[$c->id] ?? [])->unique()->implode('، ') }}">{{ $c->label }}</th>@endforeach
+                        <x-hc.sort-th column="number" :label="__('staff.tasks.project')" :sort="$sortKey" :dir="$sortDir"/>
+                        <x-hc.sort-th column="beneficiary" :label="__('staff.tasks.beneficiary')" :sort="$sortKey" :dir="$sortDir"/>
+                        <x-hc.sort-th column="state" :label="__('staff.tasks.state')" :sort="$sortKey" :dir="$sortDir"/>
+                        @if($kind === 'f')<x-hc.sort-th column="loan" :label="__('staff.tasks.loan_date')" :sort="$sortKey" :dir="$sortDir"/>@endif
+                        @foreach($columns as $c)<x-hc.sort-th wire:key="tbh-{{ $c->id }}" :column="'task-'.$c->id" :label="$c->label" :sort="$sortKey" :dir="$sortDir" style="min-width:6rem" :title="collect($responsible)->flatMap(fn ($byTask) => $byTask[$c->id] ?? [])->unique()->implode('، ')"/>@endforeach
                     </tr></thead>
                     <tbody>
                     @foreach($rows as $row)

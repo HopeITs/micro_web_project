@@ -18,8 +18,12 @@ use Illuminate\Support\Facades\DB;
  * Every project counts once. Series: all projects and funded projects (state in force Financed, Finished, Canceled or Closed, matched by
  * the state's English key, never its number). Axes 11-13 (donor, fund year, fund amount) have one series; axis 14 has ongoing and closed.
  * Beneficiary axes (parish, sex, marital status, age) count the project's owner (first beneficiary) for all four, a deliberate difference
- * from the desktop that counted every beneficiary for sex. Every filter of the search panel applies to every axis, plus request year and
- * fund year lists. Read only; needs applications.view in a city, export also reports.export there.
+ * from the desktop that counted every beneficiary for sex. Every filter of the search panel applies to every axis, the request year and
+ * fund year lists included. Read only; needs applications.view in a city, export also reports.export there.
+ *
+ * An axis may be crossed with a second one (or with the city): the same pass over the projects fills both, so a row of the cross table
+ * always adds up to the row of the single axis. A project with no value on the second axis is shown in its own "does not apply" column.
+ * shape() only arranges the numbers for display and export (series shown, order, the largest N with the rest added up); it never changes them.
  */
 final class StatisticsService
 {
@@ -35,14 +39,34 @@ final class StatisticsService
 
     public const CLOSED = ['Canceled', 'Cancelled', 'Closed'];
 
-    /** Axes that map to a filter of the applications search (for the links on the numbers). */
-    private const LINKS = ['status' => 'status', 'fund_type' => 'fund_type', 'project_type' => 'project_type', 'subtype' => 'subtype', 'category' => 'category', 'subcategory' => 'subcategory',
-        'parish' => 'parish', 'marital' => 'marital', 'donor' => 'donor', 'age' => 'age', 'sex' => 'sex'];
+    /** Axes whose buckets have a natural order (a line may join them). */
+    public const ORDERED = ['partnership', 'age', 'fund_year', 'fund_amount', 'sustainability'];
+
+    /** The second dimension "per city", beside any other axis. */
+    public const BY_CITY = 'city';
+
+    public const SORTS = ['default', 'desc', 'asc', 'name'];
+
+    /** "Largest N, the rest together": 0 = every bucket. */
+    public const TOPS = [0, 5, 10, 15, 20];
+
+    /** The column of a cross table for projects with no value on the second axis, and the row that adds up what "top N" leaves out. */
+    public const NOT_APPLICABLE = 'na';
+
+    public const OTHERS = 'others';
+
+    /** Axes that are a list filter of the same name. */
+    private const LIST_AXES = ['status', 'fund_type', 'project_type', 'subtype', 'category', 'subcategory', 'parish', 'marital', 'donor', 'age', 'sex', 'fund_year'];
+
+    private const OWNER_AXES = ['parish', 'sex', 'marital', 'age'];
+
+    private const LOAN_AXES = ['fund_year', 'fund_amount', 'sustainability'];
+
+    private const PROJECT_AXES = ['fund_type' => 'fund_type_id', 'project_type' => 'project_type_id', 'subtype' => 'project_subtype_id', 'category' => 'project_category_id', 'subcategory' => 'project_subcategory_id', 'donor' => 'donor_id'];
 
     private const LOOKUPS = [
-        'fund_type' => ['fund_types', 'p.fund_type_id'], 'project_type' => ['project_types', 'p.project_type_id'], 'subtype' => ['project_subtypes', 'p.project_subtype_id'],
-        'category' => ['project_categories', 'p.project_category_id'], 'subcategory' => ['project_subcategories', 'p.project_subcategory_id'], 'donor' => ['donors', 'p.donor_id'],
-        'parish' => ['parishes', 'pe.parish_id'], 'marital' => ['marital_statuses', 'pe.marital_status_id'],
+        'fund_type' => 'fund_types', 'project_type' => 'project_types', 'subtype' => 'project_subtypes', 'category' => 'project_categories', 'subcategory' => 'project_subcategories',
+        'donor' => 'donors', 'parish' => 'parishes', 'marital' => 'marital_statuses',
     ];
 
     /** [from, to) bounds in US dollars of the fund amount buckets; the first two are "no rate" and "zero or less". */
@@ -51,14 +75,14 @@ final class StatisticsService
     /** [from, to) bounds in years of the sustainability buckets. */
     private const YEAR_BUCKETS = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
 
+    private ?Collection $ageRanges = null;
+
     public function __construct(private SearchService $search, private AccountAuditTrail $audit) {}
 
-    /** The filters of a statistics view: the search panel's, the cities and the two year lists. */
+    /** The filters of a statistics view: the search panel's (year lists included) and the cities. */
     public static function filters(array $input): array
     {
-        $years = fn ($v) => array_values(array_unique(array_filter(array_map(fn ($y) => (is_int($y) || (is_string($y) && ctype_digit($y))) && (int) $y >= 1900 && (int) $y <= 2100 ? (int) $y : 0, array_slice((array) $v, 0, 60)))));
-
-        return SearchService::filters($input) + ['request_year' => $years($input['request_year'] ?? []), 'fund_year' => $years($input['fund_year'] ?? [])];
+        return SearchService::filters($input);
     }
 
     /** @return array<int, array<string, true>> city id => capabilities held */
@@ -99,6 +123,18 @@ final class StatisticsService
         return $this->cities($account, true)->isNotEmpty();
     }
 
+    /** @return Collection<int, object> the permitted cities, refused (403, audited) when there is none */
+    private function permitted(WebAccount $account, bool $export = false): Collection
+    {
+        $permitted = $this->cities($account, $export);
+        if ($permitted->isEmpty()) {
+            $this->audit->record($account->id, 'access.denied', 'denied');
+            abort(403);
+        }
+
+        return $permitted;
+    }
+
     /** City ids in scope: the chosen ones among the permitted, else all permitted. @return list<int> */
     private function ids(Collection $permitted, array $filters): array
     {
@@ -108,30 +144,71 @@ final class StatisticsService
         return $chosen !== [] ? $chosen : $all;
     }
 
+    /** One row per project (with its state in force) of these cities that passes the filters: p, ci, cur, cs, st. */
+    private function scope(array $cityIds, array $filters): Builder
+    {
+        $current = DB::table('project_state_history')->where('is_current', true)->whereNull('deleted_at')->groupBy('project_id')->select('project_id', DB::raw('MAX(id) as history_id'));
+        $q = DB::table('projects as p')->join('cities as ci', 'ci.id', '=', 'p.city_id')
+            ->joinSub($current, 'cur', 'cur.project_id', '=', 'p.id')
+            ->join('project_state_history as cs', 'cs.id', '=', 'cur.history_id')
+            ->join('project_states as st', 'st.id', '=', 'cs.project_state_id')
+            ->whereIn('p.city_id', $cityIds === [] ? [0] : $cityIds)->whereNull('p.deleted_at');
+
+        return ProjectReportFilters::apply($q, $filters);
+    }
+
     /**
-     * The numbers of one axis.
+     * The headline numbers under the same filters as the axes: every project, the funded ones, and among them the ongoing and the closed
+     * ones by the state in force (the sustainability axis counts only those of them that have a loan date).
      *
-     * @return array{axis: string, series: list<string>, rows: list<array{key: string, label: string, counts: array<string, int>, by_city: array<int, int>, link: ?array}>, totals: array<string, int>, cities: Collection, shown: list<int>}
+     * @return array{all: int, funded: int, ongoing: int, closed: int}
      */
-    public function axis(WebAccount $account, string $axis, array $filters, bool $export = false): array
+    public function summary(WebAccount $account, array $filters): array
+    {
+        $filters = self::filters($filters);
+        $ids = $this->ids($this->permitted($account), $filters);
+        $out = ['all' => 0, 'funded' => 0, 'ongoing' => 0, 'closed' => 0];
+        foreach ($this->scope($ids, $filters)->groupBy('st.name_en')->selectRaw('st.name_en as state_key, COUNT(*) as n')->get() as $row) {
+            $n = (int) $row->n;
+            $out['all'] += $n;
+            $out['funded'] += in_array($row->state_key, self::FUNDED, true) ? $n : 0;
+            $out['ongoing'] += in_array($row->state_key, self::ONGOING, true) ? $n : 0;
+            $out['closed'] += in_array($row->state_key, self::CLOSED, true) ? $n : 0;
+        }
+
+        return $out;
+    }
+
+    /** @return array<int|string, int> projects per value of one filter, under every other filter (permitted cities only) */
+    public function facetCounts(WebAccount $account, string $key, array $filters): array
+    {
+        $filters = self::filters($filters);
+        $ids = $this->ids($this->permitted($account), $filters);
+
+        return app(ReportFacets::class)->projects($key, $filters, fn (array $without) => $this->scope($ids, $without)->select('p.id'));
+    }
+
+    /**
+     * The numbers of one axis, optionally crossed with a second one (`$by`: another axis, or `city`).
+     *
+     * @return array{axis: string, by: ?string, series: list<string>, rows: list<array<string, mixed>>, totals: array<string, int>, columns: array<string, string>, cities: Collection, shown: list<int>}
+     */
+    public function axis(WebAccount $account, string $axis, array $filters, bool $export = false, ?string $by = null): array
     {
         abort_unless(isset(self::AXES[$axis]), 404);
-        $permitted = $this->cities($account, $export);
-        if ($permitted->isEmpty()) {
-            $this->audit->record($account->id, 'access.denied', 'denied');
-            abort(403);
-        }
+        $by = self::validBy($axis, $by);
+        $permitted = $this->permitted($account, $export);
         $filters = self::filters($filters);
         $ids = $this->ids($permitted, $filters);
-        $rows = $this->projects($axis, $ids, $filters);
         $series = match ($axis) {
             'donor', 'fund_year', 'fund_amount' => ['all'],
             'sustainability' => ['ongoing', 'closed'],
             default => ['all', 'funded'],
         };
 
-        $groups = [];   // bucket key => ['counts' => [series => n], 'by_city' => [city => n]]
-        foreach ($rows as $r) {
+        $groups = [];   // bucket key => ['counts' => [series => n], 'by_city' => [city => n], 'city_counts' => [...], 'cells' => [column => [series => n]]]
+        $found = [];    // second-axis keys met
+        foreach ($this->projects($axis, $by, $ids, $filters) as $r) {
             $key = $this->bucket($axis, $r);
             if ($key === null) {
                 continue;
@@ -141,12 +218,24 @@ final class StatisticsService
                 'donor', 'fund_year', 'fund_amount' => ['all'],
                 default => in_array($r->state_key, self::FUNDED, true) ? ['all', 'funded'] : ['all'],
             };
+            $city = (int) $r->city_id;
+            $column = null;
+            if ($by !== null) {
+                $column = $by === self::BY_CITY ? (string) $city : ($this->bucket($by, $r) ?? self::NOT_APPLICABLE);
+                $found[$column] = true;
+            }
             foreach ($in as $s) {
                 $groups[$key]['counts'][$s] = ($groups[$key]['counts'][$s] ?? 0) + 1;
+                $groups[$key]['city_counts'][$s][$city] = ($groups[$key]['city_counts'][$s][$city] ?? 0) + 1;
+                if ($column !== null) {
+                    $groups[$key]['cells'][$column][$s] = ($groups[$key]['cells'][$column][$s] ?? 0) + 1;
+                }
             }
-            $groups[$key]['by_city'][(int) $r->city_id] = ($groups[$key]['by_city'][(int) $r->city_id] ?? 0) + 1;
+            $groups[$key]['by_city'][$city] = ($groups[$key]['by_city'][$city] ?? 0) + 1;
         }
 
+        $shownCities = $permitted->filter(fn ($c) => in_array((int) $c->id, $ids, true))->values();
+        $columns = $by === null ? [] : $this->columns($by, $found, $shownCities);
         $labels = $this->labels($axis, $groups);
         $out = [];
         $totals = array_fill_keys($series, 0);
@@ -156,76 +245,54 @@ final class StatisticsService
                 $counts[$s] = (int) ($groups[$key]['counts'][$s] ?? 0);
                 $totals[$s] += $counts[$s];
             }
-            $out[] = ['key' => (string) $key, 'label' => $label, 'counts' => $counts, 'by_city' => $groups[$key]['by_city'] ?? [], 'link' => $this->link($axis, (string) $key, $filters, $ids)];
+            $out[] = [
+                'key' => (string) $key, 'label' => $label, 'counts' => $counts, 'by_city' => $groups[$key]['by_city'] ?? [], 'city_counts' => $groups[$key]['city_counts'] ?? [],
+                'cells' => $groups[$key]['cells'] ?? [], 'link' => $this->link($axis, (string) $key, $filters, $ids),
+            ];
         }
 
-        return ['axis' => $axis, 'series' => $series, 'rows' => $out, 'totals' => $totals, 'cities' => $permitted->filter(fn ($c) => in_array((int) $c->id, $ids, true))->values(), 'shown' => $ids];
+        return ['axis' => $axis, 'by' => $by, 'series' => $series, 'rows' => $out, 'totals' => $totals, 'columns' => $columns, 'cities' => $shownCities, 'shown' => $ids];
     }
 
-    /** One row per project in scope with the values the axis buckets by. */
-    private function projects(string $axis, array $cityIds, array $filters): iterable
+    /** The second dimension allowed beside an axis, or null. */
+    public static function validBy(string $axis, ?string $by): ?string
     {
-        $current = DB::table('project_state_history')->where('is_current', true)->whereNull('deleted_at')->groupBy('project_id')->select('project_id', DB::raw('MAX(id) as history_id'));
-        $q = DB::table('projects as p')->join('cities as ci', 'ci.id', '=', 'p.city_id')
-            ->joinSub($current, 'cur', 'cur.project_id', '=', 'p.id')
-            ->join('project_state_history as cs', 'cs.id', '=', 'cur.history_id')
-            ->join('project_states as st', 'st.id', '=', 'cs.project_state_id')
-            ->whereIn('p.city_id', $cityIds === [] ? [0] : $cityIds)->whereNull('p.deleted_at')
-            ->select('p.id', 'p.city_id', 'st.id as state_id', 'st.name_en as state_key');
-        ProjectReportFilters::apply($q, $filters);
-        $this->years($q, $filters);
+        return $by !== null && $by !== $axis && ($by === self::BY_CITY || isset(self::AXES[$by])) ? $by : null;
+    }
 
-        if (in_array($axis, ['parish', 'sex', 'marital', 'age'], true)) {
+    /** One row per project in scope with the values the axes bucket by. */
+    private function projects(string $axis, ?string $by, array $cityIds, array $filters): iterable
+    {
+        $axes = array_values(array_filter([$axis, $by]));
+        $q = $this->scope($cityIds, $filters)->select('p.id', 'p.city_id', 'st.id as state_id', 'st.name_en as state_key', 'cs.changed_on', 'p.partnership', 'p.request_date');
+        foreach (self::PROJECT_AXES as $key => $column) {
+            if (in_array($key, $axes, true)) {
+                $q->addSelect('p.'.$column.' as v_'.$key);
+            }
+        }
+        if (array_intersect($axes, self::OWNER_AXES) !== []) {
             // The project's owner: the first beneficiary (one per project, whatever the number of partners).
             $owner = DB::table('project_applicants')->whereNull('deleted_at')->where('role', ProjectReportFilters::BENEFICIARY_ROLE)->groupBy('project_id')->select('project_id', DB::raw('MIN(id) as applicant_id'));
             $q->leftJoinSub($owner, 'ow', 'ow.project_id', '=', 'p.id')->leftJoin('project_applicants as oa', 'oa.id', '=', 'ow.applicant_id')
                 ->leftJoin('people as pe', fn ($j) => $j->on('pe.id', '=', 'oa.person_id')->whereNull('pe.deleted_at'))
-                ->addSelect('pe.parish_id', 'pe.marital_status_id', 'pe.sex', 'pe.birth_date', 'p.request_date');
+                ->addSelect('pe.parish_id', 'pe.marital_status_id', 'pe.sex', 'pe.birth_date');
         }
-        if (in_array($axis, ['fund_year', 'fund_amount', 'sustainability'], true)) {
-            // One loan per project; a project without a loan has no fund year or amount.
-            $q->join('loans as l', fn ($j) => $j->on('l.project_id', '=', 'p.id')->whereNull('l.deleted_at'))
-                ->addSelect('l.taken_on', 'l.amount', 'l.currency', 'l.exchange_rate', 'cs.changed_on');
+        if (array_intersect($axes, self::LOAN_AXES) !== []) {
+            // One loan per project (the first); a project without a loan has no fund year, amount or duration.
+            $first = DB::table('loans')->whereNull('deleted_at')->groupBy('project_id')->select('project_id', DB::raw('MIN(id) as loan_id'));
+            $q->leftJoinSub($first, 'ln', 'ln.project_id', '=', 'p.id')->leftJoin('loans as l', 'l.id', '=', 'ln.loan_id')
+                ->addSelect('l.id as loan_id', 'l.taken_on', 'l.amount', 'l.currency', 'l.exchange_rate');
         }
-        match ($axis) {
-            'partnership' => $q->addSelect('p.partnership'),
-            'fund_type' => $q->addSelect('p.fund_type_id as v'),
-            'project_type' => $q->addSelect('p.project_type_id as v'),
-            'subtype' => $q->addSelect('p.project_subtype_id as v'),
-            'category' => $q->addSelect('p.project_category_id as v'),
-            'subcategory' => $q->addSelect('p.project_subcategory_id as v'),
-            'donor' => $q->addSelect('p.donor_id as v'),
-            default => null,
-        };
 
         return $q->orderBy('p.id')->cursor();
     }
 
-    private function years(Builder $q, array $filters): void
-    {
-        foreach (['request_year' => 'p.request_date'] as $key => $column) {
-            if ($filters[$key] !== []) {
-                $q->where(function ($or) use ($filters, $key, $column) {
-                    foreach ($filters[$key] as $y) {
-                        $or->orWhere(fn ($r) => $r->where($column, '>=', sprintf('%04d-01-01', $y))->where($column, '<', sprintf('%04d-01-01', $y + 1)));
-                    }
-                });
-            }
-        }
-        if ($filters['fund_year'] !== []) {
-            $q->whereExists(function ($e) use ($filters) {
-                $e->selectRaw('1')->from('loans as fy')->whereColumn('fy.project_id', 'p.id')->whereNull('fy.deleted_at')->where(function ($or) use ($filters) {
-                    foreach ($filters['fund_year'] as $y) {
-                        $or->orWhere(fn ($r) => $r->where('fy.taken_on', '>=', sprintf('%04d-01-01', $y))->where('fy.taken_on', '<', sprintf('%04d-01-01', $y + 1)));
-                    }
-                });
-            });
-        }
-    }
-
-    /** The bucket a project falls in on the axis, or null when it has no value there (a project without a loan on the loan axes, without a donor...). */
+    /** The bucket a project falls in on the axis, or null when it has no value there (a project without a loan on the loan axes...). */
     private function bucket(string $axis, object $r): ?string
     {
+        if (in_array($axis, self::LOAN_AXES, true) && $r->loan_id === null) {
+            return null;
+        }
         switch ($axis) {
             case 'status':
                 return (string) $r->state_id;
@@ -263,7 +330,7 @@ final class StatisticsService
 
                 return 'over';
             case 'sustainability':
-                $years = $this->years_between($r);
+                $years = $this->yearsBetween($r);
                 if ($years === null) {
                     return null;
                 }
@@ -279,7 +346,9 @@ final class StatisticsService
             case 'marital':
                 return $r->marital_status_id === null ? 'none' : (string) $r->marital_status_id;
             default:
-                return $r->v === null ? 'none' : (string) $r->v;
+                $value = $r->{'v_'.$axis};
+
+                return $value === null ? 'none' : (string) $value;
         }
     }
 
@@ -297,7 +366,7 @@ final class StatisticsService
     }
 
     /** Years the loan has lasted: to the closing date for a cancelled or closed project, to today for a financed or finished one. */
-    private function years_between(object $r): ?float
+    private function yearsBetween(object $r): ?float
     {
         if ($r->taken_on === null) {
             return null;
@@ -314,16 +383,35 @@ final class StatisticsService
     /** @return Collection<int, object> */
     private function ageRanges(): Collection
     {
-        static $ranges = null;
+        return $this->ageRanges ??= DB::table('age_ranges')->orderBy('min_age')->get(['id', 'name_ar', 'name_en', 'min_age', 'max_age']);
+    }
 
-        return $ranges ??= DB::table('age_ranges')->orderBy('min_age')->get(['id', 'name_ar', 'name_en', 'min_age', 'max_age']);
+    /** The columns of a cross table: the cities in scope, or the buckets of the second axis that some project falls in. @return array<string, string> */
+    private function columns(string $by, array $found, Collection $cities): array
+    {
+        $en = app()->getLocale() === 'en';
+        if ($by === self::BY_CITY) {
+            $out = [];
+            foreach ($cities as $c) {
+                $out[(string) $c->id] = (string) ($en ? $c->name_en : $c->name_ar);
+            }
+
+            return $out;
+        }
+        $keys = array_diff_key($found, [self::NOT_APPLICABLE => true]);
+        $out = array_filter($this->labels($by, $keys), fn ($key) => isset($found[$key]), ARRAY_FILTER_USE_KEY);
+        if (isset($found[self::NOT_APPLICABLE])) {
+            $out[self::NOT_APPLICABLE] = __('statistics.not_applicable');
+        }
+
+        return $out;
     }
 
     /**
      * The buckets of the axis in display order with their labels. Lookup axes list every value of the list (zero counts shown, as the desktop
      * did) plus "not recorded" when some project has none; computed axes list their fixed buckets or the years found.
      *
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     private function labels(string $axis, array $groups): array
     {
@@ -339,8 +427,7 @@ final class StatisticsService
             return $out;
         }
         if (isset(self::LOOKUPS[$axis])) {
-            $table = self::LOOKUPS[$axis][0];
-            foreach (DB::table($table)->orderBy('sort_order')->orderBy('id')->get() as $r) {
+            foreach (DB::table(self::LOOKUPS[$axis])->orderBy('sort_order')->orderBy('id')->get() as $r) {
                 if ($r->is_active || isset($groups[(string) $r->id])) {
                     $out[(string) $r->id] = $pick($r);
                 }
@@ -394,49 +481,217 @@ final class StatisticsService
         return $out;
     }
 
-    /** The applications search with this bucket and the same filters, or null when the axis has no search filter or the account cannot search applications. */
-    private function link(string $axis, string $key, array $filters, array $cityIds): ?array
+    /**
+     * The filters narrowed to one bucket of an axis (a press on a bar), or null when no filter stands for exactly that bucket: "not
+     * recorded", the sustainability buckets, and the partnership buckets (the axis counts a project with no partner number as
+     * individual, the "individual" filter takes the number 1 only). A filter already set is narrowed, never widened.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function narrow(array $filters, string $axis, string $key): ?array
     {
-        if (! isset(self::LINKS[$axis]) || $key === 'none') {
+        $f = array_filter(ProjectReportFilters::clean($filters), fn ($v, $k) => $k !== 'q' && $v !== [] && $v !== '', ARRAY_FILTER_USE_BOTH);
+        $name = $axis;
+        if (in_array($axis, self::LIST_AXES, true)) {
+            if ($axis === 'sex' ? ! in_array($key, ['male', 'female'], true) : preg_match('/\A[1-9]\d{0,17}\z/', $key) !== 1) {
+                return null;
+            }
+            $f[$axis] = [$axis === 'sex' ? $key : (int) $key];
+        } elseif ($axis === 'fund_amount') {
+            if (preg_match('/\Aa(\d)\z/', $key, $m) === 1 && isset(self::AMOUNT_BUCKETS[(int) $m[1]])) {
+                [$from, $to] = self::AMOUNT_BUCKETS[(int) $m[1]];
+                [$from, $to] = [$from + 0.01, (float) $to];
+            } elseif ($key === 'over') {
+                [$from, $to] = [self::AMOUNT_BUCKETS[count(self::AMOUNT_BUCKETS) - 1][1] + 0.01, null];
+            } elseif ($key === 'zero') {
+                [$from, $to] = [null, 0.0];
+            } else {
+                return null;
+            }
+            if ($from !== null) {
+                $f['usd_from'] = (string) max($from, (float) ($f['usd_from'] ?? $from));
+            }
+            if ($to !== null) {
+                $f['usd_to'] = (string) min($to, (float) ($f['usd_to'] ?? $to));
+            }
+        } else {
             return null;
         }
-        $f = array_filter(ProjectReportFilters::clean($filters), fn ($v, $k) => $k !== 'q' && $v !== [] && $v !== '', ARRAY_FILTER_USE_BOTH);
-        $filter = self::LINKS[$axis];
-        $f[$filter] = $filter === 'sex' ? [$key] : [(int) $key];
+        if (isset($f['not'])) {
+            $f['not'] = array_values(array_diff($f['not'], [$name]));
+            if ($f['not'] === []) {
+                unset($f['not']);
+            }
+        }
 
-        return ['mode' => 'applications', 'city' => $cityIds, 'f' => $f];
+        return $f;
     }
 
-    /** @return list<list<mixed>> rows of an export: label, then each series, share, then the cities */
+    /**
+     * The filters narrowed to one series (funded, ongoing, closed: a set of states), or null when no project could be in both.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function narrowSeries(array $filters, string $series): ?array
+    {
+        $f = array_filter(ProjectReportFilters::clean($filters), fn ($v, $k) => $k !== 'q' && $v !== [] && $v !== '', ARRAY_FILTER_USE_BOTH);
+        $names = ['funded' => self::FUNDED, 'ongoing' => self::ONGOING, 'closed' => self::CLOSED][$series] ?? null;
+        if ($names === null) {
+            return $f;
+        }
+        $states = DB::table('project_states')->whereIn('name_en', $names)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $chosen = $f['status'] ?? [];
+        if ($chosen !== []) {
+            $states = in_array('status', $f['not'] ?? [], true) ? array_values(array_diff($states, $chosen)) : array_values(array_intersect($states, $chosen));
+        }
+        if ($states === []) {
+            return null;
+        }
+        $f['status'] = $states;
+        $f['not'] = array_values(array_diff($f['not'] ?? [], ['status']));
+        if ($f['not'] === []) {
+            unset($f['not']);
+        }
+
+        return $f;
+    }
+
+    /** The applications search with this bucket and the same filters, or null when no search filter stands for the bucket. */
+    private function link(string $axis, string $key, array $filters, array $cityIds): ?array
+    {
+        $f = self::narrow($filters, $axis, $key);
+
+        return $f === null ? null : ['mode' => 'applications', 'city' => $cityIds, 'f' => $f];
+    }
+
+    /**
+     * The numbers arranged as they are shown and exported: the series chosen, the order, the largest N with the rest added up, empty
+     * buckets left out. `measure` is the series whose sum ranks the rows and fills the cross table and the city columns.
+     *
+     * @param  array{show?: string, sort?: string, top?: int, nozero?: bool}  $view
+     */
+    public function shape(array $result, array $view = []): array
+    {
+        $series = $result['series'];
+        $show = $view['show'] ?? 'both';
+        $visible = in_array($show, ['all', 'funded'], true) && in_array($show, $series, true) ? [$show] : $series;
+        // Ongoing and closed are two parts of one whole; funded is a part of all.
+        $measure = $visible === ['ongoing', 'closed'] ? $visible : [$visible[0]];
+        $amount = fn (array $counts) => array_sum(array_map(fn ($s) => $counts[$s] ?? 0, $measure));
+        $crossed = ($result['by'] ?? null) !== null;
+
+        $rows = array_map(function ($row) use ($amount, $result, $measure) {
+            $row['value'] = $amount($row['counts']);
+            $cells = [];
+            foreach (array_keys($result['columns'] ?? []) as $column) {
+                $cells[$column] = $amount($row['cells'][$column] ?? []);
+            }
+            $row['values'] = $cells;
+            $perCity = [];
+            foreach ($result['cities'] as $c) {
+                $perCity[(int) $c->id] = array_sum(array_map(fn ($s) => $row['city_counts'][$s][(int) $c->id] ?? 0, $measure));
+            }
+            $row['per_city'] = $perCity;
+            $row['other'] = false;
+
+            return $row;
+        }, $result['rows']);
+
+        if (! empty($view['nozero'])) {
+            $rows = array_values(array_filter($rows, fn ($r) => array_sum(array_map(fn ($s) => $r['counts'][$s], $visible)) > 0));
+        }
+
+        $top = in_array((int) ($view['top'] ?? 0), self::TOPS, true) ? (int) ($view['top'] ?? 0) : 0;
+        $others = null;
+        if ($top > 0 && count($rows) > $top) {
+            $ranked = array_keys($rows);
+            usort($ranked, fn ($a, $b) => [$rows[$b]['value'], $a] <=> [$rows[$a]['value'], $b]);
+            $keep = array_flip(array_slice($ranked, 0, $top));
+            $rest = array_values(array_diff_key($rows, $keep));
+            $rows = array_values(array_intersect_key($rows, $keep));
+            $add = fn (string $field) => array_reduce($rest, function (array $sum, array $row) use ($field) {
+                foreach ($row[$field] as $k => $n) {
+                    $sum[$k] = ($sum[$k] ?? 0) + $n;
+                }
+
+                return $sum;
+            }, []);
+            $counts = $add('counts');
+            if (array_sum($counts) > 0) {
+                $others = [
+                    'key' => self::OTHERS, 'label' => __('statistics.others', ['count' => count($rest)]), 'counts' => $counts, 'value' => array_sum(array_column($rest, 'value')),
+                    'values' => $add('values'), 'per_city' => $add('per_city'), 'by_city' => $add('by_city'), 'city_counts' => [], 'cells' => [], 'link' => null, 'other' => true,
+                ];
+            }
+        }
+
+        $sort = in_array($view['sort'] ?? '', self::SORTS, true) ? $view['sort'] : 'default';
+        if ($sort === 'desc' || $sort === 'asc') {
+            $way = $sort === 'desc' ? -1 : 1;
+            usort($rows, fn ($a, $b) => $way * ($a['value'] <=> $b['value']));
+        } elseif ($sort === 'name') {
+            $collator = class_exists(\Collator::class) ? new \Collator(app()->getLocale()) : null;
+            $collator?->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            usort($rows, fn ($a, $b) => $collator ? (int) $collator->compare($a['label'], $b['label']) : strnatcasecmp($a['label'], $b['label']));
+        }
+        $others !== null && $rows[] = $others;
+
+        $total = $amount($result['totals']);
+        $rows = array_map(function ($row) use ($total) {
+            $row['share'] = $total > 0 ? round($row['value'] / $total * 100, 1) : 0.0;
+
+            return $row;
+        }, $rows);
+
+        $columnTotals = [];
+        foreach (array_keys($result['columns'] ?? []) as $column) {
+            $columnTotals[$column] = array_sum(array_map(fn ($r) => $amount($r['cells'][$column] ?? []), $result['rows']));
+        }
+        $cityTotals = [];
+        foreach ($result['cities'] as $c) {
+            $cityTotals[(int) $c->id] = array_sum(array_map(fn ($r) => array_sum(array_map(fn ($s) => $r['city_counts'][$s][(int) $c->id] ?? 0, $measure)), $result['rows']));
+        }
+
+        return ['rows' => $rows, 'visible' => $visible, 'measure' => $measure, 'total' => $total, 'column_totals' => $columnTotals, 'city_totals' => $cityTotals, 'crossed' => $crossed] + $result;
+    }
+
+    /**
+     * Rows of an export of a shaped result. A cross table: label, each column, the row total, its share. Otherwise: label, each series
+     * shown, share, then the cities when there are several.
+     *
+     * @return list<list<mixed>>
+     */
     public function exportRows(array $result): array
     {
+        $result = isset($result['visible']) ? $result : $this->shape($result);
+        $many = count($result['cities']) > 1;
         $lines = [];
-        $series = $result['series'];
-        $first = $series[0];
-        $total = max(1, $result['totals'][$first]);
         foreach ($result['rows'] as $row) {
+            if ($result['crossed']) {
+                $lines[] = [$row['label'], ...array_values($row['values']), $row['value'], $row['share']];
+
+                continue;
+            }
             $cells = [$row['label']];
-            foreach ($series as $s) {
+            foreach ($result['visible'] as $s) {
                 $cells[] = $row['counts'][$s];
             }
-            $cells[] = round($row['counts'][$first] / $total * 100, 1);
-            if (count($result['cities']) > 1) {
-                foreach ($result['cities'] as $c) {
-                    $cells[] = $row['by_city'][(int) $c->id] ?? 0;
-                }
-            }
+            $cells[] = $row['share'];
+            $many && array_push($cells, ...array_values($row['per_city']));
             $lines[] = $cells;
         }
+        $share = $result['total'] > 0 ? 100.0 : 0.0;
+        if ($result['crossed']) {
+            $lines[] = [__('statistics.total'), ...array_values($result['column_totals']), $result['total'], $share];
+
+            return $lines;
+        }
         $cells = [__('statistics.total')];
-        foreach ($series as $s) {
+        foreach ($result['visible'] as $s) {
             $cells[] = $result['totals'][$s];
         }
-        $cells[] = 100.0;
-        if (count($result['cities']) > 1) {
-            foreach ($result['cities'] as $c) {
-                $cells[] = array_sum(array_map(fn ($r) => $r['by_city'][(int) $c->id] ?? 0, $result['rows']));
-            }
-        }
+        $cells[] = $share;
+        $many && array_push($cells, ...array_values($result['city_totals']));
         $lines[] = $cells;
 
         return $lines;
@@ -445,9 +700,13 @@ final class StatisticsService
     /** @return list<string> */
     public function exportHeadings(array $result): array
     {
+        $result = isset($result['visible']) ? $result : $this->shape($result);
         $en = app()->getLocale() === 'en';
         $h = [__('statistics.axes.'.$result['axis'])];
-        foreach ($result['series'] as $s) {
+        if ($result['crossed']) {
+            return [...$h, ...array_values($result['columns']), __('statistics.total'), __('statistics.share')];
+        }
+        foreach ($result['visible'] as $s) {
             $h[] = __('statistics.series.'.$s);
         }
         $h[] = __('statistics.share');
@@ -461,17 +720,21 @@ final class StatisticsService
     }
 
     /**
-     * An export: authorised (reports.export + applications.view per city) and audited before it returns, so before the first byte.
+     * An export of the table as shown: authorised (reports.export + applications.view per city) and audited before it returns, so before
+     * the first byte.
      *
+     * @param  array{by?: ?string, show?: string, sort?: string, top?: int, nozero?: bool}  $view
      * @return array{0: list<string>, 1: list<list<mixed>>, 2: list<int>}
      */
-    public function export(WebAccount $account, string $axis, array $filters): array
+    public function export(WebAccount $account, string $axis, array $filters, array $view = []): array
     {
-        $result = $this->axis($account, $axis, $filters, true);
+        $by = is_string($view['by'] ?? null) ? $view['by'] : null;
+        $result = $this->shape($this->axis($account, $axis, $filters, true, $by), $view);
         $rows = $this->exportRows($result);
-        $this->audit->record($account->id, 'reports.exported', 'succeeded', decision: 'statistics:'.$axis.'/rows:'.count($rows));
-        $numeric = range(1, count($result['series']) + 1 + (count($result['cities']) > 1 ? count($result['cities']) : 0));
+        $headings = $this->exportHeadings($result);
+        $name = $axis.($result['crossed'] ? '/by:'.$result['by'] : '');
+        $this->audit->record($account->id, 'reports.exported', 'succeeded', decision: 'statistics:'.$name.'/rows:'.count($rows));
 
-        return [$this->exportHeadings($result), $rows, $numeric];
+        return [$headings, $rows, range(1, count($headings) - 1)];
     }
 }

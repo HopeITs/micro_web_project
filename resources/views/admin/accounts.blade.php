@@ -2,6 +2,8 @@
     $en = app()->getLocale() === 'en';
     $locale = app()->getLocale();
     $cityName = fn ($c) => $c ? ($en ? $c->name_en : $c->name_ar) : '';
+    [$sort, $dir] = \App\Support\TableTools\TableSort::clean($filters['sort'] ?? null, $filters['dir'] ?? null, \App\Services\Staff\AccountAdminService::SORT_KEYS);
+    $headers = ['username' => __('admin.username'), 'email' => __('admin.email'), 'roles' => __('admin.roles_col'), 'identities' => __('admin.identities'), 'status' => __('admin.status'), 'created' => __('admin.created')];
 @endphp
 <x-layouts.hc :title="__('admin.title')">
     <div class="hc-page-head">
@@ -13,6 +15,7 @@
     <x-hc.card :flush="true">
         @include('partials.filters-style')
         <form class="hc-filters" method="GET" action="{{ route('admin.accounts.index', ['locale' => $locale]) }}"><div class="hc-filters-grid" style="--cols:3">
+            @if($sort)<input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">@endif
             <div class="hc-field grow">
                 <label class="hc-label" for="q">{{ __('admin.search') }}</label>
                 <input id="q" name="q" class="hc-input" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100" placeholder="{{ __('admin.search_placeholder') }}" autocomplete="off">
@@ -41,8 +44,9 @@
             @if($rows->isEmpty())
                 <x-hc.empty :title="__('admin.none')">{{ __('hc.no_results_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
-                <thead><tr><th>{{ __('admin.username') }}</th><th>{{ __('admin.email') }}</th><th>{{ __('admin.roles_col') }}</th><th class="num">{{ __('admin.identities') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.created') }}</th></tr></thead>
+            <x-hc.sort-select :columns="\Illuminate\Support\Arr::except($headers, 'roles')" :sort="$sort" :dir="$dir" link/>
+            <table class="hc-table stack" data-smart="off">
+                <thead><tr>@foreach($headers as $key => $title)@if($key === 'roles')<th>{{ $title }}</th>@else<x-hc.sort-th :column="$key" :label="$title" :sort="$sort" :dir="$dir" :num="$key === 'identities'" link/>@endif @endforeach</tr></thead>
                 <tbody>
                 @foreach($rows as $row)
                     <tr>

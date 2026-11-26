@@ -4,6 +4,9 @@
     $status = \App\Support\ProjectStatus::class;
     $chosen = array_map('intval', $filters['cities'] ?? []);
     $canAdd = app(\App\Services\AccountAccess::class)->cities(auth()->user(), 'assessments.manage')->isNotEmpty();
+    $sortable = \App\Services\Assessments\ChecklistListService::SORT_KEYS;
+    [$sort, $dir] = \App\Support\TableTools\TableSort::clean($filters['sort'] ?? null, $filters['dir'] ?? null, $sortable);
+    $headers = array_combine($sortable, array_map(fn ($key) => __('checklists.list.'.$key), $sortable));
 @endphp
 <x-layouts.hc :title="__('checklists.list.title')">
     <div class="hc-page-head">
@@ -14,9 +17,15 @@
 
     <x-hc.card :flush="true">
         <form class="hc-toolbar" method="GET" action="{{ route('checklists.index', ['locale' => $locale]) }}" style="align-items:flex-end;flex-wrap:wrap">
+            @if($sort)<input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">@endif
             <div class="hc-field grow">
                 <label class="hc-label" for="cl-q">{{ __('checklists.list.q') }}</label>
                 <input id="cl-q" name="q" class="hc-input" type="search" maxlength="100" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('checklists.list.q_placeholder') }}" autocomplete="off">
+            </div>
+            <div class="hc-field">
+                <label class="hc-label" for="cl-state">{{ __('tables.state') }}</label>
+                <select id="cl-state" name="state" class="hc-select"><option value="">{{ __('tables.any') }}</option>
+                    @foreach($states as $s)<option value="{{ $s->id }}" @selected((int) ($filters['state'] ?? 0) === (int) $s->id)>{{ $en && $s->name_en ? $s->name_en : $s->name_ar }}</option>@endforeach</select>
             </div>
             @if($cities->count() > 1)
                 <div class="hc-chips" role="group" aria-label="{{ __('checklists.list.city') }}">
@@ -34,8 +43,9 @@
             @if($rows->total() === 0)
                 <x-hc.empty :title="__('checklists.list.none')" icon="clipboard">{{ __('checklists.list.none_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
-                <thead><tr><th>{{ __('checklists.list.number') }}</th><th>{{ __('checklists.list.beneficiary') }}</th><th>{{ __('checklists.list.project') }}</th><th>{{ __('checklists.list.state') }}</th><th>{{ __('checklists.list.city') }}</th><th>{{ __('checklists.list.home_visit') }}</th><th>{{ __('checklists.list.project_visit') }}</th><th>{{ __('checklists.list.team') }}</th><th>{{ __('checklists.list.committee') }}</th></tr></thead>
+            <x-hc.sort-select :columns="$headers" :sort="$sort" :dir="$dir" link/>
+            <table class="hc-table stack" data-smart="off">
+                <thead><tr>@foreach($headers as $key => $title)<x-hc.sort-th :column="$key" :label="$title" :sort="$sort" :dir="$dir" link/>@endforeach</tr></thead>
                 <tbody>
                 @foreach($rows as $row)
                     <tr>

@@ -30,7 +30,7 @@ final class StatisticsController
         $payload = preg_match('/\A[A-Za-z0-9]{40}\z/', $token) === 1 ? Cache::pull('statistics-export:'.$token) : null;
         abort_if(! is_array($payload) || ($payload['account'] ?? null) !== $request->user()->id, 404);
 
-        [$headings, $rows, $numeric] = $statistics->export($request->user(), (string) ($payload['axis'] ?? ''), (array) ($payload['state'] ?? []));
+        [$headings, $rows, $numeric] = $statistics->export($request->user(), (string) ($payload['axis'] ?? ''), (array) ($payload['state'] ?? []), (array) ($payload['view'] ?? []));
 
         return $export->stream(TableExport::format($payload['format'] ?? null), 'statistics-'.$payload['axis'].'-'.now()->format('Ymd-His'), $headings, $rows, $numeric, app()->isLocale('ar'));
     }

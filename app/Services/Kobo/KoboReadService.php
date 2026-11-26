@@ -9,6 +9,8 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\People\PeopleService;
 use App\Services\ProjectNumberAllocator;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -23,6 +25,9 @@ use Illuminate\Support\Facades\DB;
 final class KoboReadService
 {
     public const PER_PAGE = 25;
+
+    /** The sortable columns of the submissions table. */
+    public const SORT_KEYS = ['date', 'form', 'number', 'beneficiary', 'stage', 'visitors', 'status'];
 
     /** Status groups of `kobo_submissions.sync_status` as people read them. */
     public const STATUSES = [
@@ -85,7 +90,7 @@ final class KoboReadService
         'mr.visit_number', 'mr.me_visit_id', 'mr.visit_date as me_date', 'v.visit_date as opening_date', 'v.kind as visit_kind'];
 
     /**
-     * @param  array{cities?: list<int>, status?: string, type?: string, form?: string, from?: ?string, to?: ?string, q?: string}  $filters
+     * @param  array{cities?: list<int>, status?: string, type?: string, form?: string, from?: ?string, to?: ?string, q?: string, sort?: ?string, dir?: ?string}  $filters
      */
     public function submissions(WebAccount $account, array $filters): LengthAwarePaginator
     {
@@ -113,17 +118,34 @@ final class KoboReadService
             if ($number !== null) {
                 $query->where('p.project_number', $number[1])->when($number[0], fn ($q) => $q->where('c.code', $number[0]));
             } else {
-                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
-                $query->where(fn ($q) => $q->where('pe.first_name', 'like', $like)->orWhere('pe.last_name', 'like', $like)->orWhere('s.form_name', 'like', $like)
-                    ->orWhere('s.submitted_by', 'like', $like)->orWhere('s.kobo_submission_id', 'like', $like));
+                TableSearch::apply($query, ['pe.first_name', 'pe.father_name', 'pe.last_name', 'p.name', 's.form_name', 's.submitted_by', 's.kobo_submission_id'], $term);
             }
         }
+        TableSort::apply($query, $this->sortColumns(), $filters['sort'] ?? null, $filters['dir'] ?? null);
         $page = $query->orderByDesc(DB::raw('COALESCE(mr.visit_date, v.visit_date, DATE(s.submitted_at))'))->orderByDesc('s.id')
             ->paginate(self::PER_PAGE, [...self::COLUMNS, DB::raw('COALESCE(mr.visit_date, v.visit_date, DATE(s.submitted_at)) as visit_day')]);
         $names = $this->visitorNames($page->getCollection()->pluck('id')->all());
         $page->setCollection($page->getCollection()->map(fn ($row) => $this->decorate($row, $names)));
 
         return $page;
+    }
+
+    /** What each header of the submissions table orders by (the status in the order of its groups). */
+    private function sortColumns(): array
+    {
+        $groups = '';
+        foreach (array_values(self::STATUSES) as $i => $statuses) {
+            $groups .= " WHEN s.sync_status IN ('".implode("','", $statuses)."') THEN ".($i + 1);
+        }
+        $deleted = array_search('deleted', array_keys(self::STATUSES), true) + 1;
+
+        return [
+            'date' => 'COALESCE(mr.visit_date, v.visit_date, DATE(s.submitted_at))', 'form' => 's.form_name', 'number' => ['c.code', 'p.project_number'],
+            'beneficiary' => ['pe.first_name', 'pe.last_name'], 'stage' => 'mr.visit_number',
+            'visitors' => DB::table('kobo_visit_visitors as sv')->whereColumn('sv.kobo_submission_id', 's.id')->whereNull('sv.deleted_at')
+                ->orderBy('sv.visitor_order')->selectRaw("COALESCE(NULLIF(sv.display_name, ''), sv.kobo_name)")->limit(1),
+            'status' => 'CASE WHEN s.is_deleted_in_kobo = 1 THEN '.$deleted.$groups.' ELSE 9 END',
+        ];
     }
 
     private function decorate(object $row, array $names): object

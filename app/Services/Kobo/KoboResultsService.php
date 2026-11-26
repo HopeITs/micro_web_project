@@ -9,6 +9,8 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\People\PeopleService;
 use App\Services\ProjectNumberAllocator;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +27,33 @@ final class KoboResultsService
     private const GENERIC = ['لماذا', 'اذكر', 'حدد', 'غير ذلك', 'ملاحظات', 'السبب', 'كيف', 'ما هو', 'ما هي'];
 
     public function __construct(private KoboReadService $kobo) {}
+
+    /** The context columns of the answers table; the answer columns after them sort as "a0", "a1", … */
+    public const CONTEXT = ['number', 'person', 'subcategory', 'career', 'stage', 'date'];
+
+    /** The most answer columns a sort key can name. */
+    public const MAX_SORTABLE_ANSWERS = 500;
+
+    /** @return list<string> */
+    public static function sortKeys(): array
+    {
+        return [...self::CONTEXT, ...array_map(fn ($i) => 'a'.$i, range(0, self::MAX_SORTABLE_ANSWERS - 1))];
+    }
+
+    /** A search that is not a project number: the words that must appear in a row (see counts() and answers()). */
+    private function words(array $filters): string
+    {
+        $term = trim(mb_substr((string) ($filters['q'] ?? ''), 0, TableSearch::MAX_LENGTH));
+
+        return $term === '' || ProjectNumberAllocator::parse($term) !== null ? '' : $term;
+    }
+
+    /** The searchable context of a visit: project number, beneficiary, sub-category, career. */
+    private function contextText(object $row): string
+    {
+        return implode(' ', array_filter([ProjectNumberAllocator::display($row->city_code, (int) $row->project_number),
+            $row->first_name !== null ? PeopleService::fullName($row) : null, $row->subcategory, $row->career]));
+    }
 
     /**
      * Confirmed submissions under the filters, with their context and decoded answers.
@@ -96,6 +125,10 @@ final class KoboResultsService
     public function counts(WebAccount $account, array $filters): array
     {
         $rows = $this->submissions($account, $filters);
+        $term = $this->words($filters);
+        if ($term !== '') {
+            $rows = $rows->filter(fn ($row) => TableSearch::matches($this->contextText($row), $term))->values();
+        }
         $questions = [];
         foreach ($rows as $row) {
             $seen = [];
@@ -138,15 +171,19 @@ final class KoboResultsService
     /**
      * One row per confirmed submission: context columns, then every reported question that has at least one answer in the selection.
      *
+     * A text search looks at each row's context and answers; the sort applies to every row, before the screen cuts the list.
+     *
      * @return array{columns: list<string>, rows: list<array{context: array<string, ?string>, answers: array<string, string>, project_id: int, id: int}>}
      */
     public function answers(WebAccount $account, array $filters): array
     {
         $rows = $this->submissions($account, $filters);
+        $term = $this->words($filters);
         $columns = [];
         $out = [];
         foreach ($rows as $row) {
             $answers = [];
+            $titles = [];
             foreach (KoboCatalog::fields((string) $row->form_uid) as $path => $field) {
                 if (! KoboCatalog::reported($field) || KoboCatalog::lookup($row->raw, $path) === null) {
                     continue;
@@ -156,16 +193,44 @@ final class KoboResultsService
                     continue;
                 }
                 [$key, $title] = $this->key($field);
-                $columns[$key] ??= $title;
+                $titles[$key] ??= $title;
                 $answers[$key] = isset($answers[$key]) ? $answers[$key].' | '.$value : $value;
             }
+            if ($term !== '' && ! TableSearch::matches($this->contextText($row).' '.implode(' ', $answers), $term)) {
+                continue;
+            }
+            $columns += $titles;
             $out[] = ['id' => (int) $row->id, 'project_id' => (int) $row->project_id, 'answers' => $answers, 'context' => [
                 'number' => ProjectNumberAllocator::display($row->city_code, (int) $row->project_number), 'person' => $row->first_name !== null ? PeopleService::fullName($row) : null,
                 'subcategory' => $row->subcategory, 'career' => $row->career, 'stage' => $row->visit_number, 'date' => $row->visit_day ? substr((string) $row->visit_day, 0, 10) : null,
             ]];
         }
 
-        return ['columns' => $columns, 'rows' => $out];
+        return ['columns' => $columns, 'rows' => $this->sorted($out, array_keys($columns), $filters)];
+    }
+
+    /** Sorts the answer rows by a context column or the n-th answer column; empty values last, equal values keep their order. */
+    private function sorted(array $rows, array $answerKeys, array $filters): array
+    {
+        [$key, $dir] = TableSort::clean($filters['sort'] ?? null, $filters['dir'] ?? null, self::sortKeys());
+        if ($key === null) {
+            return $rows;
+        }
+        $answer = preg_match('/\Aa(\d+)\z/', $key, $m) === 1 ? ($answerKeys[(int) $m[1]] ?? '') : null;
+        $value = fn (array $row) => trim((string) ($answer === null ? ($row['context'][$key] ?? '') : ($row['answers'][$answer] ?? '')));
+        $collator = class_exists(\Collator::class) ? new \Collator(app()->getLocale() === 'en' ? 'en' : 'ar') : null;
+        $collator?->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+        $sign = $dir === 'desc' ? -1 : 1;
+        usort($rows, function (array $a, array $b) use ($value, $collator, $sign) {
+            [$x, $y] = [$value($a), $value($b)];
+            if ($x === '' || $y === '') {
+                return ($x === '') <=> ($y === '');
+            }
+
+            return $sign * ($collator ? (int) $collator->compare($x, $y) : strnatcasecmp($x, $y));
+        });
+
+        return $rows;
     }
 
     /**
@@ -183,7 +248,7 @@ final class KoboResultsService
         $chosen = array_values(array_intersect(array_map('intval', $filters['cities'] ?? []), $allowed));
         $filters['cities'] = $chosen ?: $allowed;
         $data = $this->answers($account, $filters);
-        $context = ['number', 'person', 'subcategory', 'career', 'stage', 'date'];
+        $context = self::CONTEXT;
         $headings = [...array_map(fn ($c) => __('kobo.context.'.$c), $context), ...array_values($data['columns'])];
         $rows = array_map(fn ($r) => [...array_map(fn ($c) => $r['context'][$c] ?? null, $context), ...array_map(fn ($k) => $r['answers'][$k] ?? null, array_keys($data['columns']))], $data['rows']);
         $audit->record($account->id, 'kobo.exported', 'succeeded');

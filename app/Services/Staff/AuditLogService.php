@@ -8,6 +8,7 @@ use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\ProjectNumberAllocator;
+use App\Support\TableTools\TableSort;
 use Carbon\CarbonImmutable;
 use Generator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -30,6 +31,11 @@ final class AuditLogService
     public const PER_PAGE = 50;
 
     public const TIMEZONE = 'Asia/Damascus';
+
+    /** The sortable columns of the two sources. */
+    public const WEB_SORT_KEYS = ['time', 'account', 'action', 'city'];
+
+    public const DESKTOP_SORT_KEYS = ['time', 'user', 'table', 'city'];
 
     /** Areas offered in the filter: label key => event-name prefixes. */
     public const AREAS = [
@@ -78,13 +84,15 @@ final class AuditLogService
     // ---------------------------------------------------------------- website trail
 
     /**
-     * @param  array{city?: ?int, from?: ?string, to?: ?string, kind?: ?string, area?: ?string, actor?: ?string}  $filters
+     * @param  array{city?: ?int, from?: ?string, to?: ?string, kind?: ?string, area?: ?string, actor?: ?string, sort?: ?string, dir?: ?string}  $filters
      * @return array{rows: LengthAwarePaginator, cities: Collection}
      */
     public function web(WebAccount $account, array $filters): array
     {
         [$ids, $permitted] = $this->scope($account, $filters, 'logs.listed');
-        $rows = $this->webQuery($ids, $filters)->orderByDesc('e.id')->paginate(self::PER_PAGE)->withQueryString();
+        $query = $this->webQuery($ids, $filters);
+        $this->webSort($query, $filters);
+        $rows = $query->orderByDesc('e.id')->paginate(self::PER_PAGE)->withQueryString();
         $rows->setCollection(collect($this->describe($account, $rows->getCollection())));
 
         return ['rows' => $rows, 'cities' => $permitted];
@@ -95,9 +103,12 @@ final class AuditLogService
     {
         [$ids] = $this->scope($account, $filters, 'reports.exported');
         $query = $this->webQuery($ids, $filters);
+        // A sorted screen gives a file in the same order; otherwise newest first, read by id.
+        $sorted = $this->webSort($query, $filters);
 
-        return (function () use ($query, $account) {
-            foreach ($query->lazyByIdDesc(1000, 'e.id', 'id')->chunk(1000) as $chunk) {
+        return (function () use ($query, $account, $sorted) {
+            $events = $sorted ? $query->orderByDesc('e.id')->lazy(1000) : $query->lazyByIdDesc(1000, 'e.id', 'id');
+            foreach ($events->chunk(1000) as $chunk) {
                 foreach ($this->describe($account, collect($chunk->all())) as $row) {
                     yield [$row['id'], $row['time'], $row['actor'], $row['city'], $row['label'], __('audit.kinds.'.$row['kind']), $row['subject'], self::changesText($row['changes']), $row['event'], $row['decision']];
                 }
@@ -108,6 +119,13 @@ final class AuditLogService
     public static function webHeadings(): array
     {
         return array_map(fn ($k) => __('audit.col.'.$k), ['number', 'time', 'account', 'city', 'action', 'kind', 'record', 'changes', 'event', 'details']);
+    }
+
+    private function webSort(Builder $query, array $filters): bool
+    {
+        return TableSort::apply($query, [
+            'time' => 'e.occurred_at', 'account' => 'actor.username', 'action' => 'e.event_type', 'city' => app()->isLocale('ar') ? 'c.name_ar' : 'c.name_en',
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
     }
 
     /** @param list<int> $ids */
@@ -283,19 +301,27 @@ final class AuditLogService
     // ---------------------------------------------------------------- desktop history
 
     /**
-     * @param  array{city?: ?int, from?: ?string, to?: ?string, table?: ?string, user?: ?string, q?: ?string}  $filters
+     * @param  array{city?: ?int, from?: ?string, to?: ?string, table?: ?string, user?: ?string, q?: ?string, sort?: ?string, dir?: ?string}  $filters
      * @return array{rows: LengthAwarePaginator, cities: Collection, tables: list<string>}
      */
     public function desktop(WebAccount $account, array $filters): array
     {
         [$ids, $permitted] = $this->scope($account, $filters, 'logs.listed');
-        $rows = $this->desktopQuery($ids, $filters)->orderByDesc('d.logged_at')->orderByDesc('d.id')->paginate(self::PER_PAGE)->withQueryString();
+        $query = $this->desktopQuery($ids, $filters);
+        TableSort::apply($query, [
+            'time' => 'd.logged_at', 'user' => 'd.user_name', 'table' => 'd.on_table', 'city' => app()->isLocale('ar') ? 'c.name_ar' : 'c.name_en',
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
+        $rows = $query->orderByDesc('d.logged_at')->orderByDesc('d.id')->paginate(self::PER_PAGE)->withQueryString();
         $rows->setCollection($rows->getCollection()->map(fn ($row) => $this->desktopLine($row)));
 
         return ['rows' => $rows, 'cities' => $permitted, 'tables' => $this->tables()];
     }
 
-    /** @return Generator<int, list<string|int|null>> */
+    /**
+     * The file follows the screen's filters but stays newest first: re-sorting some 680,000 rows chunk by chunk is not worth its cost.
+     *
+     * @return Generator<int, list<string|int|null>>
+     */
     public function desktopExport(WebAccount $account, array $filters): Generator
     {
         [$ids] = $this->scope($account, $filters, 'reports.exported');

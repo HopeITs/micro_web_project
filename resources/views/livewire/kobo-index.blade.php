@@ -30,7 +30,7 @@
         </div>
         @if(in_array($tab, ['submissions', 'results'], true))
         <div class="hc-toolbar" style="align-items:end">
-            <x-hc.field :label="__('kobo.search')" for="k-q" class="grow"><input id="k-q" class="hc-input" type="search" wire:model.live.debounce.400ms="search" placeholder="{{ $tab === 'results' ? __('kobo.search_number') : __('kobo.search_placeholder') }}" autocomplete="off"></x-hc.field>
+            <x-hc.field :label="__('kobo.search')" for="k-q" class="grow"><input id="k-q" class="hc-input" type="search" wire:model.live.debounce.400ms="search" maxlength="100" placeholder="{{ $tab === 'results' ? __($mode === 'answers' ? 'tables.kobo_answers_placeholder' : 'tables.kobo_counts_placeholder') : __('kobo.search_placeholder') }}" autocomplete="off"></x-hc.field>
             <x-hc.field :label="__('kobo.form')" for="k-form">
                 <select id="k-form" class="hc-select" wire:model.live="form"><option value="">{{ __('kobo.all_forms') }}</option>
                     @foreach($forms->groupBy('city_code') as $code => $list)<optgroup label="{{ $code }}">@foreach($list as $f)<option value="{{ $f->form_uid }}">{{ $f->form_name }}</option>@endforeach</optgroup>@endforeach
@@ -58,8 +58,10 @@
                 @if($submissions->isEmpty())
                     <x-hc.empty :title="__('kobo.none')">{{ __('kobo.none_hint') }}</x-hc.empty>
                 @else
-                <table class="hc-table stack">
-                    <thead><tr><th>{{ __('kobo.date') }}</th><th>{{ __('kobo.form') }}</th><th>{{ __('hc.number') }}</th><th>{{ __('hc.beneficiary') }}</th><th>{{ __('kobo.stage') }}</th><th>{{ __('kobo.visitors') }}</th><th>{{ __('kobo.status') }}</th><th></th></tr></thead>
+                @php($headers = ['date' => __('kobo.date'), 'form' => __('kobo.form'), 'number' => __('hc.number'), 'beneficiary' => __('hc.beneficiary'), 'stage' => __('kobo.stage'), 'visitors' => __('kobo.visitors'), 'status' => __('kobo.status')])
+                <x-hc.sort-select :columns="$headers" :sort="$sortKey" :dir="$sortDir"/>
+                <table class="hc-table stack" data-smart="off">
+                    <thead><tr>@foreach($headers as $key => $title)<x-hc.sort-th :column="$key" :label="$title" :sort="$sortKey" :dir="$sortDir"/>@endforeach<th></th></tr></thead>
                     <tbody>
                     @foreach($submissions as $s)
                         <tr wire:key="ks-{{ $s->id }}" @if($open === (int) $s->id) style="background:var(--surface-2)" @endif>
@@ -102,7 +104,13 @@
             <button type="button" class="hc-chip" wire:click="$set('mode', 'counts')" aria-pressed="{{ $mode === 'counts' ? 'true' : 'false' }}">{{ __('kobo.mode_counts') }}</button>
             <button type="button" class="hc-chip" wire:click="$set('mode', 'answers')" aria-pressed="{{ $mode === 'answers' ? 'true' : 'false' }}">{{ __('kobo.mode_answers') }}</button>
             @if($canExport && $mode === 'answers')
-                <a class="hc-btn hc-btn-secondary hc-btn-sm" style="margin-inline-start:auto" href="{{ route('kobo.export', array_filter(['locale' => $locale, 'city' => $cities, 'form' => $form, 'from' => $from, 'to' => $to, 'last' => $last ? 1 : null])) }}"><x-hc.icon name="file" :size="16"/>Excel</a>
+                @php($term = trim($search))
+                @php($byNumber = \App\Services\ProjectNumberAllocator::parse($term) !== null)
+                @if($term !== '' && ! $byNumber)
+                    <button type="button" class="hc-btn hc-btn-secondary hc-btn-sm" style="margin-inline-start:auto" wire:click="exportList('xlsx')"><x-hc.icon name="file" :size="16"/>Excel</button>
+                @else
+                    <a class="hc-btn hc-btn-secondary hc-btn-sm" style="margin-inline-start:auto" href="{{ route('kobo.export', array_filter(['locale' => $locale, 'city' => $cities, 'form' => $form, 'from' => $from, 'to' => $to, 'last' => $last ? 1 : null, 'q' => $byNumber ? $term : null, 'sort' => $sortKey, 'dir' => $sortKey !== '' ? $sortDir : null])) }}"><x-hc.icon name="file" :size="16"/>Excel</a>
+                @endif
             @endif
         </div>
         @if($mode === 'counts')
@@ -131,9 +139,9 @@
                 @if($results['rows'] === [])
                     <x-hc.empty :title="__('kobo.none')">{{ __('kobo.none_hint') }}</x-hc.empty>
                 @else
-                <table class="hc-table" style="font-size:.88rem">
-                    <thead><tr>@foreach(['number', 'person', 'subcategory', 'career', 'stage', 'date'] as $c)<th style="white-space:nowrap;position:sticky;top:0;background:var(--surface)">{{ __('kobo.context.'.$c) }}</th>@endforeach
-                        @foreach($results['columns'] as $title)<th style="min-width:145px;position:sticky;top:0;background:var(--surface)" title="{{ $title }}">{{ \Illuminate\Support\Str::limit($title, 60) }}</th>@endforeach</tr></thead>
+                <table class="hc-table" data-smart="off" style="font-size:.88rem">
+                    <thead><tr>@foreach(['number', 'person', 'subcategory', 'career', 'stage', 'date'] as $c)<x-hc.sort-th wire:key="kah-{{ $c }}" :column="$c" :label="__('kobo.context.'.$c)" :sort="$sortKey" :dir="$sortDir" style="white-space:nowrap;position:sticky;top:0;background:var(--surface)"/>@endforeach
+                        @foreach(array_values($results['columns']) as $i => $title)<x-hc.sort-th wire:key="kah-a{{ $i }}" :column="'a'.$i" :label="\Illuminate\Support\Str::limit($title, 60)" :sort="$sortKey" :dir="$sortDir" style="min-width:145px;position:sticky;top:0;background:var(--surface)" :title="$title"/>@endforeach</tr></thead>
                     <tbody>
                     @foreach(array_slice($results['rows'], 0, 300) as $r)
                         <tr wire:key="ka-{{ $r['id'] }}">

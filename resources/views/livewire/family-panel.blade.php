@@ -1,98 +1,167 @@
 <div>
+@if($home === null)
+    <x-hc.card :title="__('people.family')" id="family"><p class="muted">{{ __('families.not_in_family') }}</p></x-hc.card>
+@else
     @php
         $locale = app()->getLocale();
-        $newFields = array_intersect_key(\App\Services\People\PersonFields::personFlat(), array_flip(['first_name', 'father_name', 'last_name', 'sex', 'birth_date', 'national_number']));
+        $members = $home['members'];
+        $headName = $home['head_name'];
+        $number = $home['family']->family_number;
+        $familyUrl = route('families.show', ['locale' => $locale, 'family' => $home['family']->id]).'#h-'.$home['head_id'];
+        $totals = $home['totals'];
+        // On a person's page the reminders about stored figures stay on the family page.
+        $gaps = collect($home['flags'])->reject(fn ($f) => $f['tone'] === 'info')->values();
     @endphp
-    <x-hc.card :title="__('people.family')" :subtitle="$family ? __('people.family_number').': '.$family->family_number : null" :flush="true" id="family">
-        @error('member')<div style="padding:0 20px"><x-hc.alert type="danger">{{ $message }}</x-hc.alert></div>@enderror
-        <div class="hc-table-wrap">
-        <table class="hc-table stack">
-            <thead><tr><th>{{ __('people.name') }}</th><th>{{ __('people.fields.relation_id') }}</th><th>{{ __('people.birth_year') }}</th><th>{{ __('people.fields.education_level_id') }}</th><th>{{ __('people.fields.has_work') }}</th>@if($editable)<th></th>@endif</tr></thead>
-            <tbody>
-            @forelse($members as $m)
-                @if($editing === (int) $m->id)
-                <tr wire:key="m-{{ $m->id }}-edit">
-                    <td data-label="{{ __('people.name') }}">{{ \App\Services\People\PeopleService::fullName($m) }}</td>
-                    <td data-label="{{ __('people.fields.relation_id') }}">@include('people._input', ['model' => 'edit.relation_id', 'field' => 'relation_id', 'spec' => \App\Services\People\PersonFields::MEMBER['relation_id'], 'id' => 'e-rel', 'options' => $options['relation_id']])</td>
-                    <td class="num">{{ $m->birth_date ? substr($m->birth_date, 0, 4) : '—' }}</td>
-                    <td data-label="{{ __('people.fields.education_level_id') }}">
-                        @include('people._input', ['model' => 'edit.education_level_id', 'field' => 'education_level_id', 'spec' => \App\Services\People\PersonFields::MEMBER['education_level_id'], 'id' => 'e-lvl', 'options' => $options['education_level_id']])
-                        @include('people._input', ['model' => 'edit.education_specialty_id', 'field' => 'education_specialty_id', 'spec' => \App\Services\People\PersonFields::MEMBER['education_specialty_id'], 'id' => 'e-spec', 'options' => $options['education_specialty_id']])
-                    </td>
-                    <td data-label="{{ __('people.fields.has_work') }}">
-                        @include('people._input', ['model' => 'edit.has_work', 'field' => 'has_work', 'spec' => \App\Services\People\PersonFields::MEMBER['has_work'], 'id' => 'e-work', 'options' => collect(), 'live' => true])
-                        @if(($edit['has_work'] ?? '') === '1')
-                        @include('people._input', ['model' => 'edit.work_name', 'field' => 'work_name', 'spec' => \App\Services\People\PersonFields::MEMBER['work_name'], 'id' => 'e-wname', 'options' => collect()])
+    <section class="hc-card fam-home" id="{{ $compact ? 'family' : 'h-'.$home['head_id'] }}">
+        <header class="hc-card-head fam-home-head">
+            <div>
+                <h2>{{ $headName === null ? __('families.no_head_title') : __('families.family_of', ['name' => $headName]) }}</h2>
+                {{-- On the family page the number is the page's heading and the size is in the totals. --}}
+                @if($compact)<p class="muted" style="font-size:.85rem">{{ __('people.family_number') }}: <span class="ltr num">{{ $number }}</span> · {{ trans_choice('families.member_count', $totals['members'], ['count' => $totals['members']]) }}</p>@endif
+            </div>
+            <div class="fam-actions">
+                @if($compact)<x-hc.button size="sm" variant="ghost" icon="users" :href="$familyUrl">{{ __('families.open') }}</x-hc.button>@endif
+                @if($editable && $home['head_person'] !== null)<x-hc.button size="sm" variant="secondary" icon="plus" wire:click="openAdd">{{ __('people.add_member') }}</x-hc.button>@endif
+            </div>
+        </header>
+
+        @if($notice)<div class="fam-block" wire:key="notice"><x-hc.alert type="success">{{ $notice }}</x-hc.alert></div>@endif
+        @error('member')<div class="fam-block"><x-hc.alert type="danger">{{ $message }}</x-hc.alert></div>@enderror
+
+        @if(! $compact)
+        <dl class="fam-tiles">
+            <div><dt>{{ __('families.members') }}</dt><dd data-total="members">{{ $totals['members'] }}</dd></div>
+            <div><dt>{{ __('families.residents') }}</dt><dd data-total="residents">{{ $totals['residents'] }}</dd></div>
+            <div><dt>{{ __('families.working') }}</dt><dd data-total="working">{{ $totals['working'] }}</dd></div>
+            <div><dt>{{ __('families.children_under', ['age' => \App\Services\People\FamilyService::CHILD_AGE]) }}</dt><dd data-total="children">{{ $totals['children'] }}</dd></div>
+            <div><dt>{{ __('families.income') }}</dt><dd data-total="income" class="ltr">{{ $totals['income'] === null ? '—' : number_format($totals['income']) }}</dd></div>
+            <div><dt>{{ __('people.projects') }}</dt><dd data-total="projects">{{ $totals['projects'] }}</dd></div>
+        </dl>
+        @endif
+
+        @if($compact && $gaps->isNotEmpty())
+            <p class="fam-block"><a class="fam-attention-link" href="{{ $familyUrl }}"><x-hc.icon name="warning" :size="16"/>{{ __('families.attention_count', ['count' => $gaps->count()]) }}</a></p>
+        @elseif(! $compact && $home['flags'] !== [])
+            <details class="fam-attention" open>
+                <summary><x-hc.icon name="warning" :size="18"/><span>{{ __('families.attention') }}</span><span class="num">{{ count($home['flags']) }}</span></summary>
+                <ul>
+                @foreach($home['flags'] as $flag)
+                    <li class="is-{{ $flag['tone'] }}" wire:key="flag-{{ $flag['key'] }}" data-flag="{{ $flag['key'] }}">
+                        <span>{{ __('families.flags.'.$flag['key']) }}</span>
+                        @if(str_starts_with($flag['key'], 'counts'))
+                            <span class="muted">{{ __('families.counts_detail', [
+                                'stored_all' => $flag['stored']['family_size'] ?? '—', 'stored_home' => $flag['stored']['household_size'] ?? '—',
+                                'all' => $flag['computed']['family_size'], 'home' => $flag['computed']['household_size']]) }}</span>
+                            @if($editable)<x-hc.button size="sm" variant="secondary" icon="sync" wire:click="recount" wire:loading.attr="disabled">{{ __('families.recount') }}</x-hc.button>@endif
                         @endif
-                    </td>
-                    <td style="white-space:nowrap"><x-hc.button size="sm" icon="check" wire:click="saveEdit">{{ __('people.save') }}</x-hc.button> <x-hc.button size="sm" variant="ghost" wire:click="cancel">{{ __('people.cancel') }}</x-hc.button></td>
-                </tr>
+                        @foreach($flag['members'] as $m)
+                            @if($editable)
+                                <button type="button" class="hc-chip" wire:click="startEdit({{ $m->id }})">{{ $m->name }}</button>
+                            @else
+                                <a class="hc-chip" href="{{ route('people.show', ['locale' => $locale, 'person' => $m->person_id]) }}">{{ $m->name }}</a>
+                            @endif
+                        @endforeach
+                    </li>
+                @endforeach
+                </ul>
+            </details>
+        @endif
+
+        @php($tabs = $compact ? ['members'] : ['members', 'work', 'health', 'assets', 'aid', 'projects'])
+        <div @if(! $compact) x-data="hcTabs('hc.family.tab', @js($tabs), 'members')" @endif>
+            @if(! $compact)
+            <div class="hc-tabs" role="tablist" aria-label="{{ __('families.family') }}" @keydown="keys($event)">
+                @foreach($tabs as $tab)
+                    @php($amount = match ($tab) { 'members' => $totals['members'], 'projects' => $totals['projects'], default => collect($records[$tab])->sum(fn ($rows) => $rows->count()) })
+                    <button type="button" role="tab" id="tab-{{ $home['head_id'] }}-{{ $tab }}" data-tab="{{ $tab }}" aria-controls="panel-{{ $home['head_id'] }}-{{ $tab }}"
+                            :aria-selected="tab === '{{ $tab }}'" aria-selected="{{ $tab === 'members' ? 'true' : 'false' }}" :tabindex="tab === '{{ $tab }}' ? 0 : -1" @click="select('{{ $tab }}')">{{ __('families.tabs.'.$tab) }} <span>{{ $amount }}</span></button>
+                @endforeach
+            </div>
+            @endif
+
+            <div @if(! $compact) role="tabpanel" id="panel-{{ $home['head_id'] }}-members" aria-labelledby="tab-{{ $home['head_id'] }}-members" x-show="tab === 'members'" @endif>
+                @if($members->isEmpty())
+                    <p class="muted fam-block">{{ __('people.no_family') }}</p>
                 @else
-                <tr wire:key="m-{{ $m->id }}">
-                    <td data-label="{{ __('people.name') }}">
-                        @if((int) $m->person_id === $personId)<strong>{{ \App\Services\People\PeopleService::fullName($m) }}</strong>
-                        @else<a class="row-link" href="{{ route('people.show', ['locale' => $locale, 'person' => $m->person_id]) }}">{{ \App\Services\People\PeopleService::fullName($m) }}</a>@endif
-                        @if($m->national_number)<span class="muted num ltr" style="font-size:.85em"> {{ $m->national_number }}</span>@endif
-                    </td>
-                    <td data-label="{{ __('people.fields.relation_id') }}">{{ $m->relation ?? '—' }}</td>
-                    <td data-label="{{ __('people.birth_year') }}" class="num">{{ $m->birth_date ? substr($m->birth_date, 0, 4) : '—' }}</td>
-                    <td data-label="{{ __('people.fields.education_level_id') }}">{{ collect([$m->education_level, $m->education_specialty])->filter()->implode(' · ') ?: '—' }}</td>
-                    <td data-label="{{ __('people.fields.has_work') }}">{{ $m->has_work === null ? '—' : ($m->has_work ? __('people.yes') : __('people.no')) }}@if($m->work_name) · {{ $m->work_name }}@endif</td>
-                    @if($editable)
-                    <td style="white-space:nowrap">
-                        <x-hc.button size="sm" variant="ghost" wire:click="startEdit({{ $m->id }}, {{ \Illuminate\Support\Js::from(['relation_id' => $m->relation_id, 'education_level_id' => $m->education_level_id, 'education_specialty_id' => $m->education_specialty_id, 'has_work' => $m->has_work === null ? null : (bool) $m->has_work, 'work_name' => $m->work_name]) }})">{{ __('people.edit') }}</x-hc.button>
-                        @if((int) $m->person_id !== $personId)
-                        <x-hc.button size="sm" variant="ghost" wire:click="remove({{ $m->id }})" wire:confirm="{{ __('people.confirm_remove_member') }}" style="color:var(--danger, #b42318)">{{ __('people.remove_member') }}</x-hc.button>
-                        @endif
-                    </td>
-                    @endif
-                </tr>
-                @endif
-            @empty
-                <tr><td colspan="6" class="muted">{{ __('people.no_family') }}</td></tr>
-            @endforelse
-            </tbody>
-        </table>
-        </div>
-        @if($editable && $family)
-        <x-slot:footer>
-            @if($adding)
-            <form wire:submit="add">
-                <div class="hc-chips" role="group" style="margin-block-end:12px">
-                    <button type="button" class="hc-chip" wire:click="$set('mode', 'new')" aria-pressed="{{ $mode === 'new' ? 'true' : 'false' }}">{{ __('people.member_new') }}</button>
-                    <button type="button" class="hc-chip" wire:click="$set('mode', 'existing')" aria-pressed="{{ $mode === 'existing' ? 'true' : 'false' }}">{{ __('people.member_existing') }}</button>
-                </div>
-                <div class="hc-form-grid">
-                @if($mode === 'new')
-                    @foreach($newFields as $field => $spec)
-                        <x-hc.field :label="__('people.fields.'.$field)" :for="'m-'.$field" :required="$spec['required'] ?? false" :error="$errors->first('member.'.$field)">
-                            @include('people._input', ['model' => 'member.'.$field, 'id' => 'm-'.$field, 'options' => collect()])
-                        </x-hc.field>
-                    @endforeach
-                @else
-                    <x-hc.field :label="__('people.pick_person')" for="m-pick" :error="$errors->first('member.person_id')" style="grid-column:1/-1">
-                        <input class="hc-input" id="m-pick" type="search" wire:model.live.debounce.300ms="pickSearch" placeholder="{{ __('people.pick_placeholder') }}" autocomplete="off">
-                        @if($picked)<p style="margin-block-start:6px"><x-hc.badge tone="brand">{{ \App\Services\People\PeopleService::fullName($picked) }}</x-hc.badge></p>@endif
-                        @if($picks->isNotEmpty())
-                        <div class="hc-chips" style="margin-block-start:8px">
-                            @foreach($picks as $p)<button type="button" class="hc-chip" wire:click="pick({{ $p->id }})" aria-pressed="{{ (int) ($member['person_id'] ?? 0) === $p->id ? 'true' : 'false' }}">{{ $p->name }} @if($p->birth_year)<span class="muted num">{{ $p->birth_year }}</span>@endif</button>@endforeach
+                <ul @class(['fam-members', 'is-compact' => $compact])>
+                    @foreach($members as $m)
+                    <li wire:key="m-{{ $m->id }}" @class(['fam-member', 'is-head' => $m->is_head, 'is-self' => $m->person_id === $personId])>
+                        <div class="fam-who">
+                            <span class="fam-avatar" aria-hidden="true"><x-hc.icon name="user" :size="18"/></span>
+                            <div>
+                                @if($m->person_id === $personId)<strong>{{ $m->name }}</strong>
+                                @else<a class="fam-name" href="{{ route('people.show', ['locale' => $locale, 'person' => $m->person_id]) }}">{{ $m->name }}</a>@endif
+                                <span class="fam-tags">
+                                    @if($m->is_head)<x-hc.badge tone="brand" icon="user">{{ __('families.head') }}</x-hc.badge>
+                                    @else<span class="fam-role">{{ $m->relation ?? __('families.no_relation') }}</span>@endif
+                                    @if($compact && $m->person_id === $personId)<span class="muted">{{ __('families.this_person') }}</span>@endif
+                                </span>
+                                @if(! $compact)
+                                    <span class="fam-sub">@if($m->national_number)<span class="ltr num">{{ $m->national_number }}</span>@else{{ __('families.no_national') }}@endif</span>
+                                @endif
+                            </div>
+                        </div>
+                        <dl class="fam-facts">
+                            <div><dt>{{ __('people.fields.sex') }}</dt><dd>{{ $m->sex ? __('people.'.$m->sex) : '—' }}</dd></div>
+                            <div><dt>{{ __('families.age') }}</dt><dd>{{ $m->age === null ? '—' : $m->age }}@if($m->birth_year) <span class="muted num">({{ $m->birth_year }})</span>@endif</dd></div>
+                            <div><dt>{{ __('people.fields.person_state_id') }}</dt><dd>{{ $m->state ?? '—' }}</dd></div>
+                            @if(! $compact)
+                            <div @class(['is-empty' => ! $m->marital])><dt>{{ __('people.fields.marital_status_id') }}</dt><dd>{{ $m->marital ?? '—' }}</dd></div>
+                            @php($education = collect([$m->education_level, $m->education_degree, $m->education_specialty])->filter()->unique()->implode(' · '))
+                            <div @class(['wide', 'is-empty' => $education === ''])><dt>{{ __('families.education') }}</dt><dd>{{ $education ?: '—' }}</dd></div>
+                            <div @class(['wide', 'is-empty' => ! $m->working && $m->has_work === null && $m->income === null])><dt>{{ __('families.work') }}</dt><dd>
+                                @if($m->working){{ $m->work_text !== '' ? $m->work_text : __('families.works') }}@elseif($m->has_work === false){{ __('families.not_working') }}@else—@endif
+                                @if($m->income !== null)<span class="fam-income">{{ __('families.income_short') }} <span class="ltr num">{{ number_format($m->income) }}</span></span>@endif
+                            </dd></div>
+                            @endif
+                        </dl>
+                        @if($editable)
+                        <div class="fam-row-actions">
+                            <button type="button" class="hc-icon-btn" wire:click="startEdit({{ $m->id }})" title="{{ __('people.edit') }}" aria-label="{{ __('people.edit') }}: {{ $m->name }}"><x-hc.icon name="pencil" :size="18"/></button>
+                            @if(! $m->is_head && (! $compact || $m->person_id !== $personId))
+                            <button type="button" class="hc-icon-btn fam-remove" wire:click="remove({{ $m->id }})" wire:confirm="{{ __('people.confirm_remove_member') }}" title="{{ __('people.remove_member') }}" aria-label="{{ __('people.remove_member') }}: {{ $m->name }}"><x-hc.icon name="x" :size="18"/></button>
+                            @endif
                         </div>
                         @endif
-                    </x-hc.field>
+                    </li>
+                    @endforeach
+                </ul>
                 @endif
-                @foreach(\App\Services\People\PersonFields::MEMBER as $field => $spec)
-                    @continue(isset($spec['when']) && ($member[$spec['when']] ?? '') !== '1')
-                    <x-hc.field :label="__('people.fields.'.$field)" :for="'m-'.$field" :error="$errors->first('member.'.$field)">
-                        @include('people._input', ['model' => 'member.'.$field, 'id' => 'm-'.$field, 'options' => $options[$field] ?? collect(), 'live' => $field === 'has_work'])
-                    </x-hc.field>
+            </div>
+
+            @if(! $compact)
+                @foreach(['work', 'health', 'assets', 'aid'] as $tab)
+                    <div role="tabpanel" id="panel-{{ $home['head_id'] }}-{{ $tab }}" aria-labelledby="tab-{{ $home['head_id'] }}-{{ $tab }}" x-show="tab === '{{ $tab }}'" x-cloak>
+                        @include('people._records', ['tab' => $tab, 'tables' => $records[$tab], 'members' => $members])
+                    </div>
                 @endforeach
+                <div role="tabpanel" id="panel-{{ $home['head_id'] }}-projects" aria-labelledby="tab-{{ $home['head_id'] }}-projects" x-show="tab === 'projects'" x-cloak>
+                    @if($home['projects']->isEmpty())
+                        <p class="muted fam-block">{{ __('families.no_projects_family') }}</p>
+                    @else
+                    <div class="hc-table-wrap"><table class="hc-table stack" data-smart="off">
+                        <thead><tr><th>{{ __('hc.number') }}</th><th>{{ __('hc.project') }}</th><th>{{ __('families.applicant') }}</th><th>{{ __('families.state') }}</th><th>{{ __('hc.request_date') }}</th></tr></thead>
+                        <tbody>
+                        @foreach($home['projects'] as $pr)
+                            @php($who = $members->firstWhere('person_id', $pr->person_id))
+                            <tr wire:key="pr-{{ $pr->id }}-{{ $pr->person_id }}">
+                                <td data-label="{{ __('hc.number') }}"><a class="row-link" href="{{ route('projects.show', ['locale' => $locale, 'project' => $pr->id]) }}"><x-hc.project-number :code="$pr->code" :number="$pr->project_number"/></a></td>
+                                <td data-label="{{ __('hc.project') }}">{{ $pr->name ?: __('hc.not_set') }}</td>
+                                <td data-label="{{ __('families.applicant') }}">{{ $who?->name }} <span class="muted">{{ $pr->role }}</span></td>
+                                <td data-label="{{ __('families.state') }}">@if($pr->state)<x-hc.badge :tone="\App\Support\ProjectStatus::tone($pr->state_en)" :icon="\App\Support\ProjectStatus::icon($pr->state_en)">{{ $pr->state }}</x-hc.badge>@else<x-hc.badge>{{ __('hc.stage_'.$pr->application_stage) }}</x-hc.badge>@endif</td>
+                                <td data-label="{{ __('hc.request_date') }}" class="num">{{ $pr->request_date ? substr($pr->request_date, 0, 10) : '—' }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table></div>
+                    @endif
                 </div>
-                <div style="margin-block-start:12px;display:flex;gap:8px"><x-hc.button type="submit" size="sm" icon="check">{{ __('people.add_member') }}</x-hc.button><x-hc.button size="sm" variant="ghost" wire:click="cancel">{{ __('people.cancel') }}</x-hc.button></div>
-            </form>
-            @else
-            <x-hc.button size="sm" variant="secondary" icon="plus" wire:click="$set('adding', true)">{{ __('people.add_member') }}</x-hc.button>
             @endif
-        </x-slot:footer>
-        @endif
-    </x-hc.card>
+        </div>
+    </section>
+
+    @if($open)
+        @include('people._member-drawer')
+    @endif
+@endif
 </div>

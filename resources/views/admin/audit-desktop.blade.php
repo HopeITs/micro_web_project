@@ -2,6 +2,9 @@
     $en = app()->getLocale() === 'en';
     $locale = app()->getLocale();
     $query = array_filter(collect($filters)->except(['format'])->all(), fn ($v) => $v !== '' && $v !== null);
+    $sortable = \App\Services\Staff\AuditLogService::DESKTOP_SORT_KEYS;
+    [$sort, $dir] = \App\Support\TableTools\TableSort::clean($filters['sort'] ?? null, $filters['dir'] ?? null, $sortable);
+    $headers = ['time' => __('audit.col.time'), 'user' => __('audit.col.user'), 'table' => __('audit.col.table'), 'description' => __('audit.col.description'), 'city' => __('audit.col.city')];
 @endphp
 <x-layouts.hc :title="__('audit.title').' · '.__('audit.tab_desktop')">
     <div class="hc-page-head">
@@ -11,6 +14,7 @@
     <x-hc.card :flush="true">
         @include('admin._audit-tabs', ['exportRoute' => 'admin.audit.desktop.export', 'query' => $query])
         <form class="hc-filters" method="GET" action="{{ route('admin.audit.desktop', ['locale' => $locale]) }}"><div class="hc-filters-grid">
+            @if($sort)<input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">@endif
             <div class="hc-field">
                 <label class="hc-label" for="city">{{ __('audit.city') }}</label>
                 <select id="city" name="city" class="hc-select"><option value="">{{ __('audit.all_cities') }}</option>
@@ -37,8 +41,9 @@
             @if($rows->isEmpty())
                 <x-hc.empty :title="__('audit.none')">{{ __('hc.no_results_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
-                <thead><tr><th>{{ __('audit.col.time') }}</th><th>{{ __('audit.col.user') }}</th><th>{{ __('audit.col.table') }}</th><th>{{ __('audit.col.description') }}</th><th>{{ __('audit.col.city') }}</th></tr></thead>
+            <x-hc.sort-select :columns="\Illuminate\Support\Arr::only($headers, $sortable)" :sort="$sort" :dir="$dir" link/>
+            <table class="hc-table stack" data-smart="off">
+                <thead><tr>@foreach($headers as $key => $title)@if(in_array($key, $sortable, true))<x-hc.sort-th :column="$key" :label="$title" :sort="$sort" :dir="$dir" link/>@else<th>{{ $title }}</th>@endif @endforeach</tr></thead>
                 <tbody>
                 @foreach($rows as $row)
                     <tr>

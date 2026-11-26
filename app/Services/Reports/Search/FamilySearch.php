@@ -94,6 +94,15 @@ final class FamilySearch extends SearchMode
         return $q;
     }
 
+    public function sorts(): array
+    {
+        return [
+            'city' => [$this->byName('ci')], 'person_number' => ['pe.id'], 'family_number' => ['f.family_number'], 'person' => ['pe.first_name', 'pe.last_name'], 'father' => ['pe.father_name'],
+            'mother' => ['pe.mother_name'], 'relation' => [$this->byName('rl')], 'sex' => ['pe.sex'], 'birth_date' => ['pe.birth_date'], 'person_state' => [$this->byName('ps')],
+            'works' => ['fm.has_work'], 'work' => ['fm.work_name'], 'project_number' => ['p.project_number'],
+        ];
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('pe.city_id')->orderBy('pe.id')->orderBy('fm.id')->orderBy('a.id');

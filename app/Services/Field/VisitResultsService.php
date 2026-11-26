@@ -10,6 +10,8 @@ use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
 use App\Services\Finance\Money;
 use App\Services\ProjectNumberAllocator;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +20,8 @@ use Illuminate\Support\Facades\DB;
  * The visit results report (M4.12, owner decision 8; desktop `Visit_Results_Form`, procedures `count_mevisit_results` and
  * `beneficiaries_me_answers`) over every visit, the ones written by Kobo included: the count of each answer per question, and the
  * beneficiaries' answers (one row per visit). Filters: dates, visit (M&E number or all M&E, openings, closings), kind (vehicles / other),
- * project type, category, sub-category, career, only the last M&E visit of each person, cities. Reading needs `applications.view`,
+ * project type, category, sub-category, career, only the last M&E visit of each person, cities, and a search by project number, project
+ * name or beneficiary; the answers table also sorts by its fixed columns. Reading needs `applications.view`,
  * `visits.view` and `me_visits.view` in a city; the export also `reports.export`. The Kobo-only columns come with M4.14.
  */
 final class VisitResultsService
@@ -56,15 +59,25 @@ final class VisitResultsService
         $this->audit->record($account->id, 'visits.results', 'succeeded');
     }
 
-    /** @return array<string, mixed> the filters, cleaned (view, visit, kind, from, to, type, category, subcategory, career, last, cities) */
+    /** @return list<string> the sortable columns of the answers table, in the order they are shown */
+    public static function sortKeys(string $visit): array
+    {
+        return ['city', 'number', 'beneficiary', 'date', ...(str_starts_with($visit, 'M') ? ['visit_number', 'profit', 'result'] : [])];
+    }
+
+    /** @return array<string, mixed> the filters, cleaned (view, visit, kind, from, to, type, category, subcategory, career, last, cities, q, sort, dir) */
     public static function clean(array $input): array
     {
         $int = fn ($v) => ($i = filter_var($v, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) === false ? null : $i;
         $date = fn ($v) => is_string($v) && Fields::isDate($v) ? $v : null;
 
+        $visit = in_array($input['visit'] ?? '', self::VISITS, true) ? $input['visit'] : 'M';
+        [$sort, $dir] = TableSort::clean($input['sort'] ?? null, $input['dir'] ?? null, self::sortKeys($visit));
+
         return [
+            'q' => mb_substr(trim(is_string($input['q'] ?? null) ? $input['q'] : ''), 0, 100), 'sort' => $sort, 'dir' => $sort === null ? null : $dir,
             'view' => in_array($input['view'] ?? '', self::VIEWS, true) ? $input['view'] : 'counts',
-            'visit' => in_array($input['visit'] ?? '', self::VISITS, true) ? $input['visit'] : 'M',
+            'visit' => $visit,
             'kind' => in_array($input['kind'] ?? '', ['o', 'v'], true) ? $input['kind'] : 'o',
             'from' => $date($input['from'] ?? null), 'to' => $date($input['to'] ?? null),
             'type' => $int($input['type'] ?? null), 'category' => $int($input['category'] ?? null), 'subcategory' => $int($input['subcategory'] ?? null), 'career' => $int($input['career'] ?? null),
@@ -103,8 +116,58 @@ final class VisitResultsService
         foreach (['type' => 'project_type_id', 'category' => 'project_category_id', 'subcategory' => 'project_subcategory_id', 'career' => 'career_id'] as $key => $column) {
             $filters[$key] && $query->where('p.'.$column, $filters[$key]);
         }
+        $this->search($query, (string) ($filters['q'] ?? ''), $me);
 
         return $query;
+    }
+
+    /** A project number ("DAM-12"), or every word in the project's name or the visited person's (M&E) / an applicant's names. */
+    private function search(Builder $query, string $term, bool $me): void
+    {
+        if ($term === '') {
+            return;
+        }
+        $number = ProjectNumberAllocator::parse($term);
+        if ($number !== null) {
+            $query->where('p.project_number', $number[1]);
+            $number[0] !== null && $query->whereIn('p.city_id', DB::table('cities')->where('code', $number[0])->select('id'));
+
+            return;
+        }
+        TableSearch::apply($query, ['p.name'], $term, function (Builder $any, string $word) use ($me) {
+            $any->orWhereExists(function (Builder $e) use ($word, $me) {
+                $e->selectRaw('1')->from('people as qp');
+                $me ? $e->whereColumn('qp.id', 'm.person_id')
+                    : $e->join('project_applicants as qa', 'qa.person_id', '=', 'qp.id')->whereColumn('qa.project_id', 'p.id')->whereNull('qa.deleted_at');
+                $e->where(function (Builder $names) use ($word) {
+                    foreach (['qp.first_name', 'qp.father_name', 'qp.last_name'] as $column) {
+                        TableSearch::orLike($names, $column, $word);
+                    }
+                });
+            });
+        });
+    }
+
+    /** The order of the answers table and its file: the asked header column, then the visit date. */
+    private function ordered(Builder $query, array $filters): Builder
+    {
+        $me = $this->me($filters);
+        $person = function (string $column) use ($me) {
+            $query = DB::table('people as sp');
+            $me ? $query->whereColumn('sp.id', 'm.person_id')
+                : $query->join('project_applicants as sa', 'sa.person_id', '=', 'sp.id')->whereColumn('sa.project_id', 'p.id')->whereNull('sa.deleted_at')
+                    ->orderByRaw("CASE WHEN sa.role = 'مستفيد' THEN 0 ELSE 1 END")->orderBy('sa.id');
+
+            return $query->select('sp.'.$column)->limit(1);
+        };
+        $code = DB::table('cities as sc')->whereColumn('sc.id', 'm.city_id')->select('sc.code');
+        $columns = [
+            'city' => $code, 'number' => [$code, 'p.project_number'], 'beneficiary' => [$person('first_name'), $person('last_name')], 'date' => 'm.visit_date',
+            'visit_number' => 'm.visit_number', 'profit' => 'm.profit', 'result' => 'm.result',
+        ];
+        TableSort::apply($query, array_intersect_key($columns, array_flip(self::sortKeys($filters['visit']))), $filters['sort'] ?? null, $filters['dir'] ?? null);
+
+        return $query->orderBy('m.visit_date')->orderBy('m.id');
     }
 
     /** M&E "last visit per beneficiary": the highest number of each person among the filtered visits (desktop `onlyLastVisit`). */
@@ -143,7 +206,7 @@ final class VisitResultsService
         if ($filters['view'] === 'counts') {
             return $out + ['counts' => $this->counts($cities, $filters)];
         }
-        $rows = $this->filtered($cities, $filters)->orderBy('m.visit_date')->orderBy('m.id')->select(['m.*', 'p.project_number', 'p.name as project_name'])->paginate(self::PER_PAGE);
+        $rows = $this->ordered($this->filtered($cities, $filters), $filters)->select(['m.*', 'p.project_number', 'p.name as project_name'])->paginate(self::PER_PAGE);
         [$columns, $mapped] = $this->answers($rows->getCollection(), $filters);
         $rows->setCollection($mapped);
 
@@ -275,7 +338,7 @@ final class VisitResultsService
 
             return [[__('visits.results.columns.question'), __('visits.results.columns.answer'), __('visits.results.columns.count')], $rows];
         }
-        $query = $this->filtered($cities, $filters)->orderBy('m.visit_date')->orderBy('m.id')->select(['m.*', 'p.project_number', 'p.name as project_name']);
+        $query = $this->ordered($this->filtered($cities, $filters), $filters)->select(['m.*', 'p.project_number', 'p.name as project_name']);
         [$columns] = $this->answers(collect(), $filters);
 
         return [$columns, (function () use ($query, $filters) {

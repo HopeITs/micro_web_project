@@ -63,6 +63,14 @@ final class MeVisitSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts([
+            'beneficiary' => ['pe.first_name', 'pe.last_name'], 'career' => 'cr', 'visit_date' => ['m.visit_date'], 'visit_number' => ['m.visit_number'], 'visit_kind' => ['m.kind'],
+            'profit' => ['m.profit'], 'result' => ['m.result'], 'donor' => 'dn', 'category' => 'pc', 'subcategory' => 'ps',
+        ]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('m.id');

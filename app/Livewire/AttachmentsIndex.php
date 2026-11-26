@@ -2,15 +2,17 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasTableSort;
 use App\Services\Attachments\AttachmentService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-/** The attachments page (M4.11): every file the account may see across its cities, newest first, with search and filters. */
+/** The attachments page (M4.11): every file the account may see across its cities, newest first or by a column header, with search and filters. */
 class AttachmentsIndex extends Component
 {
+    use HasTableSort;
     use WithPagination;
 
     public string $search = '';
@@ -39,6 +41,11 @@ class AttachmentsIndex extends Component
         $this->resetPage();
     }
 
+    protected function sortableKeys(): array
+    {
+        return AttachmentService::SORT_KEYS;
+    }
+
     public function render(AttachmentService $service): View
     {
         $account = auth()->user();
@@ -46,7 +53,7 @@ class AttachmentsIndex extends Component
         $category = in_array($this->category, $categories, true) ? $this->category : '';
 
         return view('livewire.attachments-index', [
-            'rows' => $service->search($account, ['q' => $this->search, 'cities' => array_map('intval', $this->cities), 'category' => $category]),
+            'rows' => $service->search($account, ['q' => $this->search, 'cities' => array_map('intval', $this->cities), 'category' => $category] + $this->sortFilters()),
             'cityOptions' => $service->cityOptions($account), 'categoryOptions' => $categories,
         ]);
     }

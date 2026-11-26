@@ -1,0 +1,177 @@
+/* Module styles: people (UX restructure, 25 November 2026). Imported by ../app.css; uses its colour tokens. */
+
+/* ------------------------------------------------------------------ views (families | individuals) and tabs */
+.fam-viewtabs { display: inline-flex; gap: 4px; padding: 4px; margin-block-end: 16px; max-width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.fam-viewtabs a { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 6px 18px; border-radius: var(--radius-sm); color: var(--ink-2); font-weight: 700; }
+.fam-viewtabs a:hover { background: var(--surface-2); }
+.fam-viewtabs a[aria-current="page"] { background: var(--brand-soft); color: var(--brand); }
+
+.hc-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; border-block-end: 1px solid var(--line); margin-block-end: 16px; }
+.hc-tabs [role="tab"] { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 0; border-block-end: 3px solid transparent; background: transparent; color: var(--ink-2); font: inherit; font-weight: 700; font-size: .92rem; cursor: pointer; }
+.hc-tabs [role="tab"]:hover { color: var(--ink); background: var(--surface-2); }
+.hc-tabs [role="tab"][aria-selected="true"] { color: var(--brand); border-block-end-color: var(--brand); }
+.hc-tabs [role="tab"] span { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .75rem; text-align: center; font-variant-numeric: tabular-nums; }
+.hc-tabs [role="tab"]:focus-visible { box-shadow: inset 0 0 0 2px var(--brand); }
+
+/* ------------------------------------------------------------------ families list */
+.fam-index { display: grid; gap: 12px; container-type: inline-size; }
+.fam-index > * { min-width: 0; }
+.fam-summary { font-size: .85rem; }
+.fam-table td { vertical-align: top; }
+.fam-table th, .fam-table td { padding-inline: 10px; }
+.fam-table th:first-child, .fam-c-toggle { width: 1%; padding-inline-end: 0; }
+.fam-chev { transition: transform .2s; }
+.fam-group.is-open .fam-chev { transform: rotate(180deg); }
+.fam-group.is-open .fam-row { background: var(--surface-2); }
+.fam-group:not(:last-child) tr:last-child td { border-block-end: 1px solid var(--line); }
+.fam-c-head { min-width: 220px; width: 34%; }
+.fam-sub { display: block; color: var(--muted); font-size: .8rem; }
+.fam-tel { display: inline-flex; align-items: center; gap: 5px; }
+.fam-tel:hover { color: var(--brand); text-decoration: underline; }
+.fam-match { display: block; font-size: .8rem; font-weight: 700; color: var(--info); }
+.fam-notes { display: flex; flex-wrap: wrap; gap: 4px; margin-block-start: 4px; }
+.fam-c-number .hc-badge { margin-block-start: 4px; }
+.fam-c-number > .num { display: block; white-space: nowrap; }
+.fam-c-projects .hc-badge { margin-block-start: 4px; }
+.fam-detail > td { background: var(--surface-2); }
+.fam-mini { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px; }
+.fam-mini li { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 2px 8px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .88rem; }
+.fam-mini li > .muted { flex-basis: 100%; font-size: .8rem; }
+.fam-mini li.is-head { border-inline-start: 3px solid var(--brand); }
+.fam-mini li.is-match { border-color: var(--info); background: var(--info-soft); }
+.fam-mini a { font-weight: 700; }
+.fam-mini a:hover, .fam-name:hover { color: var(--brand); }
+
+/* In a narrow place each household becomes a card: head, book number, the four counts and projects. */
+@container (max-width: 880px) {
+    .fam-table, .fam-table tbody { display: block; }
+    .fam-table thead { display: none; }
+    .fam-table .fam-group { border-block-end: 1px solid var(--line); }
+    .fam-table .fam-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 44px; gap: 8px 10px; padding: 12px 16px; }
+    .fam-table .fam-row > td, .fam-table .fam-group tr:last-child td { display: block; border: 0; padding: 0; min-width: 0; width: auto; overflow-wrap: anywhere; }
+    .fam-table .fam-row > td[data-label]::before { content: attr(data-label); display: block; font-size: .72rem; color: var(--muted); font-weight: 700; }
+    .fam-table .fam-row > .fam-c-head { grid-column: 1 / 5; grid-row: 1; }
+    .fam-table .fam-row > .fam-c-toggle { grid-column: 5; grid-row: 1; }
+    .fam-table .fam-row > .fam-c-number, .fam-table .fam-row > .fam-c-projects { grid-column: 1 / -1; }
+    /* x-show hides a row with an inline style, which wins over these rules. */
+    .fam-table .fam-detail { display: block; }
+    .fam-table .fam-detail > td { display: block; padding: 12px 16px; }
+}
+
+/* ------------------------------------------------------------------ one household */
+.fam-home { container-type: inline-size; scroll-margin-block-start: calc(var(--header-h) + 12px); }
+.fam-home-head { flex-wrap: wrap; }
+.fam-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.fam-block { padding: 12px 20px; }
+.fam-book { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fam-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 8px; }
+.fam-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1px; margin: 0; background: var(--line); border-block-end: 1px solid var(--line); }
+.fam-tiles > div { background: var(--surface); padding: 10px 20px; }
+.fam-tiles dt { font-size: .78rem; font-weight: 700; color: var(--muted); }
+.fam-tiles dd { margin: 0; font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fam-attention-link { display: inline-flex; align-items: center; gap: 8px; color: var(--warn); font-weight: 700; font-size: .88rem; }
+.fam-attention-link:hover { text-decoration: underline; }
+.fam-attention { margin: 12px 20px; border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); border-radius: var(--radius-sm); background: var(--warn-soft); }
+.fam-attention > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; cursor: pointer; font-weight: 700; color: var(--warn); }
+.fam-attention ul { list-style: none; margin: 0; padding: 0 14px 10px; }
+.fam-attention li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-block: 6px; border-block-start: 1px solid color-mix(in srgb, var(--warn) 20%, transparent); font-size: .88rem; }
+.fam-attention li.is-danger > span:first-child { color: var(--danger); font-weight: 700; }
+
+.fam-members { list-style: none; margin: 0; padding: 0; }
+.fam-member { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; padding: 14px 20px; border-block-end: 1px solid var(--line); }
+.fam-member:last-child { border-block-end: 0; }
+.fam-member.is-head { border-inline-start: 3px solid var(--brand); }
+.fam-member.is-self { background: var(--surface-2); }
+.fam-who { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.fam-who > div { min-width: 0; overflow-wrap: anywhere; }
+.fam-who strong, .fam-name { font-weight: 700; }
+.fam-avatar { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); font-weight: 700; }
+.fam-member.is-head .fam-avatar { background: var(--brand-soft); border-color: transparent; color: var(--brand); }
+.fam-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .82rem; }
+.fam-role { color: var(--ink-2); font-weight: 700; font-size: .82rem; }
+.fam-facts { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 0; font-size: .88rem; }
+.fam-facts > div { min-width: 0; }
+.fam-facts > .wide { grid-column: 1 / -1; }
+.fam-facts dt { font-size: .72rem; font-weight: 700; color: var(--muted); }
+.fam-facts dd { margin: 0; overflow-wrap: anywhere; }
+.fam-income { display: block; color: var(--muted); font-size: .8rem; }
+.fam-row-actions { grid-column: 2; grid-row: 1; display: flex; align-items: flex-start; gap: 2px; }
+.fam-remove:hover { color: var(--danger); }
+.fam-members.is-compact .fam-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* The card decides the layout, so it also works in a narrow column. */
+@container (min-width: 520px) {
+    .fam-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .fam-facts > .wide { grid-column: span 2; }
+}
+/* On a phone the unrecorded facts are left out of a member's card (the flags above name what is required). */
+@container (max-width: 519px) { .fam-facts > .is-empty { display: none; } }
+@container (min-width: 960px) {
+    .fam-member { grid-template-columns: minmax(190px, 1.1fr) minmax(0, 4fr) auto; align-items: start; }
+    .fam-facts { grid-column: 2; grid-row: 1; grid-template-columns: minmax(0, .6fr) minmax(0, .7fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, 1.5fr) minmax(0, 1.7fr); }
+    .fam-facts > .wide { grid-column: auto; }
+    .fam-row-actions { grid-column: 3; }
+    .fam-members.is-compact .fam-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.fam-home > div > .hc-tabs { margin: 0; padding-inline: 8px; }
+
+.fam-records { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; padding: 16px 20px; }
+.fam-records article { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; min-width: 0; }
+.fam-records h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: .95rem; }
+.fam-records h3 a:hover { color: var(--brand); }
+.fam-records h4 { margin: 10px 0 0; font-size: .78rem; color: var(--muted); }
+.fam-records ul { list-style: none; margin: 0; padding: 0; }
+.fam-records li { display: flex; flex-wrap: wrap; gap: 2px 14px; padding-block: 8px; border-block-start: 1px solid var(--line); font-size: .86rem; overflow-wrap: anywhere; }
+.fam-records li:first-child { border-block-start: 0; }
+.fam-records li b { color: var(--muted); font-weight: 700; }
+.fam-block-note { font-size: .86rem; margin-block-start: 6px; }
+
+/* ------------------------------------------------------------------ member drawer */
+.fam-drawer-root { position: fixed; inset: 0; z-index: 60; }
+.fam-drawer-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgb(20 19 21 / .45); cursor: default; }
+.fam-drawer { position: absolute; inset-block: 0; inset-inline-end: 0; width: min(560px, 100%); display: flex; flex-direction: column; background: var(--surface); color: var(--ink); border-inline-start: 1px solid var(--line); box-shadow: var(--shadow); animation: fam-slide .18s ease-out; }
+.fam-drawer > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 20px; border-block-end: 1px solid var(--line); }
+.fam-drawer > header p { font-size: .85rem; }
+.fam-drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 40px; }
+.fam-drawer-body > * { flex-shrink: 0; }
+.fam-drawer > footer { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-block-start: 1px solid var(--line); }
+.fam-fixed { display: flex; align-items: center; gap: 8px; min-height: 42px; }
+.fam-dup { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block-end: 6px; }
+@keyframes fam-slide { from { transform: translateX(24px); opacity: .4; } }
+[dir="rtl"] .fam-drawer { animation-name: fam-slide-rtl; }
+@keyframes fam-slide-rtl { from { transform: translateX(-24px); opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .fam-drawer { animation: none !important; } .fam-chev { transition: none; } }
+
+/* ------------------------------------------------------------------ person page */
+.person-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px 20px; align-items: start; padding: 20px; margin-block-end: 16px; }
+.person-avatar { width: 64px; height: 64px; flex-basis: 64px; font-size: 1.6rem; background: var(--brand-soft); border-color: transparent; color: var(--brand); }
+.person-main { min-width: 0; overflow-wrap: anywhere; }
+.person-facts { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 0; }
+.person-facts li { padding: 2px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: .82rem; font-weight: 700; color: var(--ink-2); }
+.person-facts li.is-missing { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+.person-roles { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
+.person-roles li { display: flex; align-items: flex-start; gap: 8px; }
+.person-roles svg { flex: none; margin-block-start: 4px; color: var(--muted); }
+.person-roles a { font-weight: 700; color: var(--brand); }
+.person-roles a:hover { text-decoration: underline; }
+.person-contacts { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 12px 0 0; }
+.person-contacts dt { font-size: .75rem; font-weight: 700; color: var(--muted); }
+.person-contacts dd { margin: 0; display: flex; align-items: center; gap: 4px; font-weight: 700; }
+.fam-copy { width: 34px; height: 34px; }
+.person-actions { display: flex; flex-direction: column; gap: 8px; }
+.person-add { position: relative; justify-self: start; }
+.person-add .hc-dropdown { inset-inline-start: 0; inset-inline-end: auto; width: max-content; max-width: min(320px, calc(100vw - 48px)); }
+@media (max-width: 900px) {
+    .person-head { grid-template-columns: auto minmax(0, 1fr); }
+    .person-actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+    .person-head { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    .person-avatar { display: none; }
+    .person-actions > * { flex: 1 1 calc(50% - 4px); white-space: normal; text-align: center; }
+    .person-actions > .hc-btn-primary { flex-basis: 100%; }
+    .fam-viewtabs { display: flex; }
+    .fam-viewtabs a { flex: 1; justify-content: center; padding-inline: 8px; }
+    .fam-member, .fam-block, .fam-records { padding-inline: 14px; }
+}
+@media (pointer: coarse) { .fam-copy, .fam-row-actions .hc-icon-btn { width: 44px; height: 44px; } }
+@media print { .fam-drawer-root, .fam-row-actions, .fam-copy, .hc-tabs { display: none !important; } }

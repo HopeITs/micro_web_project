@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\Field\ProfessionMeetingService;
+use App\Support\TableTools\PrivateSearch;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -22,7 +23,9 @@ final class ProfessionMeetingController
 
     public function index(Request $request, string $locale, ProfessionMeetingService $meetings): View
     {
-        $filters = $this->filters($request);
+        $filters = $this->filters($request) + $request->validate(['sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc']])
+            // The search is posted and kept in the session, never in the address (an attendee's name may be typed there).
+            + ['q' => PrivateSearch::get('meetings')];
 
         return view('meetings.index', $meetings->index($request->user(), $filters) + ['filters' => $filters]);
     }

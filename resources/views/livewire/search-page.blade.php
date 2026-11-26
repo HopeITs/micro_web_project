@@ -1,146 +1,162 @@
 @php
     $en = app()->getLocale() === 'en';
-    $lists = ['fund_type', 'project_type', 'subtype', 'status', 'donor', 'donor_group', 'category', 'subcategory', 'career', 'parish', 'marital', 'home_street', 'project_street', 'age'];
-    $meetingLists = ['category', 'subcategory', 'career'];
-    $dates = $filterKind === 'meeting' ? ['meeting_from', 'meeting_to'] : ['request_from', 'request_to', 'fund_from', 'fund_to'];
-    $amounts = ['amount_from', 'amount_to', 'usd_from', 'usd_to'];
-    $shownLists = $filterKind === 'meeting' ? $meetingLists : $lists;
+    $kindKey = $searchMode->key();
+    $count = __($searchMode->hasProject() ? 'search.count_projects' : 'search.count_rows', ['count' => number_format($total)]);
+    $headingOf = array_combine($columnKeys, $headings);
+    $shownCities = $this->cities === [] ? $cityOptions : $cityOptions->filter(fn ($c) => in_array((int) $c->id, $this->cities, true));
 @endphp
-<div>
-    @include('partials.filters-style')
-    <x-hc.card :flush="true">
-        <div class="hc-filters">
-            <div class="hc-filters-grid" style="--cols:3">
-                <div class="hc-field">
-                    <label class="hc-label" for="sp-mode">{{ __('search.mode') }}</label>
-                    <select id="sp-mode" class="hc-select" wire:model.live="mode">
-                        @foreach($groups as $group => $items)
-                            <optgroup label="{{ __('search.groups.'.$group) }}">
-                                @foreach($items as $key => $m)<option value="{{ $key }}">{{ __('search.modes.'.$key) }}</option>@endforeach
-                            </optgroup>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="hc-field grow">
-                    <label class="hc-label" for="sp-term">{{ __('search.term') }}</label>
-                    <input id="sp-term" class="hc-input" type="search" wire:model.live.debounce.500ms="term" maxlength="100" placeholder="{{ __('search.term_placeholder') }}" autocomplete="off">
-                </div>
-            </div>
+<div class="ins">
+    {{-- Shown on paper only: what the printed rows answer (never the search text). --}}
+    <div class="ins-print-head">
+        <h2>{{ __('search.modes.'.$kindKey) }}</h2>
+        <p>{{ __('search.cities') }}: {{ $shownCities->map(fn ($c) => $en ? $c->name_en : $c->name_ar)->implode(__('search.ui.separator')) }} · {{ $count }} · <span class="ltr">{{ now(\App\Services\Staff\AuditLogService::TIMEZONE)->format('Y-m-d H:i') }}</span></p>
+        @foreach($sentences as $sentence)<p><strong>{{ $sentence['label'] }}:</strong> {{ $sentence['summary'] }}</p>@endforeach
+        @if($rows->lastPage() > 1)<p>{{ __('search.ui.printed_page', ['page' => $rows->currentPage(), 'pages' => $rows->lastPage()]) }}</p>@endif
+    </div>
 
-            @if($filterKind !== 'none')
-            <div x-data="{ open: window.matchMedia('(min-width: 900px)').matches }" style="margin-block-start:12px">
-                <button type="button" class="hc-btn hc-btn-ghost hc-btn-sm" x-on:click="open = ! open" x-bind:aria-expanded="open ? 'true' : 'false'" aria-controls="sp-filters">
-                    <x-hc.icon name="settings" :size="18"/>{{ $activeFilters > 0 ? __('search.filters_active', ['count' => $activeFilters]) : __('search.filters') }}
-                </button>
-                <div id="sp-filters" x-show="open" x-cloak style="margin-block-start:12px">
-                    <div class="hc-filters-grid" style="--cols:4">
-                        @foreach($shownLists as $key)
-                            <div class="hc-field">
-                                <label class="hc-label" for="sp-{{ $key }}">{{ __('search.f.'.$key) }}</label>
-                                <select id="sp-{{ $key }}" class="hc-select" multiple size="4" wire:model.live="filters.{{ $key }}" aria-describedby="sp-multi-hint">
-                                    @foreach($options[$key] ?? [] as $o)<option value="{{ $o['id'] }}">{{ $o['label'] }}</option>@endforeach
-                                </select>
+    <section class="hc-card ins-search ins-noprint" aria-label="{{ __('search.title') }}">
+        {{-- The 22 types, grouped, found by typing. --}}
+        <div class="ins-mode" x-data="insPicker" @keydown.escape.stop="close()" @click.outside="close(false)" wire:key="mode-picker">
+            <button type="button" class="ins-mode-trigger" x-ref="trigger" @click="toggle()" aria-haspopup="dialog" :aria-expanded="open ? 'true' : 'false'">
+                <span><small>{{ __('search.mode') }}</small><strong>{{ __('search.modes.'.$kindKey) }}</strong></span>
+                <x-hc.icon name="chevron" :size="20"/>
+            </button>
+            <div class="ins-backdrop" x-show="open" x-cloak @click="close()" aria-hidden="true"></div>
+            <div class="ins-picker" x-show="open" x-cloak x-transition.opacity.duration.120ms role="dialog" aria-label="{{ __('search.mode') }}">
+                <label class="ins-find">
+                    <x-hc.icon name="search" :size="16"/>
+                    <span class="sr-only">{{ __('search.ui.mode_find') }}</span>
+                    <input type="search" x-ref="find" x-model="q" placeholder="{{ __('search.ui.mode_find') }}" autocomplete="off" @keydown.down.prevent="move(1)" @keydown.enter.prevent="first()">
+                </label>
+                <div class="ins-mode-list" x-ref="list" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+                    @foreach($groups as $group => $items)
+                        <div class="ins-mode-group" data-group role="group" aria-label="{{ __('search.groups.'.$group) }}" wire:key="group-{{ $group }}">
+                            <h3>{{ __('search.groups.'.$group) }}</h3>
+                            <div class="ins-mode-grid">
+                                @foreach($items as $key => $m)
+                                    <button type="button" class="ins-mode-card" wire:key="mode-{{ $key }}" data-mode data-find="{{ __('search.modes.'.$key) }} {{ __('search.mode_hint.'.$key) }} {{ __('search.groups.'.$group) }}"
+                                            @if($key === $kindKey) aria-current="true" @endif wire:click="setMode('{{ $key }}')" @click="close()">
+                                        <strong>{{ __('search.modes.'.$key) }}</strong><small>{{ __('search.mode_hint.'.$key) }}</small>
+                                    </button>
+                                @endforeach
                             </div>
-                        @endforeach
-                        @if($filterKind === 'project')
-                            <div class="hc-field">
-                                <label class="hc-label" for="sp-sex">{{ __('search.f.sex') }}</label>
-                                <select id="sp-sex" class="hc-select" multiple size="2" wire:model.live="filters.sex" aria-describedby="sp-multi-hint">
-                                    @foreach($options['sex'] as $o)<option value="{{ $o['id'] }}">{{ $o['label'] }}</option>@endforeach
-                                </select>
-                            </div>
-                            <div class="hc-field">
-                                <label class="hc-label" for="sp-partnership">{{ __('search.f.partnership') }}</label>
-                                <select id="sp-partnership" class="hc-select" wire:model.live="filters.partnership">
-                                    <option value="">{{ __('search.all') }}</option>
-                                    <option value="individual">{{ __('search.f.individual') }}</option>
-                                    <option value="partnership">{{ __('search.f.partnered') }}</option>
-                                </select>
-                            </div>
-                        @endif
-                        @foreach($dates as $key)
-                            <div class="hc-field">
-                                <label class="hc-label" for="sp-{{ $key }}">{{ __('search.f.'.$key) }}</label>
-                                <input id="sp-{{ $key }}" class="hc-input num ltr" type="date" wire:model.live="filters.{{ $key }}">
-                            </div>
-                        @endforeach
-                        @if($filterKind === 'project')
-                            @foreach($amounts as $key)
-                                <div class="hc-field">
-                                    <label class="hc-label" for="sp-{{ $key }}">{{ __('search.f.'.$key) }}</label>
-                                    <input id="sp-{{ $key }}" class="hc-input num ltr" type="number" min="0" step="any" inputmode="decimal" wire:model.live.debounce.500ms="filters.{{ $key }}">
-                                </div>
-                            @endforeach
-                        @endif
-                    </div>
-                    <p id="sp-multi-hint" class="muted" style="font-size:.82rem;margin-block-start:8px">{{ __('search.multi_hint') }}</p>
-                </div>
-            </div>
-            @endif
-        </div>
-
-        <div class="hc-toolbar" style="align-items:center;flex-wrap:wrap">
-            @if($cityOptions->count() > 1)
-                <div class="hc-chips" role="group" aria-label="{{ __('search.cities') }}">
-                    @foreach($cityOptions as $c)
-                        <button type="button" class="hc-chip" wire:click="toggleCity({{ $c->id }})" aria-pressed="{{ in_array((int) $c->id, $this->cities, true) ? 'true' : 'false' }}">{{ $en ? $c->name_en : $c->name_ar }} <span class="muted ltr">{{ $c->code }}</span></button>
+                        </div>
                     @endforeach
+                    <p class="ins-hint" x-show="shown === 0" x-cloak role="status">{{ __('search.ui.no_mode') }}</p>
                 </div>
-            @endif
-            @if($searchMode->hasLastSwitch())
-                <label class="hc-check" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" wire:model.live="last"> {{ __('search.last') }}</label>
-            @endif
-            <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __($searchMode->hasProject() ? 'search.count_projects' : 'search.count_rows', ['count' => number_format($total)]) }}</span>
-            @if($canExport)
-                <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportTable('xlsx')">{{ __('search.export_excel') }}</x-hc.button>
-                <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportTable('csv')">{{ __('search.export_csv') }}</x-hc.button>
-                @if($canExportDetails)
-                    <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportDetails('xlsx')" title="{{ __('search.details_hint') }}">{{ __('search.export_details') }}</x-hc.button>
-                @endif
-            @endif
-            @if($filterKind !== 'none' || $searchMode->hasLastSwitch())
-                <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('search.clear') }}</x-hc.button>
-            @endif
+            </div>
         </div>
 
-        @if($summary !== null && $searchMode->key() === 'applications')
-            <div class="hc-card-body" style="display:flex;gap:24px;flex-wrap:wrap;border-block-end:1px solid var(--line)" aria-label="{{ __('search.summary.applications') }}">
-                <span><strong class="num">{{ number_format($summary['projects']) }}</strong> <span class="muted">{{ __('search.summary.projects') }}</span></span>
-                <span><strong class="num">{{ number_format($summary['members']) }}</strong> <span class="muted">{{ __('search.summary.members') }}</span></span>
+        <div class="ins-term">
+            <label for="sp-term">{{ __('search.term') }}</label>
+            <span class="ins-term-box">
+                <x-hc.icon name="search" :size="20"/>
+                <input id="sp-term" type="search" wire:model.live.debounce.500ms="term" maxlength="100" placeholder="{{ __('search.term_placeholder') }}" autocomplete="off">
+                @if($term !== '')<button type="button" wire:click="clearTerm" aria-label="{{ __('search.ui.clear_term') }}" title="{{ __('search.ui.clear_term') }}"><x-hc.icon name="x" :size="16"/></button>@endif
+            </span>
+            <small>{{ __('search.ui.term_private') }}</small>
+        </div>
+    </section>
+
+    <section class="hc-card ins-filters ins-noprint" aria-label="{{ __('search.filters') }}">
+        <x-hc.report-views :views="$views"/>
+        <x-hc.report-filters :bar="$bar" :cities="$cityOptions" :chosen="$this->cities">
+            @if($searchMode->hasLastSwitch())
+                <label class="ins-switch" wire:key="last-switch"><input type="checkbox" wire:model.live="last"> {{ __('search.last') }}</label>
+                @if($last && $bar['count'] === 0)<button type="button" class="ins-clear" wire:key="clear-last" wire:click="clearFilters">{{ __('search.clear') }}</button>@endif
+            @endif
+        </x-hc.report-filters>
+        @if($filterKind === 'none')<p class="ins-hint ins-nofilters">{{ __('search.ui.no_filters') }}</p>@endif
+    </section>
+
+    @if($summary !== null && $kindKey === 'applications')
+        <div class="ins-kpis ins-kpis-small" aria-label="{{ __('search.summary.applications') }}">
+            <div class="ins-kpi"><span class="ins-kpi-label">{{ __('search.summary.projects') }}</span><strong class="num">{{ number_format($summary['projects']) }}</strong></div>
+            <div class="ins-kpi"><span class="ins-kpi-label">{{ __('search.summary.members') }}</span><strong class="num">{{ number_format($summary['members']) }}</strong></div>
+        </div>
+    @elseif($summary !== null && $kindKey === 'loans')
+        <section class="hc-card" aria-label="{{ __('search.summary.loans_title') }}">
+            <p class="ins-card-title">{{ __('search.summary.loans_title') }}</p>
+            <div class="hc-table-wrap" role="region" tabindex="0" aria-label="{{ __('search.summary.loans_title') }}">
+                <table class="hc-table" data-smart="off">
+                    <thead><tr>
+                        <th scope="col">{{ __('search.summary.currency') }}</th>
+                        @foreach(['count', 'loans', 'repayments', 'returned', 'net', 'repayment_loans', 'balance'] as $k)<th scope="col" class="num">{{ __('search.summary.'.$k) }}</th>@endforeach
+                    </tr></thead>
+                    <tbody>
+                    @foreach($summary as $currency => $v)
+                        <tr wire:key="loan-summary-{{ $currency }}">
+                            <th scope="row">{{ __('search.summary.'.$currency) }}</th>
+                            <td class="num ltr">{{ number_format($v['count']) }}</td>
+                            @foreach(['loans', 'repayments', 'returned', 'net', 'repayment_loans', 'balance'] as $k)<td class="num ltr">{{ number_format((float) $v[$k], 2) }}</td>@endforeach
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
             </div>
-        @elseif($summary !== null && $searchMode->key() === 'loans')
-            <div class="hc-card-body" style="border-block-end:1px solid var(--line)">
-                <p class="muted" style="font-size:.85rem;margin-block-end:8px">{{ __('search.summary.loans_title') }}</p>
-                <div class="hc-table-wrap" role="region" tabindex="0" aria-label="{{ __('search.summary.loans_title') }}">
-                    <table class="hc-table">
-                        <thead><tr>
-                            <th scope="col">{{ __('search.summary.currency') }}</th>
-                            @foreach(['count', 'loans', 'repayments', 'returned', 'net', 'repayment_loans', 'balance'] as $k)<th scope="col">{{ __('search.summary.'.$k) }}</th>@endforeach
-                        </tr></thead>
-                        <tbody>
-                        @foreach($summary as $currency => $v)
-                            <tr>
-                                <th scope="row">{{ __('search.summary.'.$currency) }}</th>
-                                <td class="num ltr">{{ number_format($v['count']) }}</td>
-                                @foreach(['loans', 'repayments', 'returned', 'net', 'repayment_loans', 'balance'] as $k)<td class="num ltr">{{ number_format((float) $v[$k], 2) }}</td>@endforeach
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
+        </section>
+    @endif
+
+    <section class="hc-card" aria-label="{{ __('search.table') }}">
+        <header class="ins-panel-head">
+            <div>
+                <h2 aria-live="polite">{{ $count }}</h2>
+                @if($sortedBy !== '')
+                    <p class="muted ins-noprint">{{ __('search.ui.sorted_by', ['column' => $headingOf[$sortedBy], 'way' => __('search.ui.'.($dir === 'desc' ? 'desc' : 'asc'))]) }}
+                        <button type="button" class="ins-link" wire:click="$set('sort', '')">{{ __('search.ui.sort_default') }}</button></p>
+                @endif
             </div>
-        @endif
+            <div class="ins-actions ins-noprint">
+                @if($canExport)
+                    <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportTable('xlsx')">{{ __('search.export_excel') }}</x-hc.button>
+                    <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportTable('csv')">{{ __('search.export_csv') }}</x-hc.button>
+                    @if($canExportDetails)
+                        <x-hc.button variant="ghost" size="sm" icon="file" wire:click="exportDetails('xlsx')" title="{{ __('search.details_hint') }}">{{ __('search.export_details') }}</x-hc.button>
+                    @endif
+                @endif
+                @if($rows->total() > 0)<x-hc.button variant="ghost" size="sm" icon="file" data-ins-print>{{ __('search.ui.print') }}</x-hc.button>@endif
+            </div>
+        </header>
 
         @if($rows->total() === 0)
-            <x-hc.empty :title="__('search.none')" icon="search">{{ __('search.none_hint') }}</x-hc.empty>
+            <x-hc.empty :title="__('search.none')" icon="search">
+                {{ __('search.none_hint') }}
+                @if($bar['count'] > 0)
+                    <x-slot:action>
+                        <x-hc.button variant="secondary" size="sm" wire:click="clearFilters">{{ __('search.clear') }}</x-hc.button>
+                    </x-slot:action>
+                @endif
+            </x-hc.empty>
         @else
+            {{-- On phones the headers scroll out of reach, so the order is also a list. --}}
+            @if($sortable !== [])
+                <div class="ins-sort-mobile ins-noprint">
+                    <label for="sp-sort">{{ __('search.ui.sort_by') }}</label>
+                    <select id="sp-sort" class="hc-select" wire:model.live="sort">
+                        <option value="">{{ __('search.ui.sort_default') }}</option>
+                        @foreach($sortable as $key)<option value="{{ $key }}">{{ $headingOf[$key] }}</option>@endforeach
+                    </select>
+                    @if($sortedBy !== '')<button type="button" class="hc-btn hc-btn-secondary hc-btn-sm" wire:click="$set('dir', '{{ $dir === 'desc' ? 'asc' : 'desc' }}')">{{ __('search.ui.'.($dir === 'desc' ? 'desc' : 'asc')) }}</button>@endif
+                </div>
+            @endif
             {{-- The table scrolls inside its own region, never the page. --}}
-            <div class="hc-table-wrap" role="region" tabindex="0" aria-label="{{ __('search.table') }}" wire:loading.class="opacity-60">
-                <table class="hc-table">
-                    <thead><tr>@foreach($headings as $h)<th scope="col">{{ $h }}</th>@endforeach</tr></thead>
+            <div class="hc-table-wrap ins-results" role="region" tabindex="0" aria-label="{{ __('search.table') }}" wire:loading.class="opacity-60">
+                <table class="hc-table" data-smart="off">
+                    <thead><tr>
+                        @foreach($headings as $j => $h)
+                            @php($key = $columnKeys[$j])
+                            @if(in_array($key, $sortable, true))
+                                <th scope="col" aria-sort="{{ $sortedBy === $key ? ($dir === 'desc' ? 'descending' : 'ascending') : 'none' }}">
+                                    <button type="button" @class(['hc-sort', 'is-sorted' => $sortedBy === $key]) wire:click="sortBy('{{ $key }}')" title="{{ __('search.ui.sort_hint') }}"><span>{{ $h }}</span><span class="hc-sort-ind" aria-hidden="true">{{ $sortedBy === $key ? ($dir === 'desc' ? '▼' : '▲') : '↕' }}</span></button>
+                                </th>
+                            @else
+                                <th scope="col">{{ $h }}</th>
+                            @endif
+                        @endforeach
+                    </tr></thead>
                     <tbody>
                     @foreach($cells as $i => $line)
-                        <tr wire:key="sr-{{ $searchMode->key() }}-{{ $rows->currentPage() }}-{{ $i }}">
+                        <tr wire:key="sr-{{ $kindKey }}-{{ $rows->currentPage() }}-{{ $i }}">
                             @foreach($line['cells'] as $j => $cell)
                                 <td @class(['num ltr' => in_array($j, $numeric, true)]) @style(['white-space:pre-line;min-width:14rem' => is_string($cell) && mb_strlen($cell) > 60])>
                                     @if($j === $linkColumn && $line['url'])
@@ -158,17 +174,17 @@
                     </tbody>
                 </table>
             </div>
-            <p class="muted" style="font-size:.8rem;padding:6px 20px">{{ __('search.scroll_hint') }}</p>
+            <p class="ins-hint ins-noprint ins-card-note">{{ __('search.scroll_hint') }}</p>
 
             @if($rows->lastPage() > 1)
-            <div class="hc-pagination">
-                <span>{{ __('hc.page', ['page' => $rows->currentPage(), 'pages' => $rows->lastPage()]) }}</span>
-                <div style="display:flex;gap:8px">
-                    @if(! $rows->onFirstPage())<x-hc.button variant="secondary" size="sm" wire:click="previousPage">{{ __('hc.previous') }}</x-hc.button>@endif
-                    @if($rows->hasMorePages())<x-hc.button variant="secondary" size="sm" wire:click="nextPage">{{ __('hc.next') }}</x-hc.button>@endif
+                <div class="hc-pagination ins-noprint">
+                    <span>{{ __('hc.page', ['page' => $rows->currentPage(), 'pages' => $rows->lastPage()]) }}</span>
+                    <div style="display:flex;gap:8px">
+                        @if(! $rows->onFirstPage())<x-hc.button variant="secondary" size="sm" wire:click="previousPage">{{ __('hc.previous') }}</x-hc.button>@endif
+                        @if($rows->hasMorePages())<x-hc.button variant="secondary" size="sm" wire:click="nextPage">{{ __('hc.next') }}</x-hc.button>@endif
+                    </div>
                 </div>
-            </div>
             @endif
         @endif
-    </x-hc.card>
+    </section>
 </div>

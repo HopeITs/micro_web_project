@@ -7,6 +7,7 @@ namespace App\Services\Lookups;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
+use App\Support\TableTools\TableSearch;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -90,11 +91,7 @@ final class LookupAdminService
     {
         $list = LookupCatalog::get($key);
         $query = $this->scoped($account, $key, $city);
-        $term = trim(mb_substr($search, 0, 100));
-        if ($term !== '') {
-            $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term).'%';
-            $query->where(fn (Builder $q) => $q->whereRaw("t.name_ar LIKE ? ESCAPE '!'", [$like])->orWhereRaw("t.name_en LIKE ? ESCAPE '!'", [$like]));
-        }
+        TableSearch::apply($query, ['t.name_ar', 't.name_en'], $search);
         if (! $hidden) {
             $query->where('t.is_active', true);
         }

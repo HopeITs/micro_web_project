@@ -24,7 +24,8 @@
             @continue(! $groups->has($type))
             <x-hc.card :title="__($label)" :subtitle="$cityName($city)" :flush="true">
                 <div class="hc-table-wrap">
-                <table class="hc-table">
+                {{-- A form of ticks: rows may be searched (hidden ones are still saved), never re-ordered. --}}
+                <table class="hc-table" data-smart="search">
                     <thead><tr><th style="min-width:200px">{{ __('admin.task') }}</th>@foreach($accounts as $a)<th class="ltr" style="text-align:center;white-space:nowrap">{{ $a->username }}</th>@endforeach</tr></thead>
                     <tbody>
                     @foreach($groups[$type] as $task)

@@ -94,7 +94,8 @@
                     <x-hc.chart :type="$chartType" :labels="$charts[$i]['labels']" :datasets="$charts[$i]['datasets']" :title="$result->measureLabel().($pivot['currency'] !== null ? ' - '.$pivot['currency'] : '')" :percent="$result->isPercent()"/>
                 </div>
                 <div class="hc-table-wrap">
-                    <table class="hc-table">
+                    {{-- A cut pivot is not searched or re-ordered in the browser: only the shown rows would be covered. --}}
+                    <table class="hc-table" data-smart="{{ $pivot['truncated'] ? 'off' : 'auto' }}">
                         <caption class="sr-only">{{ $result->measureLabel() }}{{ $pivot['currency'] !== null ? ' - '.$pivot['currency'] : '' }}</caption>
                         <thead>
                             <tr>

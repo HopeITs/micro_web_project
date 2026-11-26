@@ -10,6 +10,8 @@ use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
 use App\Services\ProjectNumberAllocator;
 use App\Services\Staff\NoticeService;
+use App\Support\TableTools\TableSearch;
+use App\Support\TableTools\TableSort;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -27,6 +29,9 @@ use Illuminate\Validation\ValidationException;
 final class VisitScheduleService
 {
     public const PER_PAGE = 50;
+
+    /** Columns the schedule sorts by (stored values; the visit status is worked out per page and is not one). */
+    public const SORT_KEYS = ['number', 'project', 'beneficiary', 'state', 'donor', 'type', 'visit', 'date', 'home_area', 'project_area', 'next_due', 'note'];
 
     /** The desktop's visit filter: Opening, M1–M5, MFinal, Closing, Clearance. */
     public const VISITS = ['Opening', 'M1', 'M2', 'M3', 'M4', 'M5', 'MFinal', 'Closing', 'Clearance'];
@@ -61,13 +66,13 @@ final class VisitScheduleService
     }
 
     /**
-     * @param  array{cities?: list<int>, year?: ?int, months?: list<int>, kind?: ?string, visit?: ?string, street?: ?int, type?: ?int, hidden?: bool, q?: ?string}  $filters
+     * @param  array{cities?: list<int>, year?: ?int, months?: list<int>, kind?: ?string, visit?: ?string, street?: ?int, type?: ?int, hidden?: bool, q?: ?string, sort?: ?string, dir?: ?string}  $filters
      */
     public function schedule(WebAccount $account, array $filters): array
     {
         $permitted = $this->permitted($account, false);
         $query = $this->query($permitted, $filters);
-        $rows = $query->orderBy('n.notice_date')->orderBy('n.id')->paginate(self::PER_PAGE);
+        $rows = $this->ordered($query, $filters)->paginate(self::PER_PAGE);
         $rows->setCollection($this->decorate($rows->getCollection()));
         $ids = $this->ids($permitted, $filters);
 
@@ -124,16 +129,35 @@ final class VisitScheduleService
         }
         $q = trim((string) ($filters['q'] ?? ''));
         if ($q !== '') {
-            $query->where(function (Builder $w) use ($q) {
-                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q).'%';
-                $w->where('n.title', 'like', $like)->orWhere('p.name', 'like', $like)->orWhere('n.body', 'like', $like)->orWhere('n.note', 'like', $like);
-                if (ctype_digit($q)) {
-                    $w->orWhere('n.project_number', (int) $q);
-                }
-            });
+            $number = ProjectNumberAllocator::parse($q);
+            if ($number !== null && $number[0] !== null) {
+                // "DAM-12": that project of that city.
+                $query->where('c.code', $number[0])->where(fn (Builder $w) => $w->where('n.project_number', $number[1])->orWhere('p.project_number', $number[1]));
+            } else {
+                TableSearch::apply($query, ['n.title', 'p.name', 'n.body', 'n.note'], $q, function (Builder $any, string $word) {
+                    ctype_digit($word) && $any->orWhere('n.project_number', (int) $word);
+                });
+            }
         }
 
         return $query;
+    }
+
+    /** The order of the screen and the file: the asked header column, then the notice date. */
+    private function ordered(Builder $query, array $filters): Builder
+    {
+        $name = fn (string $ar, string $en) => app()->getLocale() === 'en' ? "COALESCE(NULLIF({$en}, ''), {$ar})" : $ar;
+        TableSort::apply($query, [
+            'number' => ['c.code', 'COALESCE(p.project_number, n.project_number)'], 'project' => 'p.name', 'beneficiary' => 'n.title',
+            'state' => $name('st.state_ar', 'st.state_en'), 'donor' => $name('d.name_ar', 'd.name_en'), 'type' => $name('t.name_ar', 't.name_en'),
+            'visit' => 'n.body', 'date' => 'n.notice_date', 'project_area' => 'ps.name_ar', 'note' => 'n.note',
+            'home_area' => DB::table('project_applicants as sa')->join('people as sp', 'sp.id', '=', 'sa.person_id')->leftJoin('streets as ss', 'ss.id', '=', 'sp.street_id')
+                ->whereColumn('sa.project_id', 'n.project_id')->whereNull('sa.deleted_at')->orderByRaw("CASE WHEN sa.role = 'مستفيد' THEN 0 ELSE 1 END")->orderBy('sa.id')->select('ss.name_ar')->limit(1),
+            'next_due' => DB::table('loan_installments as si')->join('loans as sl', 'sl.id', '=', 'si.loan_id')->whereColumn('sl.project_id', 'n.project_id')
+                ->whereNull('sl.deleted_at')->whereNull('si.deleted_at')->where('si.is_paid', false)->selectRaw('MIN(si.due_on)'),
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
+
+        return $query->orderBy('n.notice_date')->orderBy('n.id');
     }
 
     /** Adds the beneficiary's home area and mobile, the next unpaid instalment and the visit status to a page of rows. */
@@ -200,7 +224,7 @@ final class VisitScheduleService
     public function export(WebAccount $account, array $filters): array
     {
         $permitted = $this->permitted($account, true);
-        $query = $this->query($permitted, $filters)->orderBy('n.notice_date')->orderBy('n.id');
+        $query = $this->ordered($this->query($permitted, $filters), $filters);
         $this->audit->record($account->id, 'reports.exported', 'succeeded');
         $en = app()->getLocale() === 'en';
 

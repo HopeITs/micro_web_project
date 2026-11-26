@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Services\AccountAccess;
 use App\Services\Reports\TableExport;
 use App\Services\Staff\NotificationInboxService;
+use App\Support\TableTools\PrivateSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,7 +17,10 @@ final class NotificationController
 {
     public function index(Request $request, string $locale, NotificationInboxService $inbox): View
     {
-        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'kind' => ['nullable', 'in:message,visit,clearance,payment,trophy,executive_file,state,purchases']]);
+        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'kind' => ['nullable', 'in:message,visit,clearance,payment,trophy,executive_file,state,purchases'],
+            'sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc']]);
+        // The search text may be a name: it is kept in the session, never in the address.
+        $filters['q'] = PrivateSearch::get('notifications');
 
         return view('staff.notifications', $inbox->inbox($request->user(), $filters) + ['filters' => $filters]);
     }
@@ -24,8 +28,9 @@ final class NotificationController
     /** Everything in the box, as an Excel workbook or CSV (the box's own authorization and city scope apply). */
     public function export(Request $request, string $locale, NotificationInboxService $inbox, TableExport $export): StreamedResponse
     {
-        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'kind' => ['nullable', 'in:message,visit,clearance,payment,trophy,executive_file,state,purchases'], 'format' => ['nullable', 'in:xlsx,csv']]);
-        $rows = $inbox->exportRows($request->user(), $filters);
+        $filters = $request->validate(['cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'kind' => ['nullable', 'in:message,visit,clearance,payment,trophy,executive_file,state,purchases'], 'format' => ['nullable', 'in:xlsx,csv'],
+            'sort' => ['nullable', 'string', 'max:20'], 'dir' => ['nullable', 'in:asc,desc']]);
+        $rows = $inbox->exportRows($request->user(), ['q' => PrivateSearch::get('notifications')] + $filters);
 
         return $export->stream(TableExport::format($filters['format'] ?? null), 'notifications-'.now()->format('Ymd-His'), ['City', 'Date', 'Type', 'Project number', 'Title', 'Message', 'Sender'], $rows, [3], app()->isLocale('ar'));
     }

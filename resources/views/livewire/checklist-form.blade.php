@@ -76,7 +76,8 @@
             @if($need === null)
                 <p class="muted">{{ __('checklists.errors.no_beneficiary') }}</p>
             @else
-            <div class="hc-table-wrap"><table class="hc-table stack" aria-label="{{ __('checklists.sections.need') }}">
+            {{-- A fixed score sheet, read in its own order. --}}
+            <div class="hc-table-wrap"><table class="hc-table stack" data-smart="off" aria-label="{{ __('checklists.sections.need') }}">
                 <thead><tr><th>{{ __('checklists.criterion') }}</th><th>{{ __('checklists.need.indicator') }}</th><th class="num">{{ __('checklists.need.mark') }}</th></tr></thead>
                 <tbody>
                 @foreach($need['rows'] as $row)

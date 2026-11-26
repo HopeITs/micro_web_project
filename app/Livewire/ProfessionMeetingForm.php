@@ -32,6 +32,9 @@ class ProfessionMeetingForm extends Component
 
     public ?string $notice = null;
 
+    /** Search of the eligibility list; never part of the saved meeting. */
+    public string $beneficiarySearch = '';
+
     public function mount(?int $meetingId = null, int $city = 0): void
     {
         $service = app(ProfessionMeetingService::class);
@@ -132,6 +135,7 @@ class ProfessionMeetingForm extends Component
         $account = auth()->user();
         $access = app(AccountAccess::class);
         $careerIds = array_map('intval', $this->state['careerIds'] ?? []);
+        $beneficiaries = $service->beneficiaries($account, $this->city, $careerIds);
 
         return view('livewire.profession-meeting-form', [
             'catalog' => $service->catalog(), 'careers' => $service->careers(), 'levels' => ProfessionMeetingService::LEVELS,
@@ -139,7 +143,9 @@ class ProfessionMeetingForm extends Component
             'canManage' => $access->check($account, $this->city, 'profession_meetings.manage') && ! $this->locked,
             'canDelete' => $this->meetingId !== null && $access->check($account, $this->city, 'profession_meetings.delete') && (! $this->locked || $access->check($account, $this->city, 'accounts.manage')),
             'canReopen' => $this->locked && $access->check($account, $this->city, 'accounts.manage'),
-            'beneficiaries' => $service->beneficiaries($account, $this->city, $careerIds),
+            'beneficiaries' => $beneficiaries,
+            // The table follows its search box; the project-number suggestions above keep the unsearched list.
+            'eligible' => trim($this->beneficiarySearch) === '' ? $beneficiaries : $service->beneficiaries($account, $this->city, $careerIds, mb_substr($this->beneficiarySearch, 0, 100)),
         ]);
     }
 }

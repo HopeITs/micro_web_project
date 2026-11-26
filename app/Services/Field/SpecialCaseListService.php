@@ -10,6 +10,7 @@ use App\Services\AccountAuditTrail;
 use App\Services\Finance\Fields;
 use App\Services\ProjectNumberAllocator;
 use App\Support\ArabicSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +18,16 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The list of all special cases (M4.13, owner decision 5; desktop `Search_Form.bind_SpecialCases`, search mode 7) across the cities where
- * the account holds `applications.view` + `special_cases.view`: the desktop Search columns, newest first. Filters: date from/to, type,
+ * the account holds `applications.view` + `special_cases.view`: the desktop Search columns, newest first or by any column header. Filters: date from/to, type,
  * recorder, current project state, cities and a text (reason, description, action, beneficiary, project number). The export also needs
  * `reports.export` and covers only the cities where it is held. M4.17 Search reuses this query.
  */
 final class SpecialCaseListService
 {
     public const PER_PAGE = 50;
+
+    /** The sortable columns, in the order of headings(). */
+    public const SORT_KEYS = ['city', 'number', 'beneficiary', 'father', 'career', 'category', 'subcategory', 'date', 'recorder', 'type', 'reason', 'description', 'action'];
 
     public function __construct(private AccountAccess $access, private AccountAuditTrail $audit) {}
 
@@ -53,7 +57,7 @@ final class SpecialCaseListService
     }
 
     /**
-     * The filters, cleaned (from, to, type, recorder, state, cities, q). A start after the end is refused with the desktop wording.
+     * The filters, cleaned (from, to, type, recorder, state, cities, q, sort, dir). A start after the end is refused with the desktop wording.
      *
      * @throws ValidationException
      */
@@ -67,6 +71,8 @@ final class SpecialCaseListService
             'cities' => array_values(array_filter(array_map(fn ($c) => $int($c), (array) ($input['cities'] ?? [])))),
             'q' => mb_substr(trim(is_string($input['q'] ?? null) ? $input['q'] : ''), 0, 100),
         ];
+        [$filters['sort'], $dir] = TableSort::clean($input['sort'] ?? null, $input['dir'] ?? null, self::SORT_KEYS);
+        $filters['dir'] = $filters['sort'] === null ? null : $dir;
         if ($filters['from'] !== null && $filters['to'] !== null && $filters['from'] > $filters['to']) {
             throw ValidationException::withMessages(['from' => __('special_cases.errors.range')]);
         }
@@ -124,11 +130,26 @@ final class SpecialCaseListService
             });
         }
 
-        return $query->orderByDesc('s.case_date')->orderByDesc('s.id')->select([
+        return $query->select([
             's.id', 's.city_id', 's.project_id', 's.case_date', 's.reason', 's.description', 's.action', 'ci.code', 'p.project_number',
             't.name_ar as type_ar', 't.name_en as type_en', 'w.username as recorder', 'cr.name_ar as career_ar', 'cr.name_en as career_en',
             'pc.name_ar as category_ar', 'pc.name_en as category_en', 'ps.name_ar as subcategory_ar', 'ps.name_en as subcategory_en',
         ]);
+    }
+
+    /** The order of the screen and the file: the asked header column, then newest first. */
+    private function ordered(Builder $query, array $filters): Builder
+    {
+        $person = fn (string $column) => DB::table('project_applicants as sa')->join('people as sp', 'sp.id', '=', 'sa.person_id')->whereColumn('sa.project_id', 'p.id')
+            ->whereNull('sa.deleted_at')->orderByRaw("CASE WHEN sa.role = 'مستفيد' THEN 0 ELSE 1 END")->orderBy('sa.id')->select('sp.'.$column)->limit(1);
+        $name = fn (string $alias) => app()->getLocale() === 'en' ? "COALESCE(NULLIF({$alias}.name_en, ''), {$alias}.name_ar)" : $alias.'.name_ar';
+        TableSort::apply($query, [
+            'city' => 'ci.code', 'number' => ['ci.code', 'p.project_number'], 'beneficiary' => [$person('first_name'), $person('last_name')], 'father' => $person('father_name'),
+            'career' => $name('cr'), 'category' => $name('pc'), 'subcategory' => $name('ps'), 'date' => 's.case_date', 'recorder' => 'w.username', 'type' => $name('t'),
+            'reason' => 's.reason', 'description' => 's.description', 'action' => 's.action',
+        ], $filters['sort'] ?? null, $filters['dir'] ?? null);
+
+        return $query->orderByDesc('s.case_date')->orderByDesc('s.id');
     }
 
     /** @return list<string> column headings, in the desktop Search order */
@@ -161,7 +182,7 @@ final class SpecialCaseListService
     {
         $permitted = $this->permitted($account, false);
         $cities = $this->ids($permitted, $filters);
-        $page = $this->query($cities, $filters)->paginate(self::PER_PAGE);
+        $page = $this->ordered($this->query($cities, $filters), $filters)->paginate(self::PER_PAGE);
         $links = $page->getCollection()->map(fn ($c) => ['id' => (int) $c->id, 'project' => (int) $c->project_id])->values()->all();
         $page->setCollection($this->rows($page->getCollection()));
         $all = $permitted->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -182,7 +203,7 @@ final class SpecialCaseListService
         $permitted = $this->permitted($account, true);
         $cities = $this->ids($permitted, $filters);
         $this->audit->record($account->id, 'reports.exported', 'succeeded');
-        $query = $this->query($cities, $filters);
+        $query = $this->ordered($this->query($cities, $filters), $filters);
 
         return [self::headings(), (function () use ($query) {
             foreach ($query->lazy(500)->chunk(500) as $chunk) {

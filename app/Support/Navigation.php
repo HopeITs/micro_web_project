@@ -22,7 +22,8 @@ final class Navigation
         ],
         'applications' => [
             ['key' => 'new_application', 'icon' => 'plus', 'route' => 'applications.create', 'capability' => 'applications.manage'],
-            ['key' => 'people', 'icon' => 'users', 'route' => 'people.index', 'capability' => 'people.view'],
+            // Opens on the families view; the individuals view is its second tab.
+            ['key' => 'people', 'icon' => 'users', 'route' => 'families.index', 'capability' => 'people.view'],
             ['key' => 'checklist', 'icon' => 'clipboard', 'route' => 'checklists.index', 'capability' => 'assessments.view'],
             ['key' => 'national_number', 'icon' => 'id', 'route' => 'people.national', 'capability' => 'people.view'],
         ],
@@ -84,7 +85,7 @@ final class Navigation
                     'key' => $item['key'], 'icon' => $item['icon'], 'task' => $item['task'] ?? null,
                     'url' => $route && Route::has($route) ? route($route, ['locale' => app()->getLocale()]) : null,
                     'current' => $route !== null && request()->routeIs(match ($route) {
-                        'projects.index' => 'projects.*', 'meetings.index' => 'meetings.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'people.index' => ['people.index', 'people.show', 'people.edit', 'people.create'], 'checklists.index' => ['checklists.index', 'checklists.show', 'checklists.print'], 'search.index' => 'search.*', 'statistics.index' => 'statistics.*', 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
+                        'projects.index' => 'projects.*', 'meetings.index' => 'meetings.*', 'admin.accounts.index' => ['admin.accounts.*', 'admin.tasks', 'admin.staff'], 'admin.audit' => 'admin.audit*', 'lookups.index' => 'lookups.*', 'families.index' => ['families.*', 'people.index', 'people.show', 'people.edit', 'people.create', 'people.identity'],'checklists.index' => ['checklists.index', 'checklists.show', 'checklists.print'], 'search.index' => 'search.*', 'statistics.index' => 'statistics.*', 'finance.payments' => ['finance.payments', 'finance.show'], 'visits.schedule' => ['visits.schedule', 'visits.hub', 'visits.show', 'visits.me.*'], default => $route
                     }),
                 ];
             }

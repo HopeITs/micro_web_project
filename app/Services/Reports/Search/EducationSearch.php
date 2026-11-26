@@ -54,6 +54,13 @@ final class EducationSearch extends SearchMode
         return ProjectReportFilters::apply($q, $filters);
     }
 
+    public function sorts(): array
+    {
+        return $this->projectSorts([
+            'person' => ['pe.first_name', 'pe.last_name'], 'relation' => 'rl', 'education_level' => 'el', 'degree' => 'et', 'specialization' => 'es',
+        ]);
+    }
+
     public function order(Builder $query): Builder
     {
         return $query->orderBy('p.project_number')->orderBy('p.city_id')->orderBy('fm.id')->orderBy('ed.id')->orderBy('a.id');

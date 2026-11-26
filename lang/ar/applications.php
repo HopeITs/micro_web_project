@@ -28,7 +28,7 @@ return [
         'quantity' => 'الكمية', 'price' => 'السعر', 'local_contribution' => 'المساهمة المحلية', 'comments' => 'ملاحظات', 'risk_id' => 'الخطر',
         'person_id' => 'الاسم', 'contact' => 'رقم تواصل', 'family_number' => 'رقم دفتر العائلة', 'current' => 'العمل الحالي',
     ],
-    'grid_fields' => ['family_work' => ['person_id' => 'الاسم', 'occupation_id' => 'المهنة', 'work_type_id' => 'طبيعة العمل', 'salary' => 'الدخل'], 'materials' => ['name' => 'اسم المادة', 'comments' => 'نوعها', 'quantity' => 'كميتها', 'price' => 'سعر القطعة', 'local_contribution' => 'المساهمة المحلية']],
+    'grid_fields' => ['family_work' => ['person_id' => 'الاسم', 'occupation_id' => 'المهنة', 'work_type_id' => 'طبيعة العمل', 'description' => 'وصف العمل', 'salary' => 'الدخل'], 'materials' => ['name' => 'اسم المادة', 'comments' => 'نوعها', 'quantity' => 'كميتها', 'price' => 'سعر القطعة', 'local_contribution' => 'المساهمة المحلية']],
     'grids' => [
         'family' => 'أفراد العائلة', 'work_experiences' => 'الخبرات العملية', 'educations' => 'التحصيل العلمي', 'courses' => 'الدورات', 'losses' => 'الخسارات', 'illnesses' => 'الحالات المرضية',
         'assets' => 'الأملاك', 'aid_sources' => 'الاستفادة من جهات أخرى', 'aid_received' => 'المساعدات التي يتلقاها', 'power_sources' => 'مصادر الطاقة في المنزل', 'goals' => 'هدف المستفيد من القرض', 'family_work' => 'طبيعة عمل عائلة المستفيد',

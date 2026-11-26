@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\ExportsPrivately;
+use App\Livewire\Concerns\HasTableSort;
 use App\Services\AccountAccess;
 use App\Services\Staff\TaskBoardService;
 use Illuminate\Contracts\View\View;
@@ -9,9 +11,14 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-/** The task board page (M4.16): "my tasks" and the grid of funded / application projects, ticked in place by whoever is responsible. */
+/**
+ * The task board page (M4.16): "my tasks" and the grid of funded / application projects, ticked in place by whoever is responsible. The
+ * grid sorts by any column header; the search may hold a name or a mobile number, so it stays out of the address.
+ */
 class TaskBoard extends Component
 {
+    use ExportsPrivately;
+    use HasTableSort;
     use WithPagination;
 
     #[Url]
@@ -20,7 +27,7 @@ class TaskBoard extends Component
     #[Url]
     public string $kind = 'f';
 
-    #[Url]
+    /** Not kept in the address: it may be a name or a mobile number. */
     public string $q = '';
 
     #[Url]
@@ -67,10 +74,27 @@ class TaskBoard extends Component
         $this->notice = __('staff.tasks.saved');
     }
 
+    protected function sortableKeys(): array
+    {
+        $kind = $this->kind === 'a' ? 'a' : 'f';
+
+        return TaskBoardService::sortKeys(app(TaskBoardService::class)->columns($kind), $kind);
+    }
+
+    protected function exportTarget(): array
+    {
+        return ['task-board', 'tasks.board.export'];
+    }
+
+    protected function exportFilters(): array
+    {
+        return $this->filters();
+    }
+
     /** @return array<string, mixed> */
     public function filters(): array
     {
-        return ['kind' => $this->kind === 'a' ? 'a' : 'f', 'q' => mb_substr($this->q, 0, 100), 'state' => (int) $this->state ?: null, 'donor' => (int) $this->donor ?: null,
+        return $this->sortFilters() + ['kind' => $this->kind === 'a' ? 'a' : 'f', 'q' => mb_substr($this->q, 0, 100), 'state' => (int) $this->state ?: null, 'donor' => (int) $this->donor ?: null,
             'type' => (int) $this->type ?: null, 'cities' => array_map('intval', $this->cities), 'tasks' => array_filter($this->tasks, fn ($f) => in_array((string) $f, ['0', '1'], true))];
     }
 

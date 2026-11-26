@@ -59,7 +59,7 @@ class ProjectLifecycle extends Component
             return;
         }
         session()->flash('status', __('lifecycle.saved'));
-        $this->redirectRoute('projects.show', ['locale' => app()->getLocale(), 'project' => $this->projectId]);
+        $this->reload();
     }
 
     public function saveCurrent(): void
@@ -81,7 +81,13 @@ class ProjectLifecycle extends Component
             return;
         }
         session()->flash('status', __('lifecycle.undo.done'));
-        $this->redirectRoute('projects.show', ['locale' => app()->getLocale(), 'project' => $this->projectId]);
+        $this->reload();
+    }
+
+    /** Reloads the project page (its status and stage bar follow), back on the state tab. */
+    private function reload(): void
+    {
+        $this->redirect(route('projects.show', ['locale' => app()->getLocale(), 'project' => $this->projectId]).'#progress');
     }
 
     private function save(callable $action, string $form): bool

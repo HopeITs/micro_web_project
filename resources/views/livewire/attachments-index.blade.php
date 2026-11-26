@@ -36,8 +36,10 @@
             @if($rows->isEmpty())
                 <x-hc.empty :title="__('hc.no_results')" icon="file">{{ __('attachments.no_results_hint') }}</x-hc.empty>
             @else
-            <table class="hc-table stack">
-                <thead><tr><th>{{ __('attachments.name') }}</th><th>{{ __('attachments.type') }}</th><th>{{ __('attachments.owner') }}</th><th>{{ __('hc.city') }}</th><th>{{ __('attachments.uploaded') }}</th><th></th></tr></thead>
+            @php($headers = ['name' => __('attachments.name'), 'type' => __('attachments.type'), 'owner' => __('attachments.owner'), 'city' => __('hc.city'), 'uploaded' => __('attachments.uploaded')])
+            <x-hc.sort-select :columns="$headers" :sort="$sortKey" :dir="$sortDir"/>
+            <table class="hc-table stack" data-smart="off">
+                <thead><tr>@foreach($headers as $key => $title)<x-hc.sort-th :column="$key" :label="$title" :sort="$sortKey" :dir="$sortDir"/>@endforeach<th></th></tr></thead>
                 <tbody>
                 @foreach($rows as $r)
                     @php($url = route('attachments.file', ['locale' => $locale, 'attachment' => $r->id]))

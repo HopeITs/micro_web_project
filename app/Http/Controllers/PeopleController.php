@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\People\FamilyService;
 use App\Services\People\PeopleService;
 use App\Services\People\PersonFields;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ final class PeopleController
         return view('people.national');
     }
 
-    public function show(Request $request, string $locale, int $person, PeopleService $people): View
+    public function show(Request $request, string $locale, int $person, PeopleService $people, FamilyService $families): View
     {
         $row = $people->person($request->user(), $person);
         $people->audit($request->user(), 'people.view', (int) $row->city_id, $person);
@@ -50,7 +51,10 @@ final class PeopleController
 
         return view('people.show', [
             'person' => $row, 'labels' => $labels, 'city' => DB::table('cities')->where('id', $row->city_id)->first(),
-            'projects' => $people->projects($person), 'editable' => $people->canManage($request->user(), (int) $row->city_id),
+            'projects' => $families->projects([$person]), 'editable' => $people->canManage($request->user(), (int) $row->city_id),
+            'homes' => $families->memberships($request->user(), $person),
+            // Rows per sub-table: empty ones are offered in the "add" menu instead of as empty boxes.
+            'counts' => collect(PersonFields::DETAILS)->map(fn (array $table) => DB::table($table['table'])->where('person_id', $person)->whereNull('deleted_at')->count())->all(),
         ]);
     }
 

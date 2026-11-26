@@ -65,10 +65,25 @@ final class MeetingSearch extends SearchMode
         $this->lookup($q, 'careers', 'cr', 'm.career_id', 'career');
         $this->lookup($q, 'project_subcategories', 'ps', 'm.project_subcategory_id', 'subcategory');
         $this->lookup($q, 'project_categories', 'pc', 'ps.project_category_id', 'category');
-        $f['career'] !== [] && $q->where(fn ($w) => $w->whereIn('m.career_id', $f['career'])->orWhereExists(fn ($e) => $e->selectRaw('1')->from('profession_meeting_careers as mc')
-            ->whereColumn('mc.profession_meeting_id', 'm.id')->whereNull('mc.deleted_at')->whereIn('mc.career_id', $f['career'])));
-        $f['subcategory'] !== [] && $q->whereIn('m.project_subcategory_id', $f['subcategory']);
-        $f['category'] !== [] && $q->whereIn('ps.project_category_id', $f['category']);
+        if ($f['career'] !== []) {
+            $extra = fn ($e) => $e->selectRaw('1')->from('profession_meeting_careers as mc')->whereColumn('mc.profession_meeting_id', 'm.id')->whereNull('mc.deleted_at')->whereIn('mc.career_id', $f['career']);
+            if (in_array('career', $f['not'], true)) {
+                // Excluded: neither the meeting's own career nor any extra one is among the chosen.
+                $q->where(fn ($w) => $w->whereNotIn('m.career_id', $f['career'])->orWhereNull('m.career_id'))->whereNotExists($extra);
+            } else {
+                $q->where(fn ($w) => $w->whereIn('m.career_id', $f['career'])->orWhereExists($extra));
+            }
+        }
+        foreach (['subcategory' => 'm.project_subcategory_id', 'category' => 'ps.project_category_id'] as $key => $column) {
+            if ($f[$key] === []) {
+                continue;
+            }
+            if (in_array($key, $f['not'], true)) {
+                $q->where(fn ($w) => $w->whereNotIn($column, $f[$key])->orWhereNull($column));
+            } else {
+                $q->whereIn($column, $f[$key]);
+            }
+        }
         $f['meeting_from'] !== '' && $q->where('m.meeting_date', '>=', $f['meeting_from']);
         $f['meeting_to'] !== '' && $q->where('m.meeting_date', '<=', $f['meeting_to']);
         if ($f['q'] !== '') {
@@ -82,6 +97,14 @@ final class MeetingSearch extends SearchMode
         }
 
         return $q;
+    }
+
+    public function sorts(): array
+    {
+        return [
+            'city' => [$this->byName('ci')], 'meeting_id' => ['m.id'], 'meeting_date' => ['m.meeting_date'], 'career' => [$this->byName('cr')], 'category' => [$this->byName('pc')],
+            'subcategory' => [$this->byName('ps')], 'place' => ['m.place'], 'invited' => ['m.invited_count'], 'attended' => ['m.attendance_count'], 'absent' => ['m.absence_count'],
+        ];
     }
 
     public function order(Builder $query): Builder

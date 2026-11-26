@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Reports\TableExport;
 use App\Services\Staff\TaskBoardService;
+use App\Support\TableTools\ExportSnapshot;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -23,11 +24,15 @@ final class TaskBoardController
     /** Every project of the board's current filters (all pages), one column per task, as an Excel workbook or CSV. */
     public function export(Request $request, string $locale, TaskBoardService $board, TableExport $export): StreamedResponse
     {
+        // While the grid is searched the filters arrive through a single-use token (the text stays out of the address).
+        $held = ExportSnapshot::pull($request, 'task-board');
         $filters = $request->validate([
+            'sort' => ['nullable', 'string', 'max:40'], 'dir' => ['nullable', 'in:asc,desc'],
             'kind' => ['nullable', 'in:f,a'], 'cities' => ['sometimes', 'array', 'max:20'], 'cities.*' => ['integer', 'min:1'], 'q' => ['nullable', 'string', 'max:100'],
             'state' => ['nullable', 'integer', 'min:1'], 'donor' => ['nullable', 'integer', 'min:1'], 'type' => ['nullable', 'integer', 'min:1'],
             'tasks' => ['sometimes', 'array', 'max:60'], 'tasks.*' => ['nullable', 'in:0,1'], 'format' => ['nullable', 'in:xlsx,csv'],
         ]);
+        $filters = $held === null ? $filters : $held + ['format' => $filters['format'] ?? null];
         $filters['tasks'] = array_filter($filters['tasks'] ?? [], fn ($flag) => $flag !== null);
         [$taskColumns, $rows, $kind] = $board->exportRows($request->user(), $filters);
         $headings = array_merge(array_map(fn ($k) => __('staff.tasks.'.$k), ['city', 'project', 'beneficiary', 'phone', 'name', 'state', 'donor', 'type']), $kind === 'f' ? [__('staff.tasks.loan_date')] : [], $taskColumns);

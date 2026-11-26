@@ -54,8 +54,7 @@
             @endif
             <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('special_cases.list.total', ['count' => number_format($rows->total())]) }}</span>
             @if($canExport && ! $invalid)
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('special-cases.export', ['locale' => $locale] + $query + ['format' => 'xlsx'])">Excel</x-hc.button>
-                <x-hc.button variant="ghost" size="sm" icon="file" :href="route('special-cases.export', ['locale' => $locale] + $query + ['format' => 'csv'])">CSV</x-hc.button>
+                <x-hc.export-buttons to="special-cases.export" :query="$query" :private="$filters['q'] !== ''"/>
             @endif
             <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('special_cases.list.clear') }}</x-hc.button>
         </div>
@@ -64,8 +63,8 @@
             @if($rows->total() === 0)
                 <x-hc.empty :title="__('special_cases.list.none')" icon="clipboard">{{ __('special_cases.list.none_hint') }}</x-hc.empty>
             @else
-                <table class="hc-table">
-                    <thead><tr>@foreach($headings as $i => $c)<th @style(['min-width:14rem' => $i >= 10, 'min-width:7rem' => $i < 10])>{{ $c }}</th>@endforeach</tr></thead>
+                <table class="hc-table" data-smart="off">
+                    <thead><tr>@foreach($headings as $i => $c)<x-hc.sort-th :column="\App\Services\Field\SpecialCaseListService::SORT_KEYS[$i]" :label="$c" :sort="$sortKey" :dir="$sortDir" :style="$i >= 10 ? 'min-width:14rem' : 'min-width:7rem'"/>@endforeach</tr></thead>
                     <tbody>
                     @foreach($rows as $i => $row)
                         <tr wire:key="sc-{{ $links[$i]['id'] }}">

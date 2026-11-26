@@ -1,18 +1,12 @@
 @php
     $en = app()->getLocale() === 'en';
     $name = fn ($ar, $enName) => $en && $enName ? $enName : $ar;
-    $status = \App\Support\ProjectStatus::class;
     $current = $panel['current'];
 @endphp
 <div id="lifecycle">
 <x-hc.card :title="__('lifecycle.title')">
     @if($notice !== '')<x-hc.alert type="success" style="margin-block-end:12px">{{ $notice }}</x-hc.alert>@endif
     @error('version')<x-hc.alert type="danger" style="margin-block-end:12px">{{ $message }}</x-hc.alert>@enderror
-
-    <p style="margin:0 0 12px">{{ __('lifecycle.current') }}:
-        @if($current)<x-hc.badge :tone="$status::tone($current->state_en)" :icon="$status::icon($current->state_en)">{{ $name($current->state_ar, $current->state_en) }}</x-hc.badge>
-        @else<span class="muted">{{ __('lifecycle.none') }}</span>@endif
-    </p>
 
     @if($panel['canManage'] && $panel['undo'])
         @php($back = $name($panel['undo']['back_ar'], $panel['undo']['back_en']))
@@ -79,7 +73,8 @@
         <ol class="hc-timeline">
             @foreach($panel['history'] as $h)
                 <li @class(['current' => $current && $current->id === $h->id])>
-                    <strong>{{ $name($h->state_ar, $h->state_en) }}</strong>@if($current && $current->id === $h->id) <span class="muted">· {{ __('lifecycle.current') }}</span>@endif
+                    {{-- The name of the state in force is shown once, at the top of the project page. --}}
+                    <strong>{{ $current && $current->id === $h->id ? __('project_page.current_state') : $name($h->state_ar, $h->state_en) }}</strong>
                     <br><span class="muted num">{{ $h->changed_on ? \Illuminate\Support\Str::limit((string) $h->changed_on, 10, '') : __('hc.not_set') }}</span>
                     @if($h->reason_ar)<br><span>{{ __('lifecycle.reason') }}: {{ $name($h->reason_ar, $h->reason_en) }}</span>@endif
                     @if($h->note)<br><span class="muted">{{ $h->note }}</span>@endif

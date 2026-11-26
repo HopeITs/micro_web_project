@@ -11,6 +11,7 @@ use App\Services\Finance\Fields;
 use App\Services\Lifecycle\ProjectTaskService;
 use App\Services\ProjectNumberAllocator;
 use App\Support\ArabicSearch;
+use App\Support\TableTools\TableSort;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -64,12 +65,12 @@ final class TaskBoardService
     }
 
     /**
-     * @param  array{kind?: ?string, cities?: list<int>, q?: ?string, state?: ?int, donor?: ?int, type?: ?int, tasks?: array<int, string>}  $filters
+     * @param  array{kind?: ?string, cities?: list<int>, q?: ?string, state?: ?int, donor?: ?int, type?: ?int, tasks?: array<int, string>, sort?: ?string, dir?: ?string}  $filters
      */
     public function board(WebAccount $account, array $filters): array
     {
         [$query, $ids, $columns, $kind, $permitted] = $this->boardQuery($account, $filters, 'tasks.board');
-        $rows = $query->orderByDesc('p.project_number')->orderBy('p.city_id')->orderBy('p.id')->paginate(self::PER_PAGE);
+        $rows = $this->ordered($query, $columns, $kind, $filters)->paginate(self::PER_PAGE);
         $rows->setCollection($this->decorate($account, $rows->getCollection(), $columns, $kind));
 
         return [
@@ -137,6 +138,36 @@ final class TaskBoardService
         return [$query->select(['p.id', 'p.city_id', 'p.project_number', 'p.name', 'p.donor_id', 'p.project_type_id', 'ci.code', 'ci.name_en as city_en', 'ci.name_ar as city_ar']), $ids, $columns, $kind, $permitted];
     }
 
+    /** @return list<string> the keys the grid may be sorted by: the fixed columns and one per task of the board */
+    public static function sortKeys(Collection $columns, string $kind): array
+    {
+        return ['number', 'beneficiary', 'state', ...($kind === 'f' ? ['loan'] : []), ...$columns->map(fn ($c) => 'task-'.(int) $c->id)->all()];
+    }
+
+    /** The grid's order (screen and file alike): the asked header column, then the newest project number first. */
+    private function ordered(Builder $query, Collection $columns, string $kind, array $filters): Builder
+    {
+        $person = fn (string $column) => DB::table('project_applicants as sa')->join('people as sp', 'sp.id', '=', 'sa.person_id')
+            ->whereColumn('sa.project_id', 'p.id')->whereNull('sa.deleted_at')
+            ->orderByRaw("CASE WHEN sa.role = 'مستفيد' THEN 0 WHEN sa.role = 'شريك' THEN 1 ELSE 2 END")->orderBy('sa.id')->select('sp.'.$column)->limit(1);
+        $stateName = app()->isLocale('en') ? "COALESCE(NULLIF(ss.name_en, ''), ss.name_ar)" : 'ss.name_ar';
+        $sortable = [
+            'number' => 'p.project_number',
+            'beneficiary' => [$person('first_name'), $person('last_name')],
+            'state' => DB::table('project_state_history as sh')->join('project_states as ss', 'ss.id', '=', 'sh.project_state_id')
+                ->whereColumn('sh.project_id', 'p.id')->where('sh.is_current', true)->whereNull('sh.deleted_at')->selectRaw('MIN('.$stateName.')'),
+            'loan' => DB::table('loans as sl')->whereColumn('sl.project_id', 'p.id')->whereNull('sl.deleted_at')->selectRaw('MIN(sl.taken_on)'),
+        ];
+        foreach ($columns as $column) {
+            // Ascending: open first, then done; projects without the task come last.
+            $sortable['task-'.(int) $column->id] = DB::table('project_tasks as st')->whereColumn('st.project_id', 'p.id')->whereNull('st.deleted_at')
+                ->where('st.task_definition_id', (int) $column->id)->selectRaw('MAX(st.state)');
+        }
+        TableSort::apply($query, array_intersect_key($sortable, array_flip(self::sortKeys($columns, $kind))), $filters['sort'] ?? null, $filters['dir'] ?? null);
+
+        return $query->orderByDesc('p.project_number')->orderBy('p.city_id')->orderBy('p.id');
+    }
+
     /** Filter lists of the board: the states it lists, the donors and the project types. */
     private function options(string $kind): array
     {
@@ -159,7 +190,7 @@ final class TaskBoardService
     public function exportRows(WebAccount $account, array $filters): array
     {
         [$query, , $columns, $kind] = $this->boardQuery($account, $filters, 'reports.exported', true);
-        $query->orderByDesc('p.project_number')->orderBy('p.city_id')->orderBy('p.id');
+        $this->ordered($query, $columns, $kind, $filters);
         $rows = (function () use ($query, $account, $columns, $kind) {
             foreach ($query->lazy(200)->chunk(200) as $chunk) {
                 foreach ($this->decorate($account, collect($chunk->all()), $columns, $kind) as $row) {

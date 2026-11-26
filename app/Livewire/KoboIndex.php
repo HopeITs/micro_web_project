@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\ExportsPrivately;
+use App\Livewire\Concerns\HasTableSort;
 use App\Services\AccountAccess;
 use App\Services\Kobo\KoboReadService;
 use App\Services\Kobo\KoboResultsService;
@@ -10,9 +12,11 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-/** The Kobo page (M4.14, read and review only): submissions, results, review queues and visitor names. */
+/** The Kobo page (M4.14, read and review only): submissions, results, review queues and visitor names; both lists search and sort. */
 class KoboIndex extends Component
 {
+    use ExportsPrivately;
+    use HasTableSort;
     use WithPagination;
 
     public const TABS = ['submissions', 'results', 'reviews', 'visitors'];
@@ -56,12 +60,17 @@ class KoboIndex extends Component
         if ($property !== 'open') {
             $this->open = null;
         }
+        if ($property === 'mode') {
+            $this->reset('sortKey', 'sortDir');
+        }
     }
 
     public function setTab(string $tab): void
     {
         $this->tab = in_array($tab, self::TABS, true) ? $tab : 'submissions';
         $this->open = null;
+        // Each tab has its own columns.
+        $this->reset('sortKey', 'sortDir');
         $this->resetPage();
     }
 
@@ -82,11 +91,26 @@ class KoboIndex extends Component
         $this->resetPage();
     }
 
+    protected function sortableKeys(): array
+    {
+        return $this->tab === 'results' ? KoboResultsService::sortKeys() : KoboReadService::SORT_KEYS;
+    }
+
+    protected function exportTarget(): array
+    {
+        return ['kobo-answers', 'kobo.export'];
+    }
+
+    protected function exportFilters(): array
+    {
+        return $this->filters();
+    }
+
     private function filters(): array
     {
         $date = fn (string $d) => preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
 
-        return ['cities' => $this->cities, 'status' => $this->status, 'type' => $this->type, 'form' => $this->form, 'from' => $date($this->from), 'to' => $date($this->to),
+        return $this->sortFilters() + ['cities' => $this->cities, 'status' => $this->status, 'type' => $this->type, 'form' => $this->form, 'from' => $date($this->from), 'to' => $date($this->to),
             'q' => $this->search, 'last' => $this->last];
     }
 

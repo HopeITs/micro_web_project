@@ -12,7 +12,7 @@ Decisions of the owner: hosting is cPanel with SSH, PHP, Composer and Node; the 
 - No real data, no real attachments, no real ID cards on this site. `.env`, dumps and backups stay out of git and out of the web root.
 
 ## 1. cPanel
-1. *MultiPHP Manager*: PHP **8.2 or newer** for the domain. Extensions: `pdo_mysql`, `mbstring`, `zip` (checks Word files), `fileinfo`, `gd`, `intl`, `openssl`, `curl`, `xml`, `bcmath` (check the list with `php -m` over SSH).
+1. *MultiPHP Manager*: PHP **8.3 or newer** for the domain. Extensions: `pdo_mysql`, `mbstring`, `zip` (checks Word files), `fileinfo`, `gd`, `intl`, `openssl`, `curl`, `xml`, `bcmath` (check the list with `php -m` over SSH).
 2. *MySQL Databases*: one database and one user with all privileges (for now; the narrow runtime user of `runtime-permissions.md` comes with M6.1).
 3. *Domains → Subdomain* `mp.hcsyria-apps.org` with **document root = `<app folder>/public`** (for example `mp/public`). The app folder itself stays outside `public_html`.
 4. *SSL/TLS Status*: run AutoSSL for the subdomain; then force HTTPS (*Domains → Force HTTPS Redirect*).

@@ -84,5 +84,5 @@ return [
     'sort_hint' => 'اضغط للفرز، وShift مع الضغط يضيف فرزاً ثانياً.', 'sort_asc' => 'تصاعدي', 'sort_desc' => 'تنازلي',
     'per_page' => 'عدد الصفوف', 'export' => 'تصدير', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV',
     'export_hint' => 'يصدّر كل الصفوف المطابقة بالأعمدة الظاهرة وبترتيبها، مع الفلاتر والبحث والفرز.',
-    'nav_reports' => 'التقارير',
+    'nav_reports' => 'التقارير', 'nav_explore' => 'استكشاف',
 ];

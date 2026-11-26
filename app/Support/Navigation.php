@@ -43,6 +43,8 @@ final class Navigation
             ['key' => 'meetings', 'icon' => 'meeting', 'route' => 'meetings.index', 'capability' => 'profession_meetings.view'],
         ],
         'tools' => [
+            // Task X2: the Explore page; like 'reports' it is shown when the account can read at least one dataset.
+            ['key' => 'explore', 'icon' => 'search', 'route' => 'explore.index', 'capability' => 'reports.view'],
             // M4.17: shown when at least one of the 22 search types is available to the account (SearchService decides, per city).
             ['key' => 'search', 'icon' => 'search', 'route' => 'search.index', 'capability' => 'projects.view', 'gate' => 'search'],
             ['key' => 'statistics', 'icon' => 'chart', 'route' => 'statistics.index', 'capability' => 'applications.view'],

@@ -6,5 +6,6 @@
             <p>{{ __('report_builder.intro') }}</p>
         </div>
     </div>
+    <p class="hc-hint">{{ __('explore.notice') }} <a class="row-link" href="{{ route('explore.index', ['locale' => app()->getLocale()]) }}">{{ __('explore.notice_link') }}</a></p>
     <livewire:report-builder />
 </x-layouts.hc>

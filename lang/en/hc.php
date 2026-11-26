@@ -79,5 +79,5 @@ return [
     'sort_hint' => 'Click to sort; Shift+click adds a second sort.', 'sort_asc' => 'ascending', 'sort_desc' => 'descending',
     'per_page' => 'Rows per page', 'export' => 'Export', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV',
     'export_hint' => 'Exports every matching row with the shown columns in this order, the filters, the search and the sort.',
-    'nav_reports' => 'Reports',
+    'nav_reports' => 'Reports', 'nav_explore' => 'Explore',
 ];

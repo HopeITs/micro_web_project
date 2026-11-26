@@ -1,45 +1,54 @@
-# Online staging on cPanel — mp.hcsyria-apps.org
+# Online staging — mp.hcsyria-apps.org
 
 Purpose (owner, 24 Nov 2026): put the site online on our own hosting and database so the team can see it, **with synthetic data only**. Real data (M5) comes last. This is M7.1/M7.2 brought forward; the final freeze and cut-over (M7.3) stay at the end.
 
-Decisions of the owner: hosting is cPanel with SSH, PHP, Composer and Node; the site is reachable from the public internet (no VPN).
+Decisions of the owner: shared hosting with SSH, PHP, Composer and Node; the site is reachable from the public internet (no VPN).
+
+**State (26 Nov 2026):** online. The host's panel is SureSupport "Control Panel" (`panel.s1893.sureserver.com`), not cPanel. Code is in `~/www/mp` on branch `online-staging`, web PHP 8.3, command-line PHP 8.5, database on MySQL 8.4.
 
 ## Rules for a public staging site
 - `APP_ENV=staging` (not `production`: the seeders of invented data refuse `production`; HSTS is sent in both). `APP_DEBUG=false`.
-- **Never use the local test password.** `RoleAccountsSeeder` now refuses to run outside local/testing unless `SEED_ACCOUNT_PASSWORD` holds a strong value.
+- **Never use the local test password.** `RoleAccountsSeeder` refuses to run outside local/testing unless `SEED_ACCOUNT_PASSWORD` holds a strong value.
 - **Do not run `SyntheticStaffSeeder`** (it creates desktop users with the password `password`). Seed the pieces one by one, as below.
-- Put a second lock in front while it is only a preview: cPanel → *Directory Privacy* on the site folder (HTTP password).
+- Put a second lock in front while it is only a preview: *Security → Protection → Password protection* for `mp`.
 - No real data, no real attachments, no real ID cards on this site. `.env`, dumps and backups stay out of git and out of the web root.
 
-## 1. cPanel
-1. *MultiPHP Manager*: PHP **8.3 or newer** for the domain. Extensions: `pdo_mysql`, `mbstring`, `zip` (checks Word files), `fileinfo`, `gd`, `intl`, `openssl`, `curl`, `xml`, `bcmath` (check the list with `php -m` over SSH).
-2. *MySQL Databases*: one database and one user with all privileges (for now; the narrow runtime user of `runtime-permissions.md` comes with M6.1).
-3. *Domains → Subdomain* `mp.hcsyria-apps.org` with **document root = `<app folder>/public`** (for example `mp/public`). The app folder itself stays outside `public_html`.
-4. *SSL/TLS Status*: run AutoSSL for the subdomain; then force HTTPS (*Domains → Force HTTPS Redirect*).
+## 1. Panel
+1. *Software → PHP Settings*: PHP **8.3 or newer** for `mp` (FPM). Extensions: `pdo_mysql`, `mbstring`, `zip` (checks Word files), `fileinfo`, `gd`, `intl`, `openssl`, `curl`, `xml`, `bcmath` (check with `php -m` over SSH).
+2. *MySQL Databases → MySQL 8*: database `mp_db` (becomes `hcsyriaapps_mp_db`) and its own user `mp`. Locally it listens on `127.0.0.1:3308`; port 3306 is MySQL 5.7, which this site does not use.
+3. *Subdomains*: `mp.hcsyria-apps.org` with document root `www/mp/public`.
+4. *SSL/HTTPS*: the wildcard certificate `*.hcsyria-apps.org` covers it; turn **Force HTTPS** on for `mp`.
+5. **WebApps: no app may be bound to `mp.hcsyria-apps.org`.** A Node app bound to the domain (even stopped) takes every request and the site answers **503**, static files included, with nothing in the application log. The site needs no Node app.
 
-## 2. Code (over SSH, in the home folder)
+## 2. Code (SSH or Web SSH Terminal)
 ```bash
+cd ~/www
 git clone https://github.com/HopeITs/micro_web_project.git mp
 cd mp
-git checkout rebuild            # later: the branch the owner accepts
+git checkout online-staging     # later: the branch the owner accepts
 composer install --no-dev --optimize-autoloader
-npm ci && npm run build         # or build locally and upload public/build
 cp .env.example .env
 php artisan key:generate
 ```
-Edit `.env` (nano/vi or cPanel File Manager):
+Front-end files (`public/build`) are not in git. Node on this host works only inside a WebApps project shell; otherwise run `npm run build` locally and upload `public/build`.
+
+Edit `.env` (nano, or *Files → File Editor*), then `chmod 600 .env`:
 ```
 APP_ENV=staging
 APP_DEBUG=false
 APP_URL=https://mp.hcsyria-apps.org
+LOG_LEVEL=warning
 DB_HOST=127.0.0.1
-DB_DATABASE=<cpanel database>
-DB_USERNAME=<cpanel user>
+DB_PORT=3308
+DB_DATABASE=hcsyriaapps_mp_db
+DB_USERNAME=mp
 DB_PASSWORD=<private>
 SESSION_SECURE_COOKIE=true
 SEED_ACCOUNT_PASSWORD=<strong password, not written in chat or git>
-MAIL_MAILER=smtp        # the info@hcsyria.org settings, as on the local site
+ID_READER_DRIVER=               # off: no OCR engine on the host yet
+MAIL_MAILER=smtp                # the info@hcsyria.org settings; until then "log" (no e-mail is sent)
 ```
+
 ## 3. Database and invented data
 ```bash
 php artisan migrate --force
@@ -49,7 +58,7 @@ php artisan db:seed --class=SyntheticDataSeeder --force
 php artisan db:seed --class=RoleAccountsSeeder --force
 php artisan db:seed --class=SyntheticSpecialCasesSeeder --force
 php artisan db:seed --class=SyntheticKoboSeeder --force
-php artisan storage:link   # only if the site shows files through public/storage
+php artisan storage:link
 chmod -R u+rwX,go-rwx storage bootstrap/cache
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
@@ -62,11 +71,14 @@ Role accounts: `super.admin`, `judy`, and one `role.<role>` per role; the same s
 
 ## 5. Update after each accepted change
 ```bash
-cd ~/mp && git pull --ff-only && composer install --no-dev --optimize-autoloader && npm ci && npm run build
-php artisan migrate --force && php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache
+cd ~/www/mp && git pull --ff-only && composer install --no-dev --optimize-autoloader
+php artisan optimize:clear && php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
+If styles or scripts changed, also rebuild and upload `public/build`.
 
 ## 6. Check
-- `https://mp.hcsyria-apps.org/ar/login` opens over HTTPS; wrong password is refused; `/.env` and `/storage/...` return 404/403.
+- `https://mp.hcsyria-apps.org/ar/login` opens over HTTPS and `http://` redirects to it; a wrong password is refused; `/.env`, `/.git/config` and `/storage/...` return 403/404.
 - Sign in as each role, open a project, the checklist, an official paper, and print one.
-- `storage/logs/laravel.log` has no errors.
+- `storage/logs/laravel.log` has no new errors.
+
+Checked 26 Nov without signing in: both login pages 200, protected pages redirect to login, `/.env`, `/.git/config` and the log 403, security headers and secure cookies present. **Open:** `http://` still answers 200 (Force HTTPS not on yet); signed-in pages not checked; official papers not imported.

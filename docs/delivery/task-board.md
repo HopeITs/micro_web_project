@@ -55,7 +55,7 @@ Full plan: [rebuild-plan-2026-11.md](../planning/rebuild-plan-2026-11.md). User 
 | M5.1–M5.6 Full real-data import, reconciliation, attachments, archive | M4 gate | todo |
 | M6.1–M6.4 Security, performance, staff sign-off, restore rehearsal | M5.6 | todo |
 | M7.1–M7.4 Hosting question, server, cutover, support | M6.3 | todo |
-| M7.1b/M7.2b Online staging on cPanel (mp.hcsyria-apps.org), synthetic data only ([guide](../operations/staging-cpanel.md)) | M4 gate | **guide ready 24 Nov on branch `online-staging`; waiting for the owner to run it on the server.** Owner answers (24 Nov): cPanel with SSH, PHP, Composer, Node; public internet, no VPN. Seeded test accounts now need `SEED_ACCOUNT_PASSWORD` outside local/testing; `SyntheticStaffSeeder` is not run online. Real-data import (M5) moved to the end. |
+| M7.1b/M7.2b Online staging on cPanel (mp.hcsyria-apps.org), synthetic data only ([guide](../operations/staging-cpanel.md)) | M4 gate | **online 26 Nov** at https://mp.hcsyria-apps.org (branch `online-staging`, not yet merged into `rebuild`). Open: Force HTTPS, signed-in acceptance, official papers, e-mail. Owner answers (24 Nov): cPanel with SSH, PHP, Composer, Node; public internet, no VPN. Seeded test accounts now need `SEED_ACCOUNT_PASSWORD` outside local/testing; `SyntheticStaffSeeder` is not run online. Real-data import (M5) moved to the end. |
 
 ## Desktop parity and design audit (proposed 28 October 2026; **approved by the user the same day**: "يفضل حفظ واحد، نعم أوافق على المقترح. ابدأ" — single save chosen)
 

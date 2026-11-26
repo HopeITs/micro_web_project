@@ -1,5 +1,16 @@
 # Delivery task board
 
+## UX round 2: ask box, explore page, my desk, visual refresh — started 26 November 2026
+
+Owner request and decisions (26 Nov 2026): the "ask" assistant runs **locally only** (no outside AI service, nothing leaves the server); all four areas are in scope; the order of the application form questions, the checklist and the visit forms is **not changed** (they follow the printed papers). No schema change without a new approval.
+
+| Task | Depends on | State |
+|---|---|---|
+| X1 Ask box: local Arabic/English question parser → validated `QuerySpec` / `ReportSpec`, shown as editable filter chips; on the projects, people and payments lists and in Ctrl+K | S1–S8 | in progress |
+| X2 Explore page: one page for search, statistics and reports (same filters; switch between list, pivot table and chart); the old three pages stay reachable until accepted | S1–S8, M4.17 | in progress |
+| X3 My desk: home page per account with pinned saved views and reports as live cards, own tasks and what waits on the account | S3, M4.16 | in progress |
+| X4 Visual refresh of lists, tables, cards and phone layout (field order untouched) | X1–X3 | todo |
+
 ## UX restructure: project page, families, tables, statistics and search — 25–26 November 2026
 
 Owner request of 25 November (project page buttons and attachments form unusable, repeated status; people page does not show families; search/filter/sort missing on most tables; heavy filters on statistics and search). No schema change. Owner acceptance is still open.

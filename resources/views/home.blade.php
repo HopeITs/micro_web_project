@@ -3,12 +3,16 @@
     <div class="hc-page-head">
         <div>
             <p class="hc-eyebrow">{{ __('hc.home_eyebrow') }} · {{ now()->translatedFormat('j F Y') }}</p>
-            <h1>{{ __('hc.home_title', ['name' => auth()->user()->username]) }}</h1>
-            <p>{{ __('hc.home_intro') }}</p>
+            <h1>{{ __('desk.title') }}</h1>
+            <p>{{ __('hc.home_title', ['name' => auth()->user()->username]) }} · {{ __('desk.intro') }}</p>
         </div>
         <x-hc.button :href="route('projects.index', ['locale' => app()->getLocale()])" icon="folder" variant="secondary">{{ __('hc.all_projects') }}</x-hc.button>
     </div>
 
+    <livewire:my-desk />
+
+    <h2 style="font-size:1.05rem;margin:8px 0 10px">{{ __('desk.overview') }}</h2>
+    <p class="muted" style="margin-block-end:10px">{{ __('hc.home_intro') }}</p>
     <div class="hc-grid hc-grid-stats" style="margin-block-end:20px">
         <x-hc.stat :label="__('hc.stat_projects')" :value="number_format($total)"/>
         <x-hc.stat :label="__('hc.stat_financed')" :value="number_format($financed)" accent="var(--ok)"/>

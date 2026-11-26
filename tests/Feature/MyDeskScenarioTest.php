@@ -281,8 +281,8 @@ class MyDeskScenarioTest extends TestCase
             app()->setLocale($locale);
             Livewire::test(MyDesk::class)->call('loadCards')->assertOk()->assertSee(__('desk.actions'))->assertSee(__('desk.action.new_application'));
         }
-        // The recently opened list keeps ids and numbers only: nothing but the key is read, and no name is rendered by the server.
-        $this->get('/en')->assertSee('mp.recent.projects', false);
+        // No recently-opened list: recents never hold people or projects (owner decision, 20 Nov 2026).
+        $this->get('/en')->assertDontSee('mp.recent.projects', false);
         $this->as('guest');
         $this->get('/en')->assertOk()->assertSee('My desk')->assertDontSee(__('desk.tile.tasks', [], 'en'));
     }

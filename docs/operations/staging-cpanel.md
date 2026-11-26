@@ -4,7 +4,7 @@ Purpose (owner, 24 Nov 2026): put the site online on our own hosting and databas
 
 Decisions of the owner: shared hosting with SSH, PHP, Composer and Node; the site is reachable from the public internet (no VPN).
 
-**State (26 Nov 2026):** online. The host's panel is SureSupport "Control Panel" (`panel.s1893.sureserver.com`), not cPanel. Code is in `~/www/mp` on branch `online-staging`, web PHP 8.3, command-line PHP 8.5, database on MySQL 8.4.
+**State (26 Nov 2026):** online. The host's panel is SureSupport "Control Panel" (`panel.s1893.sureserver.com`), not cPanel. Code is in `~/www/mp` on branch `rebuild`, web PHP 8.3, command-line PHP 8.5, database on MySQL 8.4.
 
 ## Rules for a public staging site
 - `APP_ENV=staging` (not `production`: the seeders of invented data refuse `production`; HSTS is sent in both). `APP_DEBUG=false`.
@@ -25,7 +25,7 @@ Decisions of the owner: shared hosting with SSH, PHP, Composer and Node; the sit
 cd ~/www
 git clone https://github.com/HopeITs/micro_web_project.git mp
 cd mp
-git checkout online-staging     # later: the branch the owner accepts
+git checkout rebuild
 composer install --no-dev --optimize-autoloader
 cp .env.example .env
 php artisan key:generate
@@ -74,7 +74,9 @@ Role accounts: `super.admin`, `judy`, and one `role.<role>` per role; the same s
 cd ~/www/mp && git pull --ff-only && composer install --no-dev --optimize-autoloader
 php artisan optimize:clear && php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
-If styles or scripts changed, also rebuild and upload `public/build`.
+If styles or scripts changed, also rebuild `public/build`: run `npm ci && npm run build` inside a WebApps project shell (`sureapp project list`, then `sureapp project shell`; not tried yet) or build locally and upload it. Compare the file names in `public/build/manifest.json` with a local build to be sure.
+
+**Delivery rule (26 Nov 2026):** every change is tested locally, pushed to GitHub, deployed here from `rebuild` and then verified on the live site (see `AGENTS.md`). One session deploys at a time.
 
 ## 6. Check
 - `https://mp.hcsyria-apps.org/ar/login` opens over HTTPS and `http://` redirects to it; a wrong password is refused; `/.env`, `/.git/config` and `/storage/...` return 403/404.

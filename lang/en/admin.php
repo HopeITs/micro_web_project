@@ -45,14 +45,15 @@ return [
         'task' => 'Choose only tasks of this city\'s board.', 'task_account' => 'Choose only accounts that may manage tasks in this city.', 'credential_hash' => 'The desktop password of this identity cannot be used; choose another identity or create a brand-new account.',
     ],
     'cap' => [
-        'projects' => ['view' => 'View projects'], 'attachments' => ['download' => 'Download attachments'], 'people' => ['view' => 'View people', 'manage' => 'Create and edit people'],
+        'projects' => ['view' => 'View projects'], 'attachments' => ['download' => 'Download attachments', 'personal' => 'Personal attachments', 'legal' => 'Legal attachments', 'financial' => 'Financial attachments'], 'people' => ['view' => 'View people', 'manage' => 'Create and edit people'],
         'applications' => ['view' => 'View applications', 'manage' => 'Create and edit applications'], 'lifecycle' => ['manage' => 'Change project state', 'accept' => 'Accept applications'],
-        'assessments' => ['view' => 'View assessments', 'manage' => 'Edit assessments'], 'finance' => ['view' => 'View loans and instalments', 'manage' => 'Edit loans and instalments'],
+        'assessments' => ['view' => 'View assessments', 'manage' => 'Edit assessments'], 'finance' => ['view' => 'View loans and instalments', 'manage' => 'Edit loans and instalments', 'export' => 'Export payments'],
         'executive_files' => ['view' => 'View executive files', 'manage' => 'Edit executive files'], 'purchasing' => ['view' => 'View purchases', 'manage' => 'Edit purchases'],
-        'special_cases' => ['view' => 'View special cases', 'manage' => 'Edit special cases', 'delete' => 'Delete special cases'], 'visits' => ['view' => 'View visits', 'manage' => 'Edit visits', 'delete' => 'Delete visits'],
+        'special_cases' => ['view' => 'View special cases', 'manage' => 'Edit special cases', 'delete' => 'Delete special cases'], 'visits' => ['view' => 'View visits', 'manage' => 'Edit visits', 'delete' => 'Delete visits', 'visitor' => 'Can be chosen as a visitor', 'statistics' => 'Visitor statistics'],
         'me_visits' => ['view' => 'View M&E visits', 'manage' => 'Edit M&E visits', 'delete' => 'Delete M&E visits'],
         'profession_meetings' => ['view' => 'View profession meetings', 'manage' => 'Edit profession meetings', 'delete' => 'Delete profession meetings'],
         'imported' => ['delete' => 'Delete and restore imported records'], 'tasks' => ['view' => 'View the task board', 'manage' => 'Change the tasks they are responsible for', 'manage_all' => 'Change any task'],
         'notifications' => ['view' => 'Read notifications', 'send' => 'Send messages'], 'accounts' => ['manage' => 'Administer accounts'], 'lookups' => ['manage' => 'Edit the lists'],
+        'papers' => ['manage' => 'Manage the official paper files'], 'reports' => ['export' => 'Export reports and lists'],
     ],
 ];

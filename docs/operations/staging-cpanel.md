@@ -81,4 +81,6 @@ If styles or scripts changed, also rebuild and upload `public/build`.
 - Sign in as each role, open a project, the checklist, an official paper, and print one.
 - `storage/logs/laravel.log` has no new errors.
 
-Checked 26 Nov without signing in: both login pages 200, protected pages redirect to login, `/.env`, `/.git/config` and the log 403, security headers and secure cookies present. **Open:** `http://` still answers 200 (Force HTTPS not on yet); signed-in pages not checked; official papers not imported.
+Checked 26 Nov without signing in: both login pages 200, `http://` answers 301 to https (Force HTTPS on), protected pages redirect to login, `/.env`, `/.git/config` and the log 403, security headers and secure cookies present, a seventh quick wrong login answers 429. **Open:** password protection of the preview (the owner sets the password); signed-in pages not checked; official papers not imported.
+
+

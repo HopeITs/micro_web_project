@@ -89,7 +89,7 @@
                 <p>{{ implode('، ', $form['koboVisitors']) }}</p>
             @else
             <div class="hc-form-grid">
-                @foreach(range(0, \App\Services\Field\VisitKinds::MAX_ME_VISITORS - 1) as $i)
+                @foreach(range(0, max(\App\Services\Field\VisitKinds::MAX_ME_VISITORS, count($visitors)) - 1) as $i)
                     <x-hc.field :label="__('visits.fields.visitor', ['n' => $i + 1])" :for="'me-visitor-'.$i" :required="$i === 0">
                         <select class="hc-select" id="me-visitor-{{ $i }}" wire:model="visitors.{{ $i }}.account" @disabled(! $manage)>
                             <option value="">—</option>

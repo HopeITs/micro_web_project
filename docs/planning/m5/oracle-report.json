@@ -1,0 +1,170 @@
+{
+    "checks": {
+        "applications": {
+            "counts": {
+                "projects compared": 10548
+            },
+            "seconds": 11.8
+        },
+        "statistics": {
+            "counts": {
+                "cells compared": 78
+            },
+            "seconds": 10.5
+        },
+        "loans": {
+            "counts": {
+                "loans compared": 3129
+            },
+            "seconds": 2.8
+        },
+        "instalments": {
+            "counts": {
+                "ALP|SYP|Not paid": "708 instalments, 77849000.00",
+                "DAM|SYP|Not paid": "382 instalments, 83130500.00",
+                "HMS|SYP|Not paid": "1454 instalments, 649636000.00",
+                "LAT|SYP|Not paid": "210 instalments, 57095000.00",
+                "ALP|USD|Not paid": "41 instalments, 725.00",
+                "WAD|SYP|Not paid": "301 instalments, 285520000.00",
+                "ALP|SYP|Paid": "20286 instalments, 2459764150.00",
+                "HMS|SYP|Paid": "19685 instalments, 3445389515.00",
+                "DAM|SYP|Paid": "8039 instalments, 2533772450.00",
+                "LAT|SYP|Paid": "1677 instalments, 359973000.00",
+                "WAD|SYP|Paid": "923 instalments, 331970000.00",
+                "ALP|USD|Paid": "157 instalments, 2750.00"
+            },
+            "seconds": 81.8
+        },
+        "family": {
+            "counts": {
+                "family members": "web 45476 \/ desktop 45476"
+            },
+            "seconds": 42.1
+        },
+        "details": {
+            "counts": {
+                "aid-sources": "web 314 \/ desktop 314",
+                "assets": "web 3848 \/ desktop 3848",
+                "courses": "web 1309 \/ desktop 1309",
+                "goals": "web 4733 \/ desktop 4733",
+                "relief-aids": "web 3254 \/ desktop 3253",
+                "illness": "web 3029 \/ desktop 3029",
+                "losses": "web 2721 \/ desktop 2721",
+                "home-power": "web 3552 \/ desktop 3551",
+                "current-works": "web 13063 \/ desktop 13061",
+                "work-experiences": "web 11350 \/ desktop 11346",
+                "materials": "web 13283 \/ desktop 13409",
+                "project-power": "web 2851 \/ desktop 2855"
+            },
+            "seconds": 23.7
+        },
+        "other modes": {
+            "counts": {
+                "attachments": "web 56264 \/ desktop 56232",
+                "visit-dates": "web 10548 \/ desktop 10548",
+                "me-visits": "web 9939 \/ desktop 9958",
+                "special-cases": "web 503 \/ desktop 506",
+                "educations": "web 45473 \/ desktop 45479"
+            },
+            "seconds": 81.6
+        },
+        "state history": {
+            "counts": {
+                "state rows compared": 27592
+            },
+            "seconds": 4.2
+        }
+    },
+    "known_differences": {
+        "Remaining instalments rounded to 2 decimals (the desktop value is unrounded)": {
+            "count": 1335
+        },
+        "Total instalments: one-cent rounding (the desktop rounds a float column)": {
+            "count": 37
+        },
+        "Paid amount blank in the desktop, 0 in the web": {
+            "count": 243
+        },
+        "Remaining amount and instalments blank in the desktop when nothing is paid; the web shows them in full": {
+            "count": 438
+        },
+        "Months late blank in the web for Closed projects (the desktop blanks it for Canceled only; spec M4.17)": {
+            "count": 16
+        },
+        "Return rate: last-digit rounding (the desktop rounds a float, the web rounds the exact decimal half up)": {
+            "count": 4
+        },
+        "Months late: a loan with nothing to return and no instalments is blank in the desktop, 0 in the web": {
+            "count": 48
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (courses)": {
+            "count": 2
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (goals)": {
+            "count": 4
+        },
+        "Applicant without a family row: the desktop detail search cannot reach their records, the web lists them (relief-aids)": {
+            "count": 1
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (relief-aids)": {
+            "count": 2
+        },
+        "Applicant without a family row: the desktop detail search cannot reach their records, the web lists them (home-power)": {
+            "count": 1
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (home-power)": {
+            "count": 2
+        },
+        "Applicant without a family row: the desktop detail search cannot reach their records, the web lists them (current-works)": {
+            "count": 2
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (current-works)": {
+            "count": 2
+        },
+        "Applicant without a family row: the desktop detail search cannot reach their records, the web lists them (work-experiences)": {
+            "count": 4
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (work-experiences)": {
+            "count": 2
+        },
+        "A project with partners: the desktop repeats the row once per applicant (beneficiary and partners); the web lists it once (materials)": {
+            "count": 126
+        },
+        "Amount with three decimals stored with two (money columns have two decimals); rounding accepted by the owner, 24 Nov 2026 (materials)": {
+            "count": 15
+        },
+        "A project with partners: the desktop repeats the row once per applicant (beneficiary and partners); the web lists it once (project-power)": {
+            "count": 4
+        },
+        "Amount with three decimals stored with two (money columns have two decimals); rounding accepted by the owner, 24 Nov 2026 (project-power)": {
+            "count": 1
+        },
+        "Project files of the desktop file table (PDF, no image type): the desktop attachment search reads the image table only (attachments)": {
+            "count": 32
+        },
+        "A person with several projects: the desktop shows their M&E visits under each project, the web under the project the visit is linked to (visit-dates)": {
+            "count": 12
+        },
+        "Two opening visits: the desktop shows the first entered, the web the earliest date (visit-dates)": {
+            "count": 4
+        },
+        "Two M&E visits with the same number: the desktop shows the first entered, the web the earliest date (visit-dates)": {
+            "count": 84
+        },
+        "A project with partners: the desktop visit dates read the M&E visits of the beneficiary only, the web those of the project (partners included) (visit-dates)": {
+            "count": 6
+        },
+        "A person with several projects: the desktop shows their M&E visits under each project, the web under the project the visit is linked to (me-visits)": {
+            "count": 19
+        },
+        "A project with partners: the desktop repeats the row once per applicant (beneficiary and partners); the web lists it once (special-cases)": {
+            "count": 3
+        },
+        "Family rows without a family book, skipped by the M3 transfer (recorded in reconcile-<city>.json) (educations)": {
+            "count": 6
+        }
+    },
+    "database": "micro_m5_run3",
+    "sources": "m5src_<city>",
+    "failures": 0
+}

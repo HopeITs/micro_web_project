@@ -15,8 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * The assessment checklist of an application (M4.7, desktop CheckList_Form), on the unified schema. The checklist belongs to the
- * project's beneficiary; its need assessment is computed from the application data and never stored ({@see NeedAssessment}). The
+ * The assessment checklist of an application (M4.7, desktop CheckList_Form), on the unified schema. A checklist belongs to a person:
+ * every beneficiary of the project (the owner and each partner) has their own, chosen on the page as on the desktop; without a choice
+ * it is the project's beneficiary. The need assessment is computed from the application data and never stored ({@see NeedAssessment}). The
  * 10 manual project scores belong to the application form ({@see ProjectScores}), as on the desktop.
  * Reading needs `assessments.view`,
  * writing, deleting and printing `assessments.manage` (the desktop showed Save/Delete/Print to administrators and data entry only).
@@ -118,6 +119,35 @@ final class ChecklistService
             ->orderByRaw('CASE WHEN a.role = ? THEN 0 ELSE 1 END', [ApplicationService::BENEFICIARY])->orderBy('a.id')->first(['p.*']);
     }
 
+    /**
+     * The people of the project who may each have a checklist, the beneficiary first.
+     *
+     * @return Collection<int, object{id: int, name: string, role: ?string, has_checklist: bool}>
+     */
+    public function applicants(int $projectId): Collection
+    {
+        $rows = DB::table('project_applicants as a')->join('people as p', 'p.id', '=', 'a.person_id')->where('a.project_id', $projectId)->whereNull('a.deleted_at')
+            ->orderByRaw('CASE WHEN a.role = ? THEN 0 ELSE 1 END', [ApplicationService::BENEFICIARY])->orderBy('a.id')
+            ->get(['p.id', 'p.first_name', 'p.father_name', 'p.last_name', 'a.role'])->unique('id')->values();
+        $filled = DB::table('checklists')->whereIn('person_id', $rows->pluck('id')->all() ?: [0])->whereNull('deleted_at')->pluck('person_id')->map(fn ($id) => (int) $id)->all();
+
+        return $rows->map(fn ($r) => (object) [
+            'id' => (int) $r->id, 'name' => trim(implode(' ', array_filter([$r->first_name, $r->father_name, $r->last_name]))), 'role' => $r->role,
+            'has_checklist' => in_array((int) $r->id, $filled, true),
+        ]);
+    }
+
+    /** The person whose checklist is open: the chosen applicant of this project (anyone else is refused), or the beneficiary. */
+    public function assessee(int $projectId, ?int $personId = null): ?object
+    {
+        if ($personId === null) {
+            return $this->beneficiary($projectId);
+        }
+        abort_unless(DB::table('project_applicants')->where('project_id', $projectId)->where('person_id', $personId)->whereNull('deleted_at')->exists(), 404);
+
+        return DB::table('people')->where('id', $personId)->first();
+    }
+
     /** The person's checklist for this project: the one linked to the project, else the person's latest (old records had no project). */
     private function header(int $personId, int $projectId): ?object
     {
@@ -156,19 +186,19 @@ final class ChecklistService
             ->map(fn ($o) => (object) ['id' => (int) $o->id, 'label' => app()->getLocale() === 'en' && $o->name_en ? $o->name_en : $o->name_ar]);
     }
 
-    /** The computed need assessment of the project's beneficiary (null without one); nothing is stored. */
-    public function need(int $projectId): ?array
+    /** The computed need assessment of the chosen applicant (null without one); nothing is stored. */
+    public function need(int $projectId, ?int $personId = null): ?array
     {
-        return app(NeedAssessment::class)->compute($projectId, $this->beneficiary($projectId)?->id);
+        return app(NeedAssessment::class)->compute($projectId, $this->assessee($projectId, $personId)?->id);
     }
 
     // ---------------------------------------------------------------- state
 
-    /** The form state of a project's checklist. */
-    public function load(WebAccount $account, int $projectId): array
+    /** The form state of an applicant's checklist in a project. */
+    public function load(WebAccount $account, int $projectId, ?int $personId = null): array
     {
         $project = $this->project($account, $projectId);
-        $person = $this->beneficiary($projectId);
+        $person = $this->assessee($projectId, $personId);
         $header = $person ? $this->header((int) $person->id, $projectId) : null;
         $values = [];
         foreach (self::fields() as $field => $spec) {
@@ -203,7 +233,8 @@ final class ChecklistService
     {
         $project = $this->writable($account, $projectId);
         $city = (int) $project->city_id;
-        $person = $this->beneficiary($projectId) ?? throw ValidationException::withMessages(['header' => __('checklists.errors.no_beneficiary')]);
+        $chosen = isset($state['person_id']) ? (int) $state['person_id'] : null;
+        $person = $this->assessee($projectId, $chosen) ?? throw ValidationException::withMessages(['header' => __('checklists.errors.no_beneficiary')]);
         $current = $this->header((int) $person->id, $projectId);
         $errors = [];
         $header = $this->validateHeader($state['header'] ?? [], $city, (array) ($current ?? []), $errors);
@@ -254,11 +285,11 @@ final class ChecklistService
         });
     }
 
-    /** Deletes the beneficiary's checklist and its member opinions (the desktop Delete button); the project's scores stay with the application. */
-    public function delete(WebAccount $account, int $projectId): void
+    /** Deletes the applicant's checklist and its member opinions (the desktop Delete button); the project's scores stay with the application. */
+    public function delete(WebAccount $account, int $projectId, ?int $personId = null): void
     {
         $project = $this->writable($account, $projectId);
-        $person = $this->beneficiary($projectId);
+        $person = $this->assessee($projectId, $personId);
         DB::transaction(function () use ($account, $project, $person, $projectId) {
             $now = now();
             if ($person) {
@@ -300,8 +331,10 @@ final class ChecklistService
             if ($spec['kind'] === 'account' && $values[$field] !== null && $values[$field] !== (int) ($current[$field] ?? 0) && ! $this->senders($city)->contains('id', $values[$field])) {
                 $errors['header.'.$field] = [__('people.errors.choice')];
             }
-            // The details a "Yes" needs (desktop check_data).
-            if (($spec['needed'] ?? false) && ($values[$spec['when']] ?? null) === true && ($values[$field] === null || $values[$field] === '')) {
+            // The details a "Yes" needs (desktop check_data). A stored "Yes" that never had the detail stays savable (desktop records
+            // hold such gaps; owner decision, 26 Nov 2026): it is asked for when the visit, test or message is newly recorded.
+            $oldGap = ($spec['needed'] ?? false) && (int) ($current[$spec['when']] ?? 0) === 1 && (string) ($current[$field] ?? '') === '';
+            if (($spec['needed'] ?? false) && ! $oldGap && ($values[$spec['when']] ?? null) === true && ($values[$field] === null || $values[$field] === '')) {
                 $errors['header.'.$field] = [__('checklists.errors.needed')];
             }
         }
@@ -323,7 +356,10 @@ final class ChecklistService
                 if ($member === 0 && trim(implode('', array_map('strval', array_diff_key($row, ['id' => 0])))) === '') {
                     continue; // an untouched empty row
                 }
-                if (! in_array($member, $allowed, true)) {
+                // A stored row keeps its member even when that person now belongs to another list (the desktop allowed it).
+                $unchanged = ($row['id'] ?? null) && $member !== 0 && DB::table('checklist_member_opinions')->where('id', (int) $row['id'])->where('person_id', $personId)
+                    ->where('location', $location)->where('checklist_member_id', $member)->whereNull('deleted_at')->exists();
+                if (! $unchanged && ! in_array($member, $allowed, true)) {
                     $errors[$key.'checklist_member_id'] = [__('people.errors.choice')];
                 }
                 $opinion = ($row['checklist_opinion_id'] ?? '') === '' ? null : (int) $row['checklist_opinion_id'];
@@ -346,18 +382,18 @@ final class ChecklistService
     }
 
     /** Everything the printable checklist needs (cl.docx layout). */
-    public function printable(WebAccount $account, int $projectId): array
+    public function printable(WebAccount $account, int $projectId, ?int $personId = null): array
     {
         $project = $this->writable($account, $projectId);
-        $state = $this->load($account, $projectId);
+        $state = $this->load($account, $projectId, $personId);
         $city = DB::table('cities')->where('id', $project->city_id)->first();
         $names = DB::table('checklist_members as m')->leftJoin('checklist_positions as p', 'p.id', '=', 'm.checklist_position_id')->where('m.city_id', $project->city_id)
             ->get(['m.id', 'm.name_ar', 'p.name_ar as position'])->keyBy('id');
         $this->audit->record($account->id, 'assessments.printed', 'succeeded', (int) $project->city_id, subjectType: 'application_entity', subjectId: $projectId);
 
         return [
-            'project' => $project, 'city' => $city, 'person' => $this->beneficiary($projectId), 'state' => $state, 'names' => $names,
-            'opinions' => $this->opinions()->keyBy('id'), 'need' => $this->need($projectId),
+            'project' => $project, 'city' => $city, 'person' => $this->assessee($projectId, $personId), 'state' => $state, 'names' => $names,
+            'opinions' => $this->opinions()->keyBy('id'), 'need' => $this->need($projectId, $personId),
             'sender' => $state['header']['rejection_message_sender_account_id'] ? DB::table('web_accounts')->where('id', $state['header']['rejection_message_sender_account_id'])->value('username') : null,
         ];
     }

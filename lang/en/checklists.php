@@ -22,6 +22,7 @@ return [
         'team_date' => 'Team meeting date', 'committee_date' => 'Committee meeting date', 'notes' => 'Notes',
         'rejection_message' => 'Rejection message sent', 'rejection_message_date' => 'Message date', 'rejection_message_sender_account_id' => 'Sender',
     ],
+    'applicants' => 'Beneficiaries', 'has_checklist' => 'has a checklist', 'no_checklist' => 'no checklist',
     'member' => 'Member', 'position' => 'Position', 'opinion_k' => 'Opinion', 'no_key_people' => 'This city has no key persons in its list yet.', 'manage_list' => 'Manage the list', 'no_members' => 'This city has no members in this list yet.', 'name_notes' => 'Name', 'role_notes' => 'Role', 'opinion' => 'Opinion', 'reason' => 'Reason', 'add_member' => 'Add member',
     'criterion' => 'Criterion',
     'need' => [

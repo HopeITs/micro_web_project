@@ -92,6 +92,34 @@ class KoboScenarioTest extends TestCase
         Livewire::test(KoboIndex::class)->set('status', 'error')->call('show', $error->id)->assertSee($error->error_message);
     }
 
+    /** Found on the transferred data (M5): real submissions hold some choice answers inside a repeat group, as a list. */
+    public function test_answer_counts_read_choices_inside_a_repeat_group(): void
+    {
+        $this->as('role.monitoring');
+        $rows = DB::table('kobo_submissions as s')->join('kobo_monitoring_records as m', 'm.kobo_submission_id', '=', 's.id')
+            ->whereIn('s.sync_status', ['local_inserted', 'local_updated'])->where('s.is_deleted_in_kobo', false)->get(['s.id', 's.form_uid', 's.raw_json']);
+        $changed = false;
+        foreach ($rows as $row) {
+            $raw = json_decode((string) $row->raw_json, true);
+            $field = collect(KoboCatalog::fields((string) $row->form_uid))->first(fn ($f) => KoboCatalog::kind($f) === 'select_one' && KoboCatalog::reported($f)
+                && str_contains($f['path'], '/') && isset($raw[$f['path']]) && $f['choices'] !== []);
+            if ($field === null) {
+                continue;
+            }
+            $group = substr($field['path'], 0, (int) strrpos($field['path'], '/'));
+            $raw[$group] = [[$field['path'] => $raw[$field['path']]], [$field['path'] => $raw[$field['path']]], []];
+            unset($raw[$field['path']]);
+            DB::table('kobo_submissions')->where('id', $row->id)->update(['raw_json' => json_encode($raw, JSON_UNESCAPED_UNICODE)]);
+            $changed = true;
+            break;
+        }
+        $this->assertTrue($changed, 'no seeded submission has a grouped choice answer');
+
+        Livewire::test(KoboIndex::class)->call('setTab', 'results')
+            ->assertViewHas('results', fn ($r) => collect($r['questions'])->every(fn ($q) => array_sum(array_column($q['options'], 'count')) >= $q['answered'])
+                && collect($r['questions'])->every(fn ($q) => collect($q['options'])->every(fn ($o) => ! str_starts_with($o['label'], 'Array'))));
+    }
+
     public function test_results_count_confirmed_submissions_and_export(): void
     {
         $this->as('role.monitoring');

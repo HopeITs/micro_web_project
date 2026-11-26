@@ -6,6 +6,7 @@ return [
     'account' => 'الحساب', 'signed_in' => 'مسجل الدخول', 'logout' => 'تسجيل الخروج', 'yes' => 'نعم', 'no' => 'لا',
     'soon' => 'قريباً', 'soon_title' => 'تُبنى في المهمة :task',
     'synthetic_notice' => 'نسخة تجريبية: كل الأسماء والأرقام في هذه البيئة وهمية لأغراض البناء والاختبار.',
+    'real_data_notice' => 'تجربة نقل: البيانات حقيقية وخاصة، منسوخة من البرنامج. لا تشاركها ولا تصوّر الشاشة، وما تُدخله هنا لن يُحفظ في النظام النهائي.',
     'group_applications' => 'الطلبات', 'group_finance' => 'المالية', 'group_field' => 'المتابعة والتقييم', 'group_tools' => 'الأدوات',
     'nav_home' => 'الرئيسية', 'nav_projects' => 'المشاريع', 'nav_new_application' => 'طلب جديد', 'nav_people' => 'الأشخاص والعائلات',
     'nav_checklist' => 'Checklist', 'nav_national_number' => 'فحص الرقم الوطني', 'nav_loans' => 'القروض والدفعات', 'nav_payments' => 'جدول الدفعات',

@@ -89,3 +89,27 @@
 - **Approved SHA-256:** `5db332961a9cbf1e5ef1f0a67f4167211b32a9b5c858d3397d982958239e2f5d`, covering [unified-schema-v1.6.json](unified-schema-v1.6.json) (157 tables, 1,751 columns).
 - **What this allows:** the migrations and models move to v1.6, and each paper is built on its tables, without asking again.
 - **Note:** the words "مسودة" (draft) inside `unified-schema-v1.6.php` are left as they were, because they are part of the approved JSON; changing them would change the approved SHA.
+
+## Addendum v1.7 — corrections found by the M5 transfer rehearsal
+
+- **Approved by the user:** 25 November 2026, by choosing each change in the session's questions. The user approved the changes as described there; the JSON file and its SHA were generated afterwards, and no separate review page was made.
+- **Approved choices:**
+  - Checklist opinions: "نعم، حسب البرنامج" — `person_checklistmembers.Opinion` is the opinion's `Index` (1 in favour, 0 against, -1 N/A), not its ID (rule `opinion_index`).
+  - Kobo conflicts: "تعديل المخطط v1.7" — `kobo_sync_conflicts.visit_id` becomes `me_visit_id` (FK `me_visits`).
+  - "زوار محذوفون" — a visit visitor whose desktop user was deleted is kept under the city's placeholder user (`legacy_user_id` 0, disabled, no roles).
+  - "تواريخ Kobo واللقاءات" — `created_at`/`updated_at` of `kobo_submissions` and `profession_meetings` come from the source.
+  - "خارج الخدمة" — an out-of-service user (role 6) gets no role and no capability.
+- **Also recorded in this version** (decided or found the same day, no column change):
+  - Lists merge only when name, parents and every transferred attribute are equal (the user approved the fix and asked to be consulted on obstacles).
+  - A visit answer of value 0 is transferred (the earlier importer dropped it; this restores the "one row per answered question" rule).
+  - An empty source file keeps its attachment row without a stored file and records `file_empty`.
+- **Checklist per beneficiary** (user, 25 November 2026): the checklist belongs to the person; the website shows and records one for each beneficiary of a project. No schema change.
+- **Databases built before v1.7:** migration `2026_11_25_000107` renames the conflict column; list, opinion, visit-answer and staff corrections need a new transfer.
+- **Approved SHA-256:** `6379fa328bcdd6e88d5511807a8bd91eeec536979a3e2e100a84f3daf22bb146`, covering [unified-schema-v1.7.json](unified-schema-v1.7.json) (157 tables, 1,751 columns).
+
+## Addendum v1.8 — one spelling for the current-job flag
+
+- **Approved by the user:** 26 November 2026, choosing "توحيدها عند النقل" in the session's question. The JSON and its SHA were generated afterwards.
+- **What it changes:** transfer rule `yes_no` on `person_work_experiences.status` (desktop `Yes`, `No`, `NO` → `yes`, `no`). No table or column changes. A new transfer is needed.
+- **Same day, website rules (no schema change):** a stored checklist "Yes" without its desktop detail stays savable and is asked for only when newly recorded ("الإلزام للجديد فقط"); the monitoring visit result keeps being recalculated from the current marks ("إعادة الحساب كما هو").
+- **Approved SHA-256:** `5bfa8420088da1e6fab4ad42bd1f7cf589447877f2dcc6799300c9fafb230bf9`, covering [unified-schema-v1.8.json](unified-schema-v1.8.json).

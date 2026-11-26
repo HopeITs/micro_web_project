@@ -89,6 +89,65 @@ class ChecklistScenarioTest extends TestCase
         $this->assertSame($account->id, (int) DB::table('checklists')->where('person_id', $person)->value('rejection_message_sender_account_id'));
     }
 
+    /** Owner answer, 25 Nov 2026: a project with several beneficiaries has one checklist for each of them. */
+    public function test_every_beneficiary_of_a_project_has_their_own_checklist(): void
+    {
+        $this->as('role.data-entry');
+        $project = $this->project();
+        $city = (int) $project->city_id;
+        $owner = (int) DB::table('project_applicants')->where('project_id', $project->id)->orderBy('id')->value('person_id');
+        $others = DB::table('people')->where('city_id', $city)->whereNotIn('id', DB::table('project_applicants')->where('project_id', $project->id)->pluck('person_id'))->orderBy('id')->limit(2)->pluck('id');
+        [$partner, $stranger] = [(int) $others[0], (int) $others[1]];
+        DB::table('project_applicants')->insert(['city_id' => $city, 'project_id' => $project->id, 'person_id' => $partner, 'role' => 'شريك', 'created_at' => now(), 'updated_at' => now()]);
+        $page = '/ar/applications/'.$project->id.'/checklist';
+
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->assertSet('personId', $owner)->set('form.header.notes', 'ملاحظة صاحب المشروع')->call('save')->assertHasNoErrors();
+        $this->get($page)->assertOk()->assertSee(__('checklists.applicants', [], 'ar'))->assertSee('person='.$partner, false);
+
+        $member = $this->member($city, 't');
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id, 'personId' => $partner])
+            ->assertSet('form.exists', false)->assertSet('form.header.notes', '')
+            ->set('form.header.notes', 'ملاحظة الشريك')->call('addMember', 't')->set('form.members.t.0.checklist_member_id', $member)
+            // A tampered person in the form state is ignored: the page saves for the person it was opened for.
+            ->set('form.person_id', $stranger)->call('save')->assertHasNoErrors()->assertSet('personId', $partner);
+
+        $this->assertSame('ملاحظة صاحب المشروع', DB::table('checklists')->where('person_id', $owner)->whereNull('deleted_at')->value('notes'));
+        $this->assertSame('ملاحظة الشريك', DB::table('checklists')->where('person_id', $partner)->whereNull('deleted_at')->value('notes'));
+        $this->assertSame(1, DB::table('checklist_member_opinions')->where('person_id', $partner)->whereNull('deleted_at')->count());
+        $this->assertFalse(DB::table('checklists')->where('person_id', $stranger)->exists());
+
+        $this->get($page.'?person='.$partner)->assertOk();
+        $this->get($page.'/print?person='.$partner)->assertOk()->assertSee('ملاحظة الشريك')->assertDontSee('ملاحظة صاحب المشروع');
+        $this->get($page.'?person='.$stranger)->assertNotFound();
+        $this->get($page.'/print?person='.$stranger)->assertNotFound();
+        $this->get('/ar/checklists')->assertOk()->assertSee('person='.$partner, false);
+
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id, 'personId' => $partner])->call('remove');
+        $this->assertFalse(DB::table('checklists')->where('person_id', $partner)->whereNull('deleted_at')->exists());
+        $this->assertTrue(DB::table('checklists')->where('person_id', $owner)->whereNull('deleted_at')->exists(), 'the owner keeps their checklist');
+    }
+
+    /** Owner decision, 26 Nov 2026: a desktop record with a "Yes" but no detail stays savable; a new "Yes" still asks for it. */
+    public function test_old_gaps_stay_savable_and_new_visits_still_need_their_visitor(): void
+    {
+        $this->as('role.data-entry');
+        $project = $this->project();
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->set('form.header.notes', 'أولى')->call('save')->assertHasNoErrors();
+        $person = (int) DB::table('project_applicants')->where('project_id', $project->id)->orderBy('id')->value('person_id');
+        DB::table('checklists')->where('person_id', $person)->update(['has_home_visit' => 1, 'home_visitor_1_id' => null, 'rejection_message' => 1, 'rejection_message_sender_account_id' => null]);
+        $committeeMember = $this->member((int) $project->city_id, 'c');
+        DB::table('checklist_member_opinions')->insert(['city_id' => $project->city_id, 'person_id' => $person, 'checklist_member_id' => $committeeMember, 'location' => 't', 'created_at' => now(), 'updated_at' => now()]);
+
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->set('form.header.notes', 'تعديل')->call('save')->assertHasNoErrors();
+        $this->assertSame('تعديل', DB::table('checklists')->where('person_id', $person)->value('notes'));
+        $this->assertNull(DB::table('checklists')->where('person_id', $person)->value('home_visitor_1_id'));
+
+        // A newly recorded project visit needs its visitor, and a newly added member must belong to the list.
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->set('form.header.has_project_visit', '1')->call('save')->assertHasErrors('form.header.project_visitor_1_id');
+        Livewire::test(ChecklistForm::class, ['projectId' => $project->id])->call('addMember', 't')->set('form.members.t.1.checklist_member_id', $committeeMember)->call('save')
+            ->assertHasErrors('form.members.t.1.checklist_member_id');
+    }
+
     public function test_readers_cannot_save_print_or_delete(): void
     {
         $this->as('role.guest');

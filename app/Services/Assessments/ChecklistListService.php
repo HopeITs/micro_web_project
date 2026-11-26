@@ -54,7 +54,7 @@ final class ChecklistListService
             ->join('people as b', 'b.id', '=', 'ch.person_id')
             ->leftJoinSub($current, 'cs', 'cs.project_id', '=', 'p.id')->leftJoin('project_states as st', 'st.id', '=', 'cs.project_state_id')
             ->whereNull('ch.deleted_at')->whereNull('p.deleted_at')->whereIn('p.city_id', $ids === [] ? [0] : $ids)
-            ->select(['ch.id', 'p.id as project_id', 'p.project_number', 'p.name', 'c.code', 'c.name_ar as city_ar', 'c.name_en as city_en',
+            ->select(['ch.id', 'ch.person_id', 'p.id as project_id', 'p.project_number', 'p.name', 'c.code', 'c.name_ar as city_ar', 'c.name_en as city_en',
                 'b.first_name', 'b.father_name', 'b.last_name', 'st.name_ar as state_ar', 'st.name_en as state_en',
                 'ch.home_visit_date', 'ch.project_visit_date', 'ch.team_date', 'ch.committee_date']);
 
@@ -79,8 +79,11 @@ final class ChecklistListService
         }
 
         $rows = $query->orderByDesc('ch.id')->paginate(self::PER_PAGE);
+        $applicants = DB::table('project_applicants')->whereIn('project_id', $rows->getCollection()->pluck('project_id')->all() ?: [0])->whereNull('deleted_at')
+            ->get(['project_id', 'person_id'])->mapWithKeys(fn ($a) => [$a->project_id.':'.$a->person_id => true]);
         $rows->setCollection($rows->getCollection()->map(fn ($r) => (object) [
             'project_id' => (int) $r->project_id,
+            'person_id' => $applicants->has($r->project_id.':'.$r->person_id) ? (int) $r->person_id : null,
             'number' => ProjectNumberAllocator::display($r->code, (int) $r->project_number),
             'name' => (string) $r->name,
             'beneficiary' => trim($r->first_name.' '.$r->father_name.' '.$r->last_name),

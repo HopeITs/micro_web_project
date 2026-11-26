@@ -68,6 +68,17 @@ final class Transforms
         };
     }
 
+    public static function yesNo(mixed $v): array
+    {
+        [$s] = self::trim($v);
+
+        return match ($s === null ? null : mb_strtolower($s)) {
+            null => [null, null],
+            'yes', 'no' => [mb_strtolower($s), null],
+            default => [mb_substr($s, 0, 10), 'enum_unrecognised'],
+        };
+    }
+
     public static function stage(mixed $v): array
     {
         return match (trim((string) $v)) {
@@ -124,6 +135,33 @@ final class Transforms
         $s = strtr($s, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ى' => 'ي', 'ة' => 'ه', 'ؤ' => 'و', 'ئ' => 'ي']);
 
         return preg_replace('/\s+/u', ' ', $s) ?? $s;
+    }
+
+    /** The columns of a list that, with the name, make two source rows the same value: parents and transferred attributes. */
+    public static function listKeyColumns(array $columns): array
+    {
+        return array_values(array_map(fn ($c) => $c['name'], array_filter($columns,
+            fn ($c) => (isset($c['source']) || isset($c['references'])) && ! in_array($c['name'], ['city_id', 'name_ar', 'name_en'], true))));
+    }
+
+    /**
+     * Merge key of a list value. Rows merge only when the name, the parents and every transferred attribute are equal
+     * (user decision, 25 November 2026): a difference in a mark, type or limit keeps them as separate values.
+     */
+    public static function listKey(array $row, array $columns): string
+    {
+        $parts = array_map(function (string $column) use ($row) {
+            $v = $row[$column] ?? null;
+
+            return match (true) {
+                $v === null => null,
+                is_bool($v) => (string) (int) $v,
+                is_numeric($v) => (string) (float) $v, // 5, "5" and "5.00" are the same attribute
+                default => trim((string) $v) === '' ? null : trim((string) $v),
+            };
+        }, $columns);
+
+        return json_encode([self::nameKey($row['name_ar'] ?? null), ...$parts], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /** Notice kind from the desktop body text (desktop notices carry no type). */

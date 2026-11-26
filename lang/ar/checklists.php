@@ -22,6 +22,7 @@ return [
         'team_date' => 'تاريخ اجتماع الفريق', 'committee_date' => 'تاريخ اجتماع اللجنة', 'notes' => 'ملاحظات',
         'rejection_message' => 'أُرسلت رسالة الرفض', 'rejection_message_date' => 'تاريخ الرسالة', 'rejection_message_sender_account_id' => 'المرسِل',
     ],
+    'applicants' => 'المستفيدون', 'has_checklist' => 'لديه Checklist', 'no_checklist' => 'بلا Checklist',
     'member' => 'العضو', 'position' => 'المنصب', 'opinion_k' => 'الرأي', 'no_key_people' => 'لا يوجد أشخاص مفتاحيون في قائمة هذه المدينة بعد.', 'manage_list' => 'إدارة القائمة', 'no_members' => 'لا يوجد أعضاء في قائمة هذه المدينة بعد.', 'name_notes' => 'الاسم', 'role_notes' => 'الدور', 'opinion' => 'الرأي', 'reason' => 'السبب', 'add_member' => 'إضافة عضو',
     'criterion' => 'المعيار',
     'need' => [

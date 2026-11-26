@@ -212,6 +212,26 @@ class VisitScenarioTest extends TestCase
         $this->assertStringContainsString('"field":"result"', (string) $event->details);
     }
 
+    /** Found on the transferred data (M5): some desktop monitoring visits have three visitors. */
+    public function test_an_older_monitoring_visit_with_three_visitors_can_be_saved_keeping_all(): void
+    {
+        $this->as('role.data-entry');
+        $project = $this->project();
+        $beneficiary = $this->beneficiary($project);
+        $this->meForm($project, $beneficiary)->call('save')->assertHasNoErrors();
+        $visit = DB::table('me_visits')->where('project_id', $project->id)->first();
+        $others = DB::table('web_accounts')->where('id', '<>', $this->visitor())->orderBy('id')->limit(2)->pluck('id');
+        foreach ($others as $account) {
+            DB::table('me_visit_visitors')->insert(['city_id' => $project->city_id, 'me_visit_id' => $visit->id, 'account_id' => $account, 'mark' => 'جيد', 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $page = Livewire::test(MeVisitForm::class, ['projectId' => $project->id, 'personId' => $beneficiary, 'visitId' => $visit->id])
+            ->assertSee('id="me-visitor-2"', false)->set('notes', 'مراجعة')->call('save')->assertHasNoErrors();
+        $this->assertSame(3, DB::table('me_visit_visitors')->where('me_visit_id', $visit->id)->whereNull('deleted_at')->count());
+        // A new visit still takes two.
+        $this->meForm($project, $beneficiary, '100000', '2')->set('visitors', array_map(fn ($id) => ['account' => (string) $id, 'mark' => 'جيد'], [$this->visitor(), ...$others]))
+            ->call('save')->assertHasErrors('visitors');
+    }
+
     public function test_closing_finishes_a_financed_project_once_and_clears_its_notices(): void
     {
         $this->as('role.data-entry');

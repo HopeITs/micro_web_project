@@ -206,7 +206,7 @@ final class KoboReadService
     {
         $rows = DB::table('kobo_sync_conflicts as k')->join('cities as c', 'c.id', '=', 'k.city_id')
             ->leftJoin('kobo_submissions as i', 'i.id', '=', 'k.incoming_submission_id')->leftJoin('kobo_submissions as e', 'e.id', '=', 'k.existing_submission_id')
-            ->leftJoin('visits as v', 'v.id', '=', 'k.visit_id')->leftJoin('projects as p', 'p.id', '=', 'v.project_id')
+            ->leftJoin('me_visits as v', 'v.id', '=', 'k.me_visit_id')->leftJoin('projects as p', 'p.id', '=', 'v.project_id')
             ->whereNull('k.deleted_at')->whereIn('k.city_id', $this->permitted($account, $cities))
             ->orderByRaw("CASE WHEN k.state = 'resolved' THEN 1 ELSE 0 END")->orderByDesc('k.id')
             ->get(['k.*', 'c.code as city_code', 'i.form_uid', 'i.form_name', 'i.raw_json as incoming_json', 'e.raw_json as existing_json', 'i.kobo_submission_id as incoming_ref', 'e.kobo_submission_id as existing_ref',

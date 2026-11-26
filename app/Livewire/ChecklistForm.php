@@ -16,15 +16,20 @@ class ChecklistForm extends Component
     #[Locked]
     public int $projectId;
 
+    /** The applicant whose checklist is open; fixed for the life of the page, switching opens another page. */
+    #[Locked]
+    public ?int $personId = null;
+
     /** @var array<string, mixed> header, members (k/t/c rows), removed, exists, person_id */
     public array $form = [];
 
     public string $message = '';
 
-    public function mount(int $projectId): void
+    public function mount(int $projectId, ?int $personId = null): void
     {
         $this->projectId = $projectId;
-        $this->form = app(ChecklistService::class)->load(auth()->user(), $projectId);
+        $this->form = app(ChecklistService::class)->load(auth()->user(), $projectId, $personId);
+        $this->personId = $this->form['person_id'];
     }
 
     public function addMember(string $location): void
@@ -60,7 +65,7 @@ class ChecklistForm extends Component
         $this->resetErrorBag();
         $this->message = '';
         try {
-            app(ChecklistService::class)->save(auth()->user(), $this->projectId, $this->form);
+            app(ChecklistService::class)->save(auth()->user(), $this->projectId, ['person_id' => $this->personId] + $this->form);
         } catch (ValidationException $e) {
             foreach ($e->errors() as $field => $messages) {
                 $this->addError('form.'.$field, $messages[0]);
@@ -69,14 +74,14 @@ class ChecklistForm extends Component
 
             return;
         }
-        $this->form = app(ChecklistService::class)->load(auth()->user(), $this->projectId);
+        $this->form = app(ChecklistService::class)->load(auth()->user(), $this->projectId, $this->personId);
         $this->message = __('checklists.saved');
     }
 
     public function remove(): void
     {
-        app(ChecklistService::class)->delete(auth()->user(), $this->projectId);
-        $this->form = app(ChecklistService::class)->load(auth()->user(), $this->projectId);
+        app(ChecklistService::class)->delete(auth()->user(), $this->projectId, $this->personId);
+        $this->form = app(ChecklistService::class)->load(auth()->user(), $this->projectId, $this->personId);
         $this->message = __('checklists.deleted');
     }
 
@@ -91,9 +96,10 @@ class ChecklistForm extends Component
         return view('livewire.checklist-form', [
             'project' => $project, 'editable' => $service->canManage(auth()->user(), $project),
             'memberOptions' => ['k' => $service->members($city, 'k', $keep('k')), 't' => $service->members($city, 't', [...$keep('t'), ...$headerKeep]), 'c' => $service->members($city, 'c', $keep('c'))],
-            'allMembers' => $service->members($city, null, $headerKeep), 'opinions' => $service->opinions(), 'need' => $service->need($this->projectId), 'senders' => $service->senders($city),
+            'allMembers' => $service->members($city, null, $headerKeep), 'opinions' => $service->opinions(), 'need' => $service->need($this->projectId, $this->personId), 'senders' => $service->senders($city),
             'manageMembers' => app(LookupAdminService::class)->canEdit(auth()->user(), 'checklist_members', $city),
-            'person' => $this->form['person_id'] ? DB::table('people')->where('id', $this->form['person_id'])->first() : null,
+            'person' => $this->personId ? DB::table('people')->where('id', $this->personId)->first() : null,
+            'applicants' => $service->applicants($this->projectId),
         ]);
     }
 }

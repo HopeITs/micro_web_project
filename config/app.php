@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // The warning a local site shows: 'synthetic' (invented records) or 'real' (a transfer rehearsal with copied records).
+    'data_notice' => env('APP_DATA_NOTICE', 'synthetic'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

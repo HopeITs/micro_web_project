@@ -22,7 +22,7 @@ class KoboSyncConflict extends CityModel
             'legacy_id' => 'integer',
             'incoming_submission_id' => 'integer',
             'existing_submission_id' => 'integer',
-            'visit_id' => 'integer',
+            'me_visit_id' => 'integer',
             'revision' => 'integer',
             'decided_by_account_id' => 'integer',
             'decided_at' => 'datetime',
@@ -40,9 +40,9 @@ class KoboSyncConflict extends CityModel
         return $this->belongsTo(KoboSubmission::class, 'existing_submission_id');
     }
 
-    public function visit(): BelongsTo
+    public function meVisit(): BelongsTo
     {
-        return $this->belongsTo(Visit::class, 'visit_id');
+        return $this->belongsTo(MeVisit::class, 'me_visit_id');
     }
 
     public function decidedByAccount(): BelongsTo

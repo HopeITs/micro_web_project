@@ -39,9 +39,4 @@ class Visit extends CityModel
     {
         return $this->hasMany(VisitVisitor::class, 'visit_id');
     }
-
-    public function koboSyncConflicts(): HasMany
-    {
-        return $this->hasMany(KoboSyncConflict::class, 'visit_id');
-    }
 }

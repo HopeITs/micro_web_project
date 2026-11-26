@@ -9,6 +9,7 @@ use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
 use App\Services\People\PeopleService;
 use App\Services\ProjectNumberAllocator;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -110,8 +111,9 @@ final class KoboResultsService
                 foreach ($field['choices'] as $choice) {
                     $q['options'][(string) $choice['label']] ??= 0;
                 }
-                $value = KoboCatalog::lookup($row->raw, $path);
-                if ($value === null || $value === '') {
+                // Inside a repeat group the answer is the list of every repetition's value.
+                $given = array_filter(Arr::flatten((array) KoboCatalog::lookup($row->raw, $path)), fn ($v) => $v !== null && $v !== '');
+                if ($given === []) {
                     $q['blank']++;
                     unset($q);
 
@@ -120,7 +122,8 @@ final class KoboResultsService
                 $q['answered']++;
                 $labels = array_column($field['choices'], 'label', 'code');
                 // A multiple choice counts each option once per submission; an unknown code stays visible with its form.
-                foreach (array_unique($kind === 'select_multiple' ? preg_split('/\s+/', trim((string) $value)) : [(string) $value]) as $code) {
+                $codes = array_merge(...array_map(fn ($v) => $kind === 'select_multiple' ? preg_split('/\s+/', trim((string) $v)) : [(string) $v], array_values($given)));
+                foreach (array_unique($codes) as $code) {
                     $label = $labels[$code] ?? $code.' ('.$row->form_uid.')';
                     $q['options'][$label] = ($q['options'][$label] ?? 0) + 1;
                 }

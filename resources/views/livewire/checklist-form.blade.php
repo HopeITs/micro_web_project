@@ -22,6 +22,17 @@
         $opened = fn (string $switch) => array_keys(array_filter($fields, fn ($s) => ($s['when'] ?? null) === $switch));
     @endphp
 
+    @if($applicants->count() > 1)
+        <nav class="hc-chips" aria-label="{{ __('checklists.applicants') }}" style="margin-block-end:16px">
+            <span class="hc-label" style="margin:0;align-self:center">{{ __('checklists.applicants') }}</span>
+            @foreach($applicants as $applicant)
+                <a class="hc-btn hc-btn-sm {{ $applicant->id === $personId ? 'hc-btn-primary' : 'hc-btn-secondary' }}" @if($applicant->id === $personId) aria-current="true" @endif
+                    href="{{ route('checklists.show', ['locale' => app()->getLocale(), 'project' => $projectId, 'person' => $applicant->id]) }}">
+                    {{ $applicant->name }}@if($applicant->role) · {{ $applicant->role }}@endif · {{ __($applicant->has_checklist ? 'checklists.has_checklist' : 'checklists.no_checklist') }}
+                </a>
+            @endforeach
+        </nav>
+    @endif
     @if($message !== '')<x-hc.alert type="success" style="margin-block-end:16px">{{ $message }}</x-hc.alert>@endif
     @if($errors->any())<x-hc.alert type="danger" style="margin-block-end:16px">{{ __('applications.errors.fix', ['count' => count($errors->all())]) }}</x-hc.alert>@endif
     @unless($editable)<x-hc.alert type="info" style="margin-block-end:16px">{{ __('checklists.read_only') }}</x-hc.alert>@endunless
@@ -125,7 +136,7 @@
         <span class="spacer"></span>
         @if($editable)
             @if($form['exists'])
-                <a class="hc-btn hc-btn-secondary" href="{{ route('checklists.print', ['locale' => app()->getLocale(), 'project' => $projectId]) }}" target="_blank"><x-hc.icon name="file" :size="18"/>{{ __('checklists.print') }}</a>
+                <a class="hc-btn hc-btn-secondary" href="{{ route('checklists.print', ['locale' => app()->getLocale(), 'project' => $projectId, 'person' => $personId]) }}" target="_blank"><x-hc.icon name="file" :size="18"/>{{ __('checklists.print') }}</a>
                 <x-hc.button variant="ghost" wire:click="remove" wire:confirm="{{ __('checklists.confirm_delete') }}" style="color:var(--danger, #b42318)">{{ __('checklists.delete') }}</x-hc.button>
             @endif
             <span wire:loading wire:target="save" class="muted">{{ __('people.saving') }}</span>

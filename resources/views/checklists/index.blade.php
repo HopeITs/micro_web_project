@@ -39,7 +39,7 @@
                 <tbody>
                 @foreach($rows as $row)
                     <tr>
-                        <td data-label="{{ __('checklists.list.number') }}" class="num ltr"><a class="row-link" href="{{ route('checklists.show', ['locale' => $locale, 'project' => $row->project_id]) }}">{{ $row->number }}</a></td>
+                        <td data-label="{{ __('checklists.list.number') }}" class="num ltr"><a class="row-link" href="{{ route('checklists.show', ['locale' => $locale, 'project' => $row->project_id, 'person' => $row->person_id]) }}">{{ $row->number }}</a></td>
                         <td data-label="{{ __('checklists.list.beneficiary') }}">{{ $row->beneficiary ?: '—' }}</td>
                         <td data-label="{{ __('checklists.list.project') }}">{{ $row->name ?: '—' }}</td>
                         <td data-label="{{ __('checklists.list.state') }}">@if($row->state_ar)<x-hc.badge :tone="$status::tone($row->state_en)" :icon="$status::icon($row->state_en)">{{ $en && $row->state_en ? $row->state_en : $row->state_ar }}</x-hc.badge>@else — @endif</td>

@@ -52,4 +52,9 @@ class MeVisit extends CityModel
     {
         return $this->hasMany(KoboMonitoringRecord::class, 'me_visit_id');
     }
+
+    public function koboSyncConflicts(): HasMany
+    {
+        return $this->hasMany(KoboSyncConflict::class, 'me_visit_id');
+    }
 }

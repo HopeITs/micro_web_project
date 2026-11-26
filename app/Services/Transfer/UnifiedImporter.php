@@ -59,6 +59,11 @@ final class UnifiedImporter
 
     private array $exceptions = [];
 
+    /** @var ?array<int, int> desktop opinion Index => unified opinion id */
+    private ?array $opinions = null;
+
+    private ?int $deletedUser = null;
+
     private array $stats = ['read' => [], 'written' => [], 'skipped' => [], 'exceptions' => []];
 
     /** @var callable */
@@ -72,6 +77,8 @@ final class UnifiedImporter
         $this->now = now()->format('Y-m-d H:i:s');
         $this->schema = UnifiedSchema::load(); // refuses anything but the approved version
         $this->openSource($sourceDb);
+        $this->opinions = $this->deletedUser = null;
+        $this->lookup = $this->ids = $this->accounts = [];
         $this->prepareCity($cityCode);
         if (DB::table('projects')->where('city_id', $this->cityId)->exists()) {
             throw new RuntimeException("{$this->cityCode} already has projects; import a city once into an empty target.");
@@ -207,7 +214,23 @@ final class UnifiedImporter
         $tx = $c['transform'] ?? null;
         $problem = null;
 
+        if ($tx === 'opinion_index') {
+            if ($raw === null || $raw === '') {
+                return [null, true];
+            }
+            $value = $this->opinionsByIndex()[(int) $raw] ?? null;
+            if ($value === null) {
+                $this->exception($sourceTable, $key, $c['source'], 'reference_missing', $raw, "{$table}.{$c['name']} left empty");
+            }
+
+            return [$value, true];
+        }
+
         if (isset($c['references'])) {
+            // A visitor whose desktop user was deleted stays on the visit, under the city's placeholder user.
+            if (($raw === null || $raw === '') && $c['references'] === 'web_accounts' && in_array($table, ['visit_visitors', 'me_visit_visitors'], true)) {
+                return [$this->deletedUserAccount(), true];
+            }
             if ($raw === null || $raw === '' || (is_numeric($raw) && (int) $raw === 0 && $tx !== 'lookup')) {
                 return [null, true];
             }
@@ -233,6 +256,7 @@ final class UnifiedImporter
             'bool01' => Transforms::bool01($raw),
             'date' => Transforms::date($raw, $type === 'datetime'),
             'sex' => Transforms::sex($raw),
+            'yes_no' => Transforms::yesNo($raw),
             'stage' => Transforms::stage($raw),
             'currency' => Transforms::currency($raw),
             'money' => Transforms::money($raw),
@@ -252,6 +276,43 @@ final class UnifiedImporter
         }
 
         return [$value, true];
+    }
+
+    /** person_checklistmembers.Opinion holds checklist_opinion.Index (1 in favour, 0 against, -1 N/A), not its ID. */
+    private function opinionsByIndex(): array
+    {
+        if ($this->opinions === null) {
+            $this->opinions = [];
+            foreach ($this->source('checklist_opinion')->get() as $r) {
+                if (isset($this->opinions[(int) $r->Index])) {
+                    throw new RuntimeException("{$this->cityCode}: two checklist opinions share the index {$r->Index}.");
+                }
+                $this->opinions[(int) $r->Index] = $this->lookup['checklist_opinions'][(string) $r->ID]
+                    ?? throw new RuntimeException("{$this->cityCode}: checklist opinion {$r->ID} was not imported.");
+            }
+        }
+
+        return $this->opinions;
+    }
+
+    private function deletedUserAccount(): int
+    {
+        if ($this->deletedUser === null) {
+            $staffId = DB::table('legacy_staff_users')->insertGetId([
+                'city_id' => $this->cityId, 'legacy_user_id' => 0, 'username' => 'مستخدم محذوف', 'email' => null, 'password_hash' => null,
+                'legacy_role_id' => null, 'is_visitor' => false, 'is_me' => false, 'is_communication' => false, 'is_cashier' => false,
+                'disabled_at' => $this->now, 'created_at' => $this->now, 'updated_at' => $this->now,
+            ]);
+            $this->deletedUser = DB::table('web_accounts')->insertGetId([
+                'username' => strtolower($this->cityCode).'.deleted-user', 'email' => null, 'password_hash' => null, 'password_changed_at' => null,
+                'credential_legacy_user_id' => $staffId, 'disabled_at' => $this->now, 'created_at' => $this->now, 'updated_at' => $this->now,
+            ]);
+            DB::table('account_legacy_links')->insert(['account_id' => $this->deletedUser, 'city_id' => $this->cityId, 'legacy_staff_user_id' => $staffId,
+                'decision_locator' => $this->decision, 'reviewed_at' => $this->now, 'revoked_at' => null]);
+            $this->stats['written']['deleted_user_placeholder'] = 1;
+        }
+
+        return $this->deletedUser;
     }
 
     private function byType(string $type, ?string $arg, mixed $raw): array
@@ -306,13 +367,15 @@ final class UnifiedImporter
         $key = $this->sourcePk[$src] ?? 'ID';
         $cityScoped = $t['scope'] === 'city_lookup';
         $extra = array_filter($t['columns'], fn ($c) => isset($c['source']));
-        $fkCols = array_values(array_filter(array_map(fn ($c) => isset($c['references']) && $c['name'] !== 'city_id' ? $c['name'] : null, $t['columns'])));
+        $keyColumns = Transforms::listKeyColumns($t['columns']);
 
-        // Existing values (from other cities) indexed by merge key: normalised name + resolved parent references.
+        // Existing values (from other cities) indexed by merge key: normalised name, parents and every transferred attribute.
         $index = [];
+        $kept = [];
         $existing = DB::table($name)->when($cityScoped, fn ($q) => $q->where('city_id', $this->cityId))->get();
         foreach ($existing as $row) {
-            $index[Transforms::nameKey($row->name_ar).'|'.implode(',', array_map(fn ($f) => $row->{$f}, $fkCols))] = $row->id;
+            $index[Transforms::listKey((array) $row, $keyColumns)] = $row->id;
+            $kept[$row->id] = ['name_en' => $row->name_en, 'is_active' => (bool) $row->is_active];
         }
         $maps = [];
         $order = 0;
@@ -329,16 +392,28 @@ final class UnifiedImporter
             foreach ($extra as $c) {
                 [$row[$c['name']]] = $this->mapValue($name, $src, $legacy, $c, $r[$c['source']] ?? null);
             }
-            $mergeKey = Transforms::nameKey($row['name_ar']).'|'.implode(',', array_map(fn ($f) => $row[$f] ?? null, $fkCols));
+            $mergeKey = Transforms::listKey($row, $keyColumns);
             $id = $index[$mergeKey] ?? null;
+            $active = (int) ($r['IsActive'] ?? $r['isActive'] ?? $r['Is_Active'] ?? 1) !== 0;
             if ($id === null) {
-                $active = $r['IsActive'] ?? $r['isActive'] ?? $r['Is_Active'] ?? 1;
                 $id = DB::table($name)->insertGetId($row + [
                     'sort_order' => isset(self::SORT_COLUMNS[$src]) ? (int) $r[self::SORT_COLUMNS[$src]] : ++$order,
-                    'is_active' => (int) $active !== 0, 'created_at' => $this->now, 'updated_at' => $this->now,
+                    'is_active' => $active, 'created_at' => $this->now, 'updated_at' => $this->now,
                 ] + ($cityScoped ? ['city_id' => $this->cityId] : []));
                 $index[$mergeKey] = $id;
+                $kept[$id] = ['name_en' => $row['name_en'], 'is_active' => $active];
                 $this->stats['written'][$name] = ($this->stats['written'][$name] ?? 0) + 1;
+            } else {
+                // A merged value keeps the first row's English name and visibility; a different one is recorded, never lost silently.
+                if ($row['name_en'] !== null && $kept[$id]['name_en'] === null) {
+                    DB::table($name)->where('id', $id)->update(['name_en' => $row['name_en']]);
+                    $kept[$id]['name_en'] = $row['name_en'];
+                } elseif ($row['name_en'] !== null && Transforms::nameKey($row['name_en']) !== Transforms::nameKey((string) $kept[$id]['name_en'])) {
+                    $this->exception($src, $legacy, $nameEn, 'value_conflict', $row['name_en'], "{$name} {$id} keeps its English name");
+                }
+                if ($active !== $kept[$id]['is_active']) {
+                    $this->exception($src, $legacy, 'IsActive', 'value_conflict', $active ? 1 : 0, "{$name} {$id} keeps its visibility");
+                }
             }
             $this->lookup[$name][(string) $legacy] = $id;
             $maps[] = ['city_id' => $this->cityId, 'lookup_table' => $name, 'legacy_id' => (int) $legacy, 'lookup_id' => $id, 'legacy_name' => mb_substr($label, 0, 255), 'created_at' => $this->now, 'updated_at' => $this->now];
@@ -383,7 +458,8 @@ final class UnifiedImporter
                 'decision_locator' => $this->decision, 'reviewed_at' => $this->now, 'revoked_at' => null]);
             $this->accounts[(int) $u->UserID] = $accountId;
 
-            $roles = array_filter([self::ROLE_MAP[(int) $u->UserRoleID] ?? null, ($u->IsME ?? 0) ? 'monitoring' : null,
+            // Out of service: no role and no capability, whatever duty flags the user still carries.
+            $roles = $outOfService ? [] : array_filter([self::ROLE_MAP[(int) $u->UserRoleID] ?? null, ($u->IsME ?? 0) ? 'monitoring' : null,
                 ($u->IsCommunication ?? 0) ? 'communication' : null, ($u->IsCashier ?? 0) ? 'financial' : null]);
             $caps = [];
             foreach (array_unique($roles) as $role) {
@@ -508,7 +584,8 @@ final class UnifiedImporter
             for ($q = 1; $q <= $max; $q++) {
                 $text = $r["Ans{$q}"] ?? null;
                 $value = $r["Ans{$q}_Value"] ?? null;
-                if (($text === null || trim((string) $text) === '') && ($value === null || (int) $value === 0)) {
+                // 0 is a real answer in the desktop (closing "yes", opening "no", office rating "bad"); unanswered is -1.
+                if (($text === null || trim((string) $text) === '') && ($value === null || $value === '')) {
                     continue;
                 }
                 $rows[] = ['city_id' => $this->cityId, 'visit_id' => $visitId, 'form' => $form, 'question_number' => $q, 'answer_text' => $text,
@@ -709,8 +786,17 @@ final class UnifiedImporter
                 $this->stats['read']['file'] = ($this->stats['read']['file'] ?? 0) + 1;
                 $name = basename(str_replace('\\', '/', (string) $r->File_Name)) ?: "file-{$r->File_ID}";
                 $stored = "attachments/{$this->cityCode}/file-{$r->File_ID}-".Str::limit(Str::slug(pathinfo($name, PATHINFO_FILENAME)), 60, '').'.'.(pathinfo($name, PATHINFO_EXTENSION) ?: 'bin');
-                @mkdir(dirname(storage_path("app/private/{$stored}")), 0770, true);
-                file_put_contents(storage_path("app/private/{$stored}"), (string) $r->File_Content);
+                $content = (string) $r->File_Content;
+                if ($content === '') {
+                    // The record is kept, listed as not moved yet; there is nothing to write.
+                    $this->exception('file', $r->File_ID, 'File_Content', 'file_empty', null, 'attachment kept without a stored file');
+                    $stored = null;
+                } else {
+                    $path = storage_path("app/private/{$stored}");
+                    if ((! is_dir(dirname($path)) && ! mkdir(dirname($path), 0770, true)) || file_put_contents($path, $content) !== strlen($content)) {
+                        throw new RuntimeException("Could not write the file of source file {$r->File_ID}.");
+                    }
+                }
                 $rows[] = $base + ['legacy_id' => -(int) $r->File_ID, 'project_id' => $this->ids['projects'][(string) $r->MicroProject_ID] ?? null,
                     'person_id' => null, 'profession_meeting_id' => null, 'attachment_type_id' => null, 'original_name' => mb_substr($name, 0, 255),
                     'stored_path' => $stored, 'extension' => mb_substr(strtolower(pathinfo($name, PATHINFO_EXTENSION)), 0, 10), 'legacy_source' => 'file',
@@ -745,6 +831,9 @@ final class UnifiedImporter
             if ($date === null) {
                 $this->exception('user_notification', $r->ID, 'Date', $problem ?? 'date_missing', $r->Date, 'notice dated on the import day');
                 $date = substr($this->now, 0, 10);
+            }
+            if ((int) $r->Pay_ID > 0 && ! isset($installments[(string) $r->Pay_ID])) {
+                $this->exception('user_notification', $r->ID, 'Pay_ID', 'reference_missing', $r->Pay_ID, 'instalment link left empty; the desktop code is kept');
             }
             $rows[] = ['city_id' => $this->cityId, 'legacy_id' => (int) $r->ID, 'account_id' => $this->accounts[(int) $r->User_ID] ?? null,
                 'sender_account_id' => $this->accounts[(int) $r->Sender_ID] ?? null, 'project_id' => $this->ids['projects'][(string) $r->MicroProject_ID] ?? null,

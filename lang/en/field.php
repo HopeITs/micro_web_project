@@ -94,6 +94,7 @@ return [
         ],
     ],
     'meeting' => [
+        'absent' => 'Absent',
         'add_career' => 'Add a profession…',
         'scope' => 'A meeting is a draft until it is marked final: a draft needs only the profession and the date; a final meeting needs every answer, adds up to the number attending and is then locked (an administrator can reopen it).',
         'back' => 'Back to meetings', 'report' => 'Statistics and interests', 'year' => 'Year', 'state' => 'Status', 'state_draft' => 'Draft', 'state_final' => 'Final',

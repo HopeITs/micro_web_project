@@ -255,7 +255,7 @@ final class MonitoringVisitService
     }
 
     /**
-     * Up to two visitors, each with a mark (ضعيف / وسط / جيد; an unchanged older stored mark is kept).
+     * Up to two visitors (an older visit that already has more keeps that many), each with a mark (ضعيف / وسط / جيد; an unchanged older stored mark is kept).
      *
      * @return list<array{account: int, mark: ?string}>
      */
@@ -271,7 +271,7 @@ final class MonitoringVisitService
             $ids[] = $row['account'];
             $marks[] = trim(Fields::text($row['mark'] ?? ''));
         }
-        $ids = $this->support->visitors($city, $ids, VisitKinds::MAX_ME_VISITORS, $kept->pluck('account_id')->map(fn ($id) => (int) $id)->all());
+        $ids = $this->support->visitors($city, $ids, max(VisitKinds::MAX_ME_VISITORS, $kept->count()), $kept->pluck('account_id')->map(fn ($id) => (int) $id)->all());
         $out = [];
         foreach ($ids as $i => $id) {
             $mark = $marks[$i];

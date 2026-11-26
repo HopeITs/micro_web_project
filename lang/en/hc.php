@@ -6,6 +6,7 @@ return [
     'account' => 'Account', 'signed_in' => 'Signed in', 'logout' => 'Sign out', 'yes' => 'Yes', 'no' => 'No',
     'soon' => 'Soon', 'soon_title' => 'Built in task :task',
     'synthetic_notice' => 'Test version: every name and number in this environment is invented for building and testing.',
+    'real_data_notice' => 'Transfer rehearsal: the records are real and private, copied from the program. Do not share them or take screenshots; what you enter here will not be kept.',
     'group_applications' => 'Applications', 'group_finance' => 'Finance', 'group_field' => 'Monitoring & evaluation', 'group_tools' => 'Tools',
     'nav_home' => 'Home', 'nav_projects' => 'Projects', 'nav_new_application' => 'New application', 'nav_people' => 'People & families',
     'nav_checklist' => 'Checklist', 'nav_national_number' => 'National number check', 'nav_loans' => 'Loans & payments', 'nav_payments' => 'Payment schedule',

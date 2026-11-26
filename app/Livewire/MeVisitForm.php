@@ -102,7 +102,7 @@ class MeVisitForm extends Component
         $this->validate(['number' => ['nullable', 'string', 'max:3'], 'date' => ['nullable', 'string', 'max:10'], 'profit' => ['nullable', 'string', 'max:30'],
             'answer_1' => ['nullable', 'string', 'max:65535'], 'indicators' => ['nullable', 'string', 'max:65535'], 'notes' => ['nullable', 'string', 'max:65535'],
             'a' => ['array', 'max:80'], 'a.*' => ['nullable', 'string', 'max:20'], 'n' => ['array', 'max:80'], 'n.*' => ['nullable', 'string', 'max:65535'],
-            'visitors' => ['array', 'max:'.VisitKinds::MAX_ME_VISITORS], 'visitors.*.account' => ['nullable', 'string', 'max:20'], 'visitors.*.mark' => ['nullable', 'string', 'max:20']]);
+            'visitors' => ['array', 'max:'.VisitKinds::MAX_VISITORS], 'visitors.*.account' => ['nullable', 'string', 'max:20'], 'visitors.*.mark' => ['nullable', 'string', 'max:20']]);
         $input = ['number' => $this->number, 'date' => $this->date, 'profit' => $this->profit, 'answer_1' => $this->answer_1, 'indicators' => $this->indicators, 'notes' => $this->notes,
             'a' => $this->a, 'n' => $this->n, 'visitors' => $this->visitors];
         try {

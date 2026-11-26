@@ -12,7 +12,7 @@ Owner request of 25 November (project page buttons and attachments form unusable
 | Tables | Browser search/sort/value filters on full tables of 6+ rows; server search and whitelisted header sorting on paginated lists; search text that can hold names kept out of the address on task board, special cases, notifications and meetings |
 | Statistics and search | Filter chips with searchable lists, live counts, exclude mode, date presets, saved views, print; KPI tiles, sort/top-N, second dimension, ready reports; search type picker and server sorting |
 
-Verification (26 November): full suite on SQLite, 467 tests, no failures; browser walkthrough on an isolated preview database with invented data (administrator and guest, desktop and 375px). Not verified: real transferred data and speed at real volume.
+Verification (26 November): full suite on SQLite after merging the staging changes, 470 tests, no failures; the new screen tests also on MariaDB 11.4; browser walkthrough on an isolated preview database with invented data (administrator and guest, desktop and 375px). Not verified: real transferred data and speed at real volume.
 
 **Open owner questions:** loan and contact visibility for the guest role on the project page; required fields in the family member form; removing a member (desktop deletes the person, web removes from the family); changing a family book number after registration; households without a recorded head; definitions of "children" (under 18) and "working"; application family grid still merges households sharing a book and offers «مستفيد»; partnership filter vs statistics axis; owner vs any beneficiary on person-based statistics axes; names still kept in the address of the checklist, accounts and audit searches.
 

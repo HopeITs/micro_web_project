@@ -30,7 +30,7 @@ composer install --no-dev --optimize-autoloader
 cp .env.example .env
 php artisan key:generate
 ```
-Front-end files (`public/build`) are not in git. Node on this host works only inside a WebApps project shell; otherwise run `npm run build` locally and upload `public/build`.
+Front-end files (`public/build`) are not in git. Node on this host works only inside a project shell (`sureapp project shell node`); see section 5.
 
 Edit `.env` (nano, or *Files → File Editor*), then `chmod 600 .env`:
 ```
@@ -46,7 +46,12 @@ DB_PASSWORD=<private>
 SESSION_SECURE_COOKIE=true
 SEED_ACCOUNT_PASSWORD=<strong password, not written in chat or git>
 ID_READER_DRIVER=               # off: no OCR engine on the host yet
-MAIL_MAILER=smtp                # the info@hcsyria.org settings; until then "log" (no e-mail is sent)
+MAIL_MAILER=smtp
+MAIL_HOST=mail.s1893.sureserver.com
+MAIL_PORT=587
+MAIL_USERNAME=info@hcsyria.org
+MAIL_FROM_ADDRESS=info@hcsyria.org
+MAIL_PASSWORD=<private>          # typed by the owner; run `php artisan config:cache` afterwards
 ```
 
 ## 3. Database and invented data
@@ -74,7 +79,13 @@ Role accounts: `super.admin`, `judy`, and one `role.<role>` per role; the same s
 cd ~/www/mp && git pull --ff-only && composer install --no-dev --optimize-autoloader
 php artisan optimize:clear && php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
-If styles or scripts changed, also rebuild `public/build`: run `npm ci && npm run build` inside a WebApps project shell (`sureapp project list`, then `sureapp project shell`; not tried yet) or build locally and upload it. Compare the file names in `public/build/manifest.json` with a local build to be sure.
+If styles or scripts changed, also rebuild `public/build` on the server (checked 26 Nov: same file names as a local build):
+```bash
+sureapp project shell node
+cd ~/www/mp && npm run build
+exit
+```
+Run `npm ci` first inside that shell when `package-lock.json` changed.
 
 **Delivery rule (26 Nov 2026):** every change is tested locally, pushed to GitHub, deployed here from `rebuild` and then verified on the live site (see `AGENTS.md`). One session deploys at a time.
 

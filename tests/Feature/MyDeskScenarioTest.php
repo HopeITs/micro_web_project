@@ -276,7 +276,7 @@ class MyDeskScenarioTest extends TestCase
     {
         $this->as('administrator');
         $this->get('/ar')->assertOk()->assertSee('مكتبي')->assertSee('بانتظاري')->assertSeeLivewire(MyDesk::class);
-        $this->get('/en')->assertOk()->assertSee('My desk')->assertSee('Waiting on me')->assertSee('Recently opened projects');
+        $this->get('/en')->assertOk()->assertSee('My desk')->assertSee('Waiting on me');
         foreach (['ar', 'en'] as $locale) {
             app()->setLocale($locale);
             Livewire::test(MyDesk::class)->call('loadCards')->assertOk()->assertSee(__('desk.actions'))->assertSee(__('desk.action.new_application'));

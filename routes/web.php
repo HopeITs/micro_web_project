@@ -97,7 +97,7 @@ Route::prefix('{locale}')->where(['locale' => 'en|ar'])->middleware(SetLocale::c
             // Smart-search phase 3: the report builder (ReportBuilder rechecks the datasets the account may read per city); its Excel/CSV
             // comes from a single-use token and ReportExport rechecks reports.export (finance.export for instalments) per city.
             // Task X2: one Explore page over the same datasets (list, pivot and chart share one filter bar; ExplorePage rechecks datasets and cities per account).
-            Route::view('/explore', 'explore.index')->name('explore.index');
+            Route::get('/explore', fn () => view('explore.index'))->name('explore.index');
             Route::view('/reports', 'reports.builder')->name('reports.index');
             Route::get('/reports/export/{token}', ReportBuilderExportController::class)->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('reports.export');
             // M4.14 Kobo, read and review only (KoboReadService / KoboResultsService recheck visits.manage and reports.export per city).

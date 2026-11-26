@@ -14,9 +14,10 @@ use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 
 /**
- * One test account per staff role, all with the password "password", for viewing the site as each role while no real
- * data is in use (owner instruction of 28 October 2026). Re-running always restores them: a missing account is created,
- * an existing one gets the password reset, re-enabled and its role re-assigned in every city. Refuses to run in production.
+ * One test account per staff role, for viewing the site as each role while no real data is in use (owner instruction of
+ * 28 October 2026). A missing account is created with the seed password ("password" in local and testing); an existing one
+ * KEEPS ITS PASSWORD (owner instruction of 26 November 2026: passwords are never changed, so testing stays smooth) and is
+ * only re-enabled with its role re-assigned in every city. Refuses to run in production.
  *
  *   php artisan db:seed --class=RoleAccountsSeeder
  */
@@ -46,22 +47,39 @@ final class RoleAccountsSeeder extends Seeder
         return $accounts;
     }
 
+    /** The test accounts' password: SEED_ACCOUNT_PASSWORD when set; the well-known default only in local and testing. */
+    public static function password(): string
+    {
+        $set = (string) config('app.seed_account_password');
+        if ($set !== '') {
+            return $set;
+        }
+        if (! app()->environment(['local', 'testing'])) {
+            throw new RuntimeException('Set SEED_ACCOUNT_PASSWORD (a strong value) before seeding test accounts outside local and testing.');
+        }
+
+        return self::PASSWORD;
+    }
+
     public function run(AccountProvisioner $provisioner, AccessRoles $roles): void
     {
         if (app()->isProduction()) {
             throw new RuntimeException('Test role accounts are never seeded in production.');
         }
+        $password = self::password();
         $cities = DB::table('cities')->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
         $now = now('UTC')->format('Y-m-d H:i:s.u');
         foreach (self::accounts() as $username => $role) {
-            $account = WebAccount::where('username', $username)->first()
-                ?? $provisioner->createPlain($username, self::email($username), Hash::make(self::PASSWORD), self::DECISION);
+            $existing = WebAccount::where('username', $username)->first();
+            $account = $existing ?? $provisioner->createPlain($username, self::email($username), Hash::make($password), self::DECISION);
             $email = self::email($username);
             if ($email !== null && $account->email === null && DB::table('web_accounts')->where('email', $email)->doesntExist()) {
                 DB::table('web_accounts')->where('id', $account->id)->update(['email' => $email]);
             }
-            // A normal password, not the one-time kind: password_changed_at set means no forced change at first login.
-            DB::table('web_accounts')->where('id', $account->id)->update(['password_hash' => Hash::make(self::PASSWORD), 'password_changed_at' => $now, 'disabled_at' => null, 'updated_at' => $now]);
+            // A new account gets a normal password, not the one-time kind: password_changed_at set means no forced change at first
+            // login. The password of an existing account is never written again.
+            $changes = ['disabled_at' => null, 'updated_at' => $now] + ($existing === null ? ['password_changed_at' => $now] : []);
+            DB::table('web_accounts')->where('id', $account->id)->update($changes);
             foreach ($cities as $city) {
                 $roles->assign($account->fresh(), $city, $role, self::DECISION);
             }

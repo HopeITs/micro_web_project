@@ -26,7 +26,8 @@ class SecurityHeaders
         if (! $response->headers->has('Referrer-Policy')) {
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         }
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        // Location stays with this site alone: the Kobo visit forms read the GPS point of a visit (M4.14b) when the person presses the button.
+        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
         // These restrictions work with Livewire/Alpine without allowing frames,
         // plugins or cross-origin form submissions. A full script policy needs
         // a separate nonce/CSP-compatible Alpine design before deployment.
@@ -36,7 +37,12 @@ class SecurityHeaders
             $sameSiteFrame => "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
             default => "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
         });
-        if ($request->isSecure() && app()->environment('production')) {
+        // A staff system: nothing of it belongs in a search engine, and no other site may open it in a shared window or load its files.
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
+        if ($request->isSecure() && app()->environment(['production', 'staging'])) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
         }
 

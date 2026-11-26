@@ -6,10 +6,12 @@ Owner request and decisions (26 Nov 2026): the "ask" assistant runs **locally on
 
 | Task | Depends on | State |
 |---|---|---|
-| X1 Ask box: local Arabic/English question parser → validated `QuerySpec` / `ReportSpec`, shown as editable filter chips; on the projects, people and payments lists and in Ctrl+K | S1–S8 | in progress |
-| X2 Explore page: one page for search, statistics and reports (same filters; switch between list, pivot table and chart); the old three pages stay reachable until accepted | S1–S8, M4.17 | in progress |
-| X3 My desk: home page per account with pinned saved views and reports as live cards, own tasks and what waits on the account | S3, M4.16 | in progress |
+| X1 Ask box: local Arabic/English question parser → validated `QuerySpec` / `ReportSpec`, shown as editable filter chips; on the projects, people and payments lists and in Ctrl+K | S1–S8 | **built 26 Nov on `rebuild`, owner review open**: rule-based parser (`app/Services/Ask`), no outside service; question stored in `ai_queries` as model `local` after redaction; ask box in the filter bar of the three lists, on Explore and as an offer in Ctrl+K. Not built: report mode by month; a bare project number is not offered a list |
+| X2 Explore page: one page for search, statistics and reports (same filters; switch between list, pivot table and chart); the old three pages stay reachable until accepted | S1–S8, M4.17 | **built 26 Nov on `rebuild`, owner review open**: `/explore` (projects, people, payments), list / pivot / chart over one filter bar, drill-down, 25 ready questions, exports through the existing tokens. Limits: no money tile for projects (the dataset has no currency field); not every one of the 15 axes and 22 search types is available (subtype, category, parish are not groupable; loans and visits have no dataset) |
+| X3 My desk: home page per account with pinned saved views and reports as live cards, own tasks and what waits on the account | S3, M4.16 | **built 26 Nov on `rebuild`, owner review open**: desk above the old overview on the home page; tiles by capability and city, own saved views and reports as live cards (default first, at most 8). No recently-opened list (owner decision 20 Nov). Pinning or ordering cards would need a new `saved_views` column (schema proposal, not made) |
 | X4 Visual refresh of lists, tables, cards and phone layout (field order untouched) | X1–X3 | todo |
+
+Verification (26 Nov): full suite once after the merge, 520 tests with 2 failures, both fixed and their files rerun green (My desk assertion on the removed recent list; the ask placeholder named a city a one-city account may not see). Browser on an isolated preview with invented data as administrator: desk, ask → chips → list, pivot, chart, 375px without horizontal scroll, no console errors. **Not verified:** other roles in the browser, English in detail, the online site (not deployed yet).
 
 ## UX restructure: project page, families, tables, statistics and search — 25–26 November 2026
 

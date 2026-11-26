@@ -2,7 +2,7 @@
 
 // X1: the "ask" box (questions are read on this server only; nothing leaves it).
 return [
-    'title' => 'Ask in your own words', 'placeholder' => 'Example: financed projects in Aleppo for women over 40', 'submit' => 'Show',
+    'title' => 'Ask in your own words', 'placeholder' => 'e.g. financed projects for women over 40 this year', 'submit' => 'Show',
     'examples' => 'Try:', 'nothing_understood' => 'No condition of the question was understood. Try one of the examples or use the filter list.',
     'not_understood' => 'Words not understood:', 'numbers' => 'Project numbers', 'report' => 'Report',
     'local_note' => 'The question is read on this server only. Edit or remove the chips as you like.',

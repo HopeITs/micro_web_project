@@ -26,7 +26,8 @@ class SecurityHeaders
         if (! $response->headers->has('Referrer-Policy')) {
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         }
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        // Location stays with this site alone: the Kobo visit forms read the GPS point of a visit (M4.14b) when the person presses the button.
+        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
         // These restrictions work with Livewire/Alpine without allowing frames,
         // plugins or cross-origin form submissions. A full script policy needs
         // a separate nonce/CSP-compatible Alpine design before deployment.

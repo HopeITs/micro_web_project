@@ -20,6 +20,8 @@ final class SecurityHardeningTest extends TestCase
         $this->assertSame('none', $response->headers->get('X-Permitted-Cross-Domain-Policies'));
         $this->assertSame('DENY', $response->headers->get('X-Frame-Options'));
         $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
+        // The visit forms may read the GPS point; camera and microphone stay closed, and no other site gets any of them.
+        $this->assertSame('camera=(), microphone=(), geolocation=(self)', $response->headers->get('Permissions-Policy'));
         $this->assertStringContainsString("Disallow: /", (string) file_get_contents(public_path('robots.txt')));
     }
 

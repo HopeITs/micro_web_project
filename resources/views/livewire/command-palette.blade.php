@@ -30,6 +30,16 @@
                     </template>
                 </div>
             </template>
+            @if($askOffer)
+                {{-- X1: the typed words read as a question; opens the list with the filters in the address as ids only. --}}
+                <div class="hc-cmdk-group" role="group" aria-label="{{ __('ask.title') }}">
+                    <p class="hc-cmdk-label">{{ __('ask.title') }}</p>
+                    <button type="button" class="hc-cmdk-item" role="option" data-cmdk-item wire:click="openAsk" style="width:100%;text-align:start;background:none;border:0;cursor:pointer">
+                        <span class="hc-cmdk-icon"><x-hc.icon name="search" :size="18"/></span>
+                        <span class="hc-cmdk-text"><strong>{{ __('ask.palette_show') }}</strong><small>{{ $askOffer['dataset'] }} · {{ $askOffer['summary'] }}</small></span>
+                    </button>
+                </div>
+            @endif
             @foreach(['commands' => 'cmdk_commands', 'projects' => 'cmdk_projects', 'people' => 'cmdk_people', 'pages' => 'cmdk_pages'] as $group => $label)
                 @if($results[$group])
                     <div class="hc-cmdk-group" role="group" aria-label="{{ __('hc.'.$label) }}">
@@ -45,7 +55,7 @@
                     </div>
                 @endif
             @endforeach
-            @if(mb_strlen(trim($term)) >= 2 && ! $results['people'] && ! $results['projects'] && ! $results['pages'] && ! $results['commands'])
+            @if(mb_strlen(trim($term)) >= 2 && ! $askOffer && ! $results['people']&& ! $results['projects'] && ! $results['pages'] && ! $results['commands'])
                 <x-hc.empty :title="__('hc.cmdk_none_title')" icon="search">{{ __('hc.cmdk_none') }}</x-hc.empty>
             @endif
         </div>

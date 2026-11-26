@@ -6,6 +6,7 @@ use App\Models\SavedView;
 use App\Models\WebAccount;
 use App\Services\AccountAccess;
 use App\Services\AccountAuditTrail;
+use App\Services\Ask\AskService;
 use App\Support\Datasets\Dataset;
 use App\Support\Datasets\Field;
 use App\Support\Datasets\QuerySpec;
@@ -13,6 +14,7 @@ use App\Support\Datasets\SearchTerms;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
 /**
@@ -52,6 +54,41 @@ trait HasSmartFilters
         if (! $this->filtersCameFromUrl()) {
             $this->applyDefaultView();
         }
+    }
+
+    /**
+     * The ask box (X1) is offered above the bar on lists that have a search box (projects, people, payments), not on the report builder.
+     * Returns the dataset key the box asks about, or null.
+     */
+    protected function askDataset(): ?string
+    {
+        return property_exists($this, 'search') ? $this->dataset()->key() : null;
+    }
+
+    /**
+     * `ask-applied` {dataset, spec} from <livewire:ask-box>: replaces this list's filters with what the question stood for. The spec is
+     * checked again like a stored view (unknown fields, text filters, values of cities the viewer may not read are dropped), and nothing
+     * happens unless the account may read the dataset. The optional `search` (project numbers) goes to the search box, never to an address.
+     */
+    #[On('ask-applied')]
+    public function applyAsk(string $dataset = '', array $spec = []): void
+    {
+        $key = $this->askDataset();
+        $account = auth()->user();
+        if ($key === null || $dataset !== $key || ! $account instanceof WebAccount || ! app(AskService::class)->allowed($account, $key)) {
+            return;
+        }
+        [$filters] = $this->checkedViewFilters($spec);
+        $this->textFilters = [];
+        $this->editingFilter = null;
+        $this->activeViewId = null;
+        $this->resetForView();
+        $this->loadViewFilters($filters);
+        $terms = array_values(array_filter(SearchTerms::split((string) ($spec['search'] ?? '')), fn ($t) => preg_match('/\d{10,}/', $t) !== 1));
+        if ($terms !== [] && property_exists($this, 'search')) {
+            $this->search = implode(', ', $terms);
+        }
+        $this->smartFiltersChanged();
     }
 
     /** The current filters as a validated spec (invalid entries are left out). */
@@ -103,6 +140,9 @@ trait HasSmartFilters
         $this->activeViewId = null;
         $this->viewNotice = null;
         $this->smartFiltersChanged();
+        if ($this->askDataset() !== null) {
+            $this->dispatch('ask-cleared', dataset: $this->askDataset());
+        }
     }
 
     /** Ticks or unticks one value of an option field (keeps "in" / "not in" as chosen). */
@@ -234,6 +274,7 @@ trait HasSmartFilters
             'editor' => $editor,
             'presets' => array_combine(QuerySpec::DATE_PRESETS, array_map(fn ($p) => __('hc.filter_preset_'.$p), QuerySpec::DATE_PRESETS)),
             'views' => $this->savedViewsBar(),
+            'ask' => $this->askDataset(),
         ];
     }
 

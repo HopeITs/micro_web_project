@@ -8,6 +8,10 @@
 @php($editor = $bar['editor'])
 @php($views = $bar['views'] ?? null)
 <div class="hc-filter-bar" {{ $attributes }}>
+    @if(! empty($bar['ask']))
+        {{-- X1: ask in plain words; the answer comes back as the `ask-applied` event this list listens for. --}}
+        <livewire:ask-box :dataset="$bar['ask']" :key="'ask-'.$bar['ask']"/>
+    @endif
     @if($views && ($views['list'] !== [] || $views['can_save']))
         {{-- "My views": own views and the ones colleagues shared; only filters are stored, never the search or names. --}}
         @php($av = $views['active'])

@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+        // Only the host of APP_URL is answered (not in local and testing), so a forged Host header never reaches a link such as the password reset one.
+        $middleware->trustHosts(at: fn () => ['^'.preg_quote((string) parse_url((string) config('app.url'), PHP_URL_HOST)).'$'], subdomains: false);
         $middleware->trimStrings(except: ['username', 'password']);
         $middleware->trimStrings(except: [fn (Request $request) => $request->is('en/people', 'en/people/*', 'ar/people', 'ar/people/*', 'en/applications', 'en/applications/*', 'ar/applications', 'ar/applications/*')]);
         $middleware->convertEmptyStringsToNull(except: [fn (Request $request) => $request->is('en/people', 'en/people/*', 'ar/people', 'ar/people/*', 'en/applications', 'en/applications/*', 'ar/applications', 'ar/applications/*')]);

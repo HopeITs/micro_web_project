@@ -36,6 +36,11 @@ class SecurityHeaders
             $sameSiteFrame => "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
             default => "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
         });
+        // A staff system: nothing of it belongs in a search engine, and no other site may open it in a shared window or load its files.
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
         if ($request->isSecure() && app()->environment(['production', 'staging'])) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
         }

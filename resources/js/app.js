@@ -59,7 +59,7 @@ document.addEventListener('alpine:init', () => {
         kind: null, gone: false, observer: null, themeObserver: null, media: null, onTheme: null,
         init() {
             this.observer = new MutationObserver(() => this.draw());
-            this.observer.observe(this.$el, { attributes: true, attributeFilter: ['data-chart', 'data-height', 'data-horizontal', 'data-other', 'data-keys'] });
+            this.observer.observe(this.$el, { attributes: true, attributeFilter: ['data-chart', 'data-height', 'data-horizontal', 'data-other', 'data-keys', 'data-total-label'] });
             this.onTheme = () => this.draw(true);
             this.media = window.matchMedia('(prefers-color-scheme: dark)');
             this.media.addEventListener('change', this.onTheme);
@@ -88,7 +88,7 @@ document.addEventListener('alpine:init', () => {
 
             const figure = this.$el;
             const pie = cfg.type === 'pie' || cfg.type === 'doughnut';
-            const kind = pie ? cfg.type : (cfg.type === 'line' ? 'line' : 'bar');
+            const kind = pie ? 'doughnut' : (cfg.type === 'line' ? 'line' : 'bar'); // X4: every round chart is a doughnut with its total in the centre
             const horizontal = kind === 'bar' && figure.dataset.horizontal === '1';
             const pickable = figure.dataset.keys !== undefined;
             const other = figure.dataset.other || '';
@@ -107,16 +107,70 @@ document.addEventListener('alpine:init', () => {
             Chart.defaults.color = ink;
 
             const neutral = palette[palette.length - 1];
+            const muted = css('--muted', '#6b7079');
+            const line = css('--line', '#e7e9ee');
+            // X4 "Soft & airy": a colour fading to a lighter tint along the value axis (bars), or to nothing (line areas).
+            const tint = (hex, alpha) => {
+                const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+                if (!m) return hex;
+                const n = parseInt(m[1], 16);
+                return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+            };
+            const fade = (color, from, to, area) => (context) => {
+                const { chart } = context;
+                const box = chart.chartArea;
+                if (!box) return tint(color, from);
+                const g = area || !horizontal
+                    ? chart.ctx.createLinearGradient(0, box.bottom, 0, box.top)
+                    : chart.ctx.createLinearGradient(rtl ? box.right : box.left, 0, rtl ? box.left : box.right, 0);
+                g.addColorStop(0, tint(color, from));
+                g.addColorStop(1, tint(color, to));
+                return g;
+            };
+            const single = cfg.datasets.length === 1;
             const datasets = cfg.datasets.map((set, i) => {
                 const color = other === 'series' && i === cfg.datasets.length - 1 ? neutral : palette[i % palette.length];
                 if (pie) {
                     const slice = (j) => (other === 'slice' && j === cfg.labels.length - 1 ? neutral : palette[j % palette.length]);
-                    return { label: set.label, data: set.data, backgroundColor: cfg.labels.map((_, j) => slice(j)), borderColor: surface, borderWidth: 2 };
+                    return { label: set.label, data: set.data, backgroundColor: cfg.labels.map((_, j) => slice(j)), hoverBackgroundColor: cfg.labels.map((_, j) => slice(j)), borderColor: surface, borderWidth: 3, borderRadius: kind === 'doughnut' ? 6 : 0, hoverOffset: 6, spacing: kind === 'doughnut' ? 1 : 0 };
                 }
-                return kind === 'line'
-                    ? { label: set.label, data: set.data, borderColor: color, backgroundColor: color, tension: 0.25, pointStyle: POINTS[i % POINTS.length], pointRadius: 5, pointHoverRadius: 7, spanGaps: false }
-                    : { label: set.label, data: set.data, backgroundColor: color, borderColor: cfg.type === 'stacked' ? surface : color, borderWidth: cfg.type === 'stacked' ? 1 : 0, borderRadius: 3, maxBarThickness: 48 };
+                if (kind === 'line') {
+                    return { label: set.label, data: set.data, borderColor: color, backgroundColor: single ? fade(color, 0, 0.22, true) : tint(color, 0.06), fill: single ? 'origin' : false,
+                        tension: 0.35, borderWidth: 2.5, pointStyle: POINTS[i % POINTS.length], pointRadius: cfg.labels.length > 24 ? 0 : 3.5, pointHoverRadius: 6,
+                        pointBackgroundColor: surface, pointBorderColor: color, pointBorderWidth: 2, spanGaps: false };
+                }
+                const stacked = cfg.type === 'stacked';
+                return { label: set.label, data: set.data, backgroundColor: stacked ? color : fade(color, 0.55, 1), hoverBackgroundColor: color,
+                    borderColor: stacked ? surface : color, borderWidth: stacked ? 1 : 0, borderRadius: stacked ? 4 : 8, borderSkipped: stacked ? 'start' : false,
+                    maxBarThickness: 44, categoryPercentage: 0.72, barPercentage: 0.86 };
             });
+
+            // A doughnut names its total in the hole (the legend carries each slice and its value).
+            const centreTotal = {
+                id: 'hcCentreTotal',
+                afterDraw(chart) {
+                    if (chart.config.type !== 'doughnut') return;
+                    const meta = chart.getDatasetMeta(0);
+                    const arc = meta?.data?.[0];
+                    if (!arc) return;
+                    const look = looks.get(chart.canvas);
+                    const total = (chart.data.datasets[0]?.data || []).reduce((sum, v, j) => sum + (chart.getDataVisibility(j) ? (Number(v) || 0) : 0), 0);
+                    const { ctx } = chart;
+                    const size = Math.max(14, Math.min(30, arc.innerRadius / 2.6));
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = look?.strong || '#1d2025';
+                    ctx.font = `700 ${size}px ${Chart.defaults.font.family}`;
+                    ctx.fillText(look ? look.fmt(total) : String(total), arc.x, arc.y - size * 0.18);
+                    if (look?.totalLabel) {
+                        ctx.fillStyle = look.muted;
+                        ctx.font = `500 ${Math.max(11, size * 0.42)}px ${Chart.defaults.font.family}`;
+                        ctx.fillText(look.totalLabel, arc.x, arc.y + size * 0.72);
+                    }
+                    ctx.restore();
+                },
+            };
 
             // Values written on the marks (no colour-only reading); skipped when there are too many marks to stay legible.
             // The plugin stays with the chart across updates, so it reads everything from the chart as it is now.
@@ -149,16 +203,19 @@ document.addEventListener('alpine:init', () => {
             const options = {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: reduced ? false : { duration: 350 },
+                animation: reduced ? false : { duration: 420, easing: 'easeOutQuart' },
                 indexAxis: horizontal ? 'y' : 'x',
+                cutout: kind === 'doughnut' ? '70%' : undefined,
                 // Room for the numbers at the end of lying bars; on a narrow card, for slanted labels on the side they run to.
                 layout: { padding: horizontal ? { [rtl ? 'left' : 'right']: 44 } : { top: 18, [rtl ? 'left' : 'right']: !pie && figure.clientWidth < 480 ? 28 : 0 } },
                 plugins: {
                     legend: {
                         display: pie || cfg.datasets.length > 1,
                         rtl, textDirection: rtl ? 'rtl' : 'ltr',
+                        position: pie ? (figure.clientWidth > 520 ? (rtl ? 'left' : 'right') : 'bottom') : 'top',
+                        align: pie ? 'center' : 'end',
                         labels: {
-                            color: ink, usePointStyle: true, boxWidth: 10,
+                            color: ink, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14,
                             generateLabels: (chart) => {
                                 // A pie names its slices (the type's own list); other charts name their series.
                                 const source = (pie && Chart.overrides[kind]?.plugins?.legend?.labels?.generateLabels) || Chart.defaults.plugins.legend.labels.generateLabels;
@@ -171,15 +228,18 @@ document.addEventListener('alpine:init', () => {
                     },
                     tooltip: {
                         rtl, textDirection: rtl ? 'rtl' : 'ltr',
+                        backgroundColor: surface, titleColor: css('--ink', '#1d2025'), bodyColor: ink, borderColor: line, borderWidth: 1,
+                        padding: 12, cornerRadius: 10, boxPadding: 6, usePointStyle: true, caretSize: 6,
+                        titleFont: { weight: '700' }, bodyFont: { weight: '500' },
                         callbacks: { label: (item) => `${item.dataset.label ? item.dataset.label + ': ' : ''}${fmt((horizontal ? item.parsed.x : item.parsed.y) ?? item.parsed)}` },
                     },
                 },
                 scales: pie ? {} : (horizontal ? {
-                    x: { stacked: cfg.type === 'stacked', beginAtZero: true, reverse: rtl, grid: { color: grid }, border: { display: false }, ticks: { color: ink, precision: 0, callback: (value) => fmt(value) } },
-                    y: { stacked: cfg.type === 'stacked', position: rtl ? 'right' : 'left', grid: { display: false }, ticks: { color: ink, autoSkip: false } },
+                    x: { stacked: cfg.type === 'stacked', beginAtZero: true, reverse: rtl, grid: { color: tint(grid, 0.9), drawTicks: false }, border: { display: false, dash: [4, 4] }, ticks: { color: muted, precision: 0, padding: 8, callback: (value) => fmt(value) } },
+                    y: { stacked: cfg.type === 'stacked', position: rtl ? 'right' : 'left', grid: { display: false }, border: { display: false }, ticks: { color: ink, autoSkip: false, padding: 6 } },
                 } : {
-                    x: { stacked: cfg.type === 'stacked', reverse: rtl, grid: { display: false }, ticks: { color: ink } },
-                    y: { stacked: cfg.type === 'stacked', beginAtZero: true, position: rtl ? 'right' : 'left', grid: { color: grid }, border: { display: false }, ticks: { color: ink, callback: (value) => fmt(value) } },
+                    x: { stacked: cfg.type === 'stacked', reverse: rtl, grid: { display: false }, border: { color: grid }, ticks: { color: ink, padding: 6 } },
+                    y: { stacked: cfg.type === 'stacked', beginAtZero: true, position: rtl ? 'right' : 'left', grid: { color: tint(grid, 0.9), drawTicks: false }, border: { display: false, dash: [4, 4] }, ticks: { color: muted, padding: 8, callback: (value) => fmt(value) } },
                 }),
             };
             if (pickable) {
@@ -195,7 +255,7 @@ document.addEventListener('alpine:init', () => {
                 };
             }
 
-            looks.set(canvas, { ink, rtl, fmt });
+            looks.set(canvas, { ink, rtl, fmt, muted, strong: css('--ink', '#1d2025'), totalLabel: figure.dataset.totalLabel || '' });
             const existing = charts.get(this.$el);
             if (existing && this.kind === shape && !rebuild) {
                 existing.data.labels = cfg.labels;
@@ -206,7 +266,7 @@ document.addEventListener('alpine:init', () => {
             }
             existing?.destroy();
             this.kind = shape;
-            charts.set(this.$el, new Chart(canvas, { type: kind, data: { labels: cfg.labels, datasets }, options, plugins: [valueLabels] }));
+            charts.set(this.$el, new Chart(canvas, { type: kind, data: { labels: cfg.labels, datasets }, options, plugins: [valueLabels, centreTotal] }));
         },
     }));
 });

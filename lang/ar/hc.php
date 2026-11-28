@@ -6,7 +6,7 @@ return [
     'account' => 'الحساب', 'signed_in' => 'مسجل الدخول', 'logout' => 'تسجيل الخروج', 'yes' => 'نعم', 'no' => 'لا',
     'soon' => 'قريباً', 'soon_title' => 'تُبنى في المهمة :task',
     'synthetic_notice' => 'نسخة تجريبية: كل الأسماء والأرقام في هذه البيئة وهمية لأغراض البناء والاختبار.',
-    'group_applications' => 'الطلبات', 'group_finance' => 'المالية', 'group_field' => 'المتابعة والتقييم', 'group_tools' => 'الأدوات',
+    'group_applications' => 'الطلبات', 'group_finance' => 'المالية', 'group_field' => 'المتابعة والتقييم', 'group_tools' => 'أدوات العمل', 'group_data' => 'البيانات والتقارير', 'group_admin' => 'الإدارة',
     'nav_home' => 'الرئيسية', 'nav_projects' => 'المشاريع', 'nav_new_application' => 'طلب جديد', 'nav_people' => 'الأشخاص والعائلات',
     'nav_checklist' => 'Checklist', 'nav_national_number' => 'فحص الرقم الوطني', 'nav_loans' => 'القروض والدفعات', 'nav_payments' => 'جدول الدفعات',
     'nav_attachments' => 'المرفقات', 'nav_visits' => 'الزيارات', 'nav_visit_results' => 'نتائج الزيارات', 'nav_visitor_statistics' => 'إحصائيات الزوار', 'nav_special_cases' => 'الحالات الخاصة', 'nav_kobo' => 'مزامنة Kobo', 'nav_meetings' => 'اجتماعات المهن',
@@ -85,4 +85,14 @@ return [
     'per_page' => 'عدد الصفوف', 'export' => 'تصدير', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV',
     'export_hint' => 'يصدّر كل الصفوف المطابقة بالأعمدة الظاهرة وبترتيبها، مع الفلاتر والبحث والفرز.',
     'nav_reports' => 'التقارير', 'nav_explore' => 'استكشاف',
+    // X4: the three counting units
+    'reach_title' => 'المشاريع والمستفيدون', 'reach_projects' => 'مشروع', 'reach_beneficiaries' => 'مستفيد', 'reach_reached' => 'شخص وصلهم البرنامج',
+    'reach_partners_note' => 'منهم :count شريك', 'reach_beneficiaries_hint' => 'صاحب المشروع والشركاء', 'reach_reached_hint' => 'المستفيدون مع أفراد أسرهم',
+    'reach_how' => 'كيف حُسبت؟',
+    'reach_projects_def' => 'المشاريع المطابقة للبحث والفلاتر الحالية، كل مشروع مرة واحدة.',
+    'reach_beneficiaries_def' => 'الأشخاص المرتبطون بهذه المشاريع كصاحب مشروع أو شريك، كل شخص مرة واحدة ولو كان في أكثر من مشروع.',
+    'reach_without_person' => '(:count مشروع بلا شخص مسجَّل لا يدخل في العدد.)',
+    'reach_reached_def' => 'المستفيدون مع كل أفراد الأسر التي ينتمون إليها، كل شخص مرة واحدة.',
+    'collapse_menu' => 'طيّ القائمة', 'expand_menu' => 'توسيع القائمة',
+    'stat_beneficiaries' => 'المستفيدون', 'home_by_path' => 'المشاريع حسب المرحلة', 'home_by_city' => 'المشاريع والمستفيدون حسب المدينة', 'total' => 'المجموع',
 ];

@@ -155,6 +155,8 @@ class ProjectsIndex extends Component
         return view('livewire.projects-index', [
             'projects' => $this->tableQuery()->toBase()->paginate($this->perPage()),
             'pathCounts' => $this->pathCounts(),
+            // X4: projects · beneficiaries · people reached for exactly the rows listed (the path tile included).
+            'reach' => app(\App\Services\Reports\ReachCounter::class)->count($this->filteredQuery()),
             'cityOptions' => City::whereIn('id', $permitted)->orderBy('id')->get(['id', 'code', 'name_ar', 'name_en']),
             'filterBar' => $this->filterBar(),
             'table' => $this->dataTable(),

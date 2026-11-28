@@ -29,32 +29,37 @@ final class Navigation
         ],
         'finance' => [
             // M4.9: loans are recorded from each project's finance page; the schedule lists every instalment.
-            ['key' => 'payments', 'icon' => 'calendar', 'route' => 'finance.payments', 'capability' => 'finance.view'],
+            ['key' => 'payments', 'icon' => 'coins', 'route' => 'finance.payments', 'capability' => 'finance.view'],
             ['key' => 'attachments', 'icon' => 'file', 'route' => 'attachments.index', 'capability' => 'attachments.download'],
         ],
         'field' => [
             // M4.12: the schedule, with the results report and the visitor statistics (administrator) under it.
             ['key' => 'visits', 'icon' => 'map', 'route' => 'visits.schedule', 'capability' => 'visits.view'],
-            ['key' => 'visit_results', 'icon' => 'chart', 'route' => 'visits.results', 'capability' => 'me_visits.view'],
-            ['key' => 'visitor_statistics', 'icon' => 'users', 'route' => 'visits.statistics', 'capability' => 'visits.statistics'],
+            ['key' => 'visit_results', 'icon' => 'route', 'route' => 'visits.results', 'capability' => 'me_visits.view'],
+            ['key' => 'visitor_statistics', 'icon' => 'chart', 'route' => 'visits.statistics', 'capability' => 'visits.statistics'],
             // M4.13: the list of all special cases (each project's cases open from its page).
-            ['key' => 'special_cases', 'icon' => 'clipboard', 'route' => 'special-cases.index', 'capability' => 'special_cases.view'],
+            ['key' => 'special_cases', 'icon' => 'cases', 'route' => 'special-cases.index', 'capability' => 'special_cases.view'],
             ['key' => 'kobo', 'icon' => 'sync', 'route' => 'kobo.index', 'capability' => 'visits.manage'],
             ['key' => 'meetings', 'icon' => 'meeting', 'route' => 'meetings.index', 'capability' => 'profession_meetings.view'],
         ],
-        'tools' => [
+        // X4: the analytics pages in their own group (W2 merges them into one data workspace), one distinct icon each.
+        'data' => [
             // Task X2: the Explore page; like 'reports' it is shown when the account can read at least one dataset.
-            ['key' => 'explore', 'icon' => 'search', 'route' => 'explore.index', 'capability' => 'reports.view'],
+            ['key' => 'explore', 'icon' => 'spark', 'route' => 'explore.index', 'capability' => 'reports.view'],
             // M4.17: shown when at least one of the 22 search types is available to the account (SearchService decides, per city).
             ['key' => 'search', 'icon' => 'search', 'route' => 'search.index', 'capability' => 'projects.view', 'gate' => 'search'],
-            ['key' => 'statistics', 'icon' => 'chart', 'route' => 'statistics.index', 'capability' => 'applications.view'],
+            ['key' => 'statistics', 'icon' => 'pie', 'route' => 'statistics.index', 'capability' => 'applications.view'],
             // Smart-search phase 3: the pivot report builder; 'reports.view' is not a grant, for() shows it when the account can read at least one dataset.
-            ['key' => 'reports', 'icon' => 'chart', 'route' => 'reports.index', 'capability' => 'reports.view'],
+            ['key' => 'reports', 'icon' => 'table', 'route' => 'reports.index', 'capability' => 'reports.view'],
+        ],
+        'tools' => [
             ['key' => 'tasks', 'icon' => 'task', 'route' => 'tasks.board', 'capability' => 'tasks.view'],
             ['key' => 'notifications', 'icon' => 'bell', 'route' => 'notifications.index', 'capability' => 'notifications.view'],
+            ['key' => 'papers', 'icon' => 'printer', 'route' => 'papers.index', 'capability' => 'projects.view'],
+        ],
+        'admin' => [
             ['key' => 'accounts', 'icon' => 'shield', 'route' => 'admin.accounts.index', 'capability' => 'accounts.manage'],
-            ['key' => 'lookups', 'icon' => 'clipboard', 'route' => 'lookups.index', 'capability' => 'lookups.manage'],
-            ['key' => 'papers', 'icon' => 'file', 'route' => 'papers.index', 'capability' => 'projects.view'],
+            ['key' => 'lookups', 'icon' => 'layers', 'route' => 'lookups.index', 'capability' => 'lookups.manage'],
             ['key' => 'audit', 'icon' => 'clock', 'route' => 'admin.audit', 'capability' => 'accounts.manage'],
             ['key' => 'design', 'icon' => 'settings', 'route' => 'design', 'capability' => 'accounts.manage'],
         ],

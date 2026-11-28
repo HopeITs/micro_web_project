@@ -1,38 +1,36 @@
 <div>
     @php($en = app()->getLocale() === 'en')
+    <x-hc.reach :reach="$reach" style="margin-block-end:16px"/>
     <div class="hc-counts hc-counts-path" role="group" aria-label="{{ __('hc.path_title') }}" style="margin-block-end:16px">
         @foreach($pathCounts as $group => $count)
             <x-hc.count-tile :count="$count" :label="__('hc.path_group_'.$group)" :tone="\App\Support\ProjectStatus::groupTone($group)" :active="$path === $group" wire:click="togglePath('{{ $group }}')"/>
         @endforeach
     </div>
     <x-hc.card :flush="true">
-        <div class="hc-toolbar">
+        {{-- X4: one compact toolbar (search and cities), the filter row (chips, + filter, ask in words), then the result line. --}}
+        <div class="hc-toolbar hc-list-bar">
             <div class="hc-field grow">
-                <label class="hc-label" for="q">{{ __('hc.search') }}</label>
+                <label class="sr-only" for="q">{{ __('hc.search') }}</label>
                 {{-- A column pasted from Excel arrives as lines and an input drops line breaks, so they become commas (OR). --}}
-                <div style="position:relative" x-data>
-                    <input id="q" class="hc-input" type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('hc.search_placeholder') }}" title="{{ __('hc.search_multi_hint') }}" autocomplete="off" style="padding-inline-start:40px"
+                <div class="hc-search-input" x-data>
+                    <x-hc.icon name="search" :size="18"/>
+                    <input id="q" class="hc-input" type="search" wire:model.live.debounce.300ms="search" placeholder="{{ __('hc.search_placeholder') }}" title="{{ __('hc.search_multi_hint') }}" autocomplete="off"
                            x-on:paste="const t = ($event.clipboardData || window.clipboardData).getData('text'); if (/[\r\n]/.test(t)) { $event.preventDefault(); $el.setRangeText(t.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(', '), $el.selectionStart, $el.selectionEnd, 'end'); $el.dispatchEvent(new Event('input', { bubbles: true })); }">
-                    <x-hc.icon name="search" :size="18" style="position:absolute;inset-inline-start:12px;inset-block-start:12px;color:var(--muted)"/>
                 </div>
-                <span class="hc-hint">{{ __('hc.search_multi_hint') }}</span>
+            </div>
+            <div class="hc-chips hc-city-chips" role="group" aria-label="{{ __('hc.cities') }}">
+                @foreach($cityOptions as $c)
+                    <button type="button" class="hc-chip" wire:click="toggleCity({{ $c->id }})" aria-pressed="{{ in_array($c->id, $cities, true) ? 'true' : 'false' }}" title="{{ $c->code }}">{{ $en ? $c->name_en : $c->name_ar }}</button>
+                @endforeach
             </div>
         </div>
         <x-hc.filter-bar :bar="$filterBar"/>
-        <div class="hc-toolbar" style="align-items:center">
-            <span class="hc-label">{{ __('hc.cities') }}</span>
-            <div class="hc-chips" role="group" aria-label="{{ __('hc.cities') }}">
-                @foreach($cityOptions as $c)
-                    <button type="button" class="hc-chip" wire:click="toggleCity({{ $c->id }})" aria-pressed="{{ in_array($c->id, $cities, true) ? 'true' : 'false' }}">{{ $en ? $c->name_en : $c->name_ar }} <span class="muted ltr">{{ $c->code }}</span></button>
-                @endforeach
-            </div>
-            <span class="muted" style="margin-inline-start:auto" aria-live="polite">{{ __('hc.results', ['count' => number_format($projects->total())]) }}</span>
+        <div class="hc-result-line">
+            <span class="hc-result-count" aria-live="polite">{{ __('hc.results', ['count' => number_format($projects->total())]) }}</span>
             @if($search !== '' || $cities !== [] || $path !== '' || $filterBar['chips'] !== [])
                 <x-hc.button variant="ghost" size="sm" icon="x" wire:click="clearFilters">{{ __('hc.clear') }}</x-hc.button>
             @endif
-        </div>
-        <div class="hc-toolbar" style="align-items:center;padding-block-start:0">
-            <x-hc.column-picker :picker="$columnPicker"/>
+            <div class="hc-result-tools"><x-hc.column-picker :picker="$columnPicker"/></div>
         </div>
 
         <div class="hc-table-wrap" wire:loading.class="opacity-60">

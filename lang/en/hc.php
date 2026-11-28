@@ -6,7 +6,7 @@ return [
     'account' => 'Account', 'signed_in' => 'Signed in', 'logout' => 'Sign out', 'yes' => 'Yes', 'no' => 'No',
     'soon' => 'Soon', 'soon_title' => 'Built in task :task',
     'synthetic_notice' => 'Test version: every name and number in this environment is invented for building and testing.',
-    'group_applications' => 'Applications', 'group_finance' => 'Finance', 'group_field' => 'Monitoring & evaluation', 'group_tools' => 'Tools',
+    'group_applications' => 'Applications', 'group_finance' => 'Finance', 'group_field' => 'Monitoring & evaluation', 'group_tools' => 'Work tools', 'group_data' => 'Data & reports', 'group_admin' => 'Administration',
     'nav_home' => 'Home', 'nav_projects' => 'Projects', 'nav_new_application' => 'New application', 'nav_people' => 'People & families',
     'nav_checklist' => 'Checklist', 'nav_national_number' => 'National number check', 'nav_loans' => 'Loans & payments', 'nav_payments' => 'Payment schedule',
     'nav_attachments' => 'Attachments', 'nav_visits' => 'Visits', 'nav_visit_results' => 'Visit results', 'nav_visitor_statistics' => 'Visitor statistics', 'nav_special_cases' => 'Special cases', 'nav_kobo' => 'Kobo sync', 'nav_meetings' => 'Profession meetings',
@@ -80,4 +80,14 @@ return [
     'per_page' => 'Rows per page', 'export' => 'Export', 'export_xlsx' => 'Excel', 'export_csv' => 'CSV',
     'export_hint' => 'Exports every matching row with the shown columns in this order, the filters, the search and the sort.',
     'nav_reports' => 'Reports', 'nav_explore' => 'Explore',
+    // X4: the three counting units
+    'reach_title' => 'Projects and beneficiaries', 'reach_projects' => 'projects', 'reach_beneficiaries' => 'beneficiaries', 'reach_reached' => 'people reached',
+    'reach_partners_note' => 'including :count partners', 'reach_beneficiaries_hint' => 'owners and partners', 'reach_reached_hint' => 'beneficiaries and their families',
+    'reach_how' => 'How is this counted?',
+    'reach_projects_def' => 'The projects matching the current search and filters, each counted once.',
+    'reach_beneficiaries_def' => 'People linked to these projects as owner or partner, each counted once even when they are in several projects.',
+    'reach_without_person' => '(:count projects with no recorded person are not counted.)',
+    'reach_reached_def' => 'The beneficiaries plus every member of the families they belong to, each person counted once.',
+    'collapse_menu' => 'Collapse the menu', 'expand_menu' => 'Expand the menu',
+    'stat_beneficiaries' => 'Beneficiaries', 'home_by_path' => 'Projects by stage', 'home_by_city' => 'Projects and beneficiaries by city', 'total' => 'Total',
 ];

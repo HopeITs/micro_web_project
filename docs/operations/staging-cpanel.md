@@ -60,6 +60,7 @@ php artisan migrate --force
 php artisan db:seed --class=CitiesSeeder --force
 php artisan db:seed --class=ReferenceListsSeeder --force
 php artisan db:seed --class=SyntheticDataSeeder --force
+php artisan db:seed --class=SyntheticPartnersSeeder --force   # X4: partnership projects; safe to run again on an existing staging database
 php artisan db:seed --class=RoleAccountsSeeder --force
 php artisan db:seed --class=SyntheticSpecialCasesSeeder --force
 php artisan db:seed --class=SyntheticKoboSeeder --force

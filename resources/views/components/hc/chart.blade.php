@@ -11,7 +11,7 @@
     drawing follows the page direction (RTL) and reduced-motion, and it is redrawn in place when Livewire changes the data attribute.
     The same numbers are always in the visually hidden table, which is what screen readers read.
 --}}
-@props(['type' => 'bar', 'labels' => [], 'datasets' => [], 'height' => 320, 'title' => null, 'percent' => false])
+@props(['type' => 'bar', 'labels' => [], 'datasets' => [], 'height' => 320, 'title' => null, 'percent' => false, 'totalLabel' => null])
 @php
     $type = in_array($type, ['bar', 'stacked', 'line', 'pie', 'doughnut'], true) ? $type : 'bar';
     $pie = in_array($type, ['pie', 'doughnut'], true);
@@ -26,7 +26,7 @@
     $config = ['type' => $type, 'labels' => $labels, 'datasets' => $series, 'percent' => (bool) $percent];
     $show = fn ($v) => $v === null ? '—' : number_format($v, fmod($v, 1.0) === 0.0 ? 0 : 2).($percent ? '%' : '');
 @endphp
-<figure {{ $attributes->merge(['class' => 'hc-chart']) }} x-data="hcChart" data-chart="{{ json_encode($config, JSON_UNESCAPED_UNICODE) }}">
+<figure {{ $attributes->merge(['class' => 'hc-chart']) }} x-data="hcChart" data-chart="{{ json_encode($config, JSON_UNESCAPED_UNICODE) }}" @if($totalLabel) data-total-label="{{ $totalLabel }}" @endif>
     <div class="hc-chart-canvas" wire:ignore style="height:{{ max(120, (int) $height) }}px">
         <canvas role="img" @if($title) aria-label="{{ $title }}" @endif></canvas>
     </div>

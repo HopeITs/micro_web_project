@@ -17,6 +17,7 @@ final class DatabaseSeeder extends Seeder
         $this->call(CitiesSeeder::class);
         $this->call(ReferenceListsSeeder::class);
         $this->call(SyntheticDataSeeder::class);
+        $this->call(SyntheticPartnersSeeder::class);
         $this->call(SyntheticStaffSeeder::class);
         $this->call(RoleAccountsSeeder::class);
         $this->call(SyntheticSpecialCasesSeeder::class);

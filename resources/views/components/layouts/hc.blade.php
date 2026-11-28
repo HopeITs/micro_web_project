@@ -20,12 +20,17 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body x-data="{ nav: false, theme: document.documentElement.dataset.theme || 'auto',
-        setTheme(t) { this.theme = t; if (t === 'auto') { delete document.documentElement.dataset.theme } else { document.documentElement.dataset.theme = t } try { localStorage.setItem('hc.theme', t) } catch (e) {} } }"
+<script>try { if (localStorage.getItem('hc.rail') === '1') document.documentElement.classList.add('rail-pending'); } catch (e) {}</script>
+<body x-data="{ nav: false, rail: document.documentElement.classList.contains('rail-pending'), theme: document.documentElement.dataset.theme || 'auto',
+        setTheme(t) { this.theme = t; if (t === 'auto') { delete document.documentElement.dataset.theme } else { document.documentElement.dataset.theme = t } try { localStorage.setItem('hc.theme', t) } catch (e) {} },
+        toggleRail() { this.rail = !this.rail; document.documentElement.classList.remove('rail-pending'); try { localStorage.setItem('hc.rail', this.rail ? '1' : '0') } catch (e) {} } }"
+      :class="{ 'is-rail': rail }"
+      x-init="const s = () => document.body.classList.toggle('is-scrolled', window.scrollY > 4); s(); window.addEventListener('scroll', s, { passive: true })"
       @keydown.escape.window="nav = false">
 <a class="skip-link" href="#main">{{ __('hc.skip') }}</a>
 <header class="hc-header">
     <button class="hc-icon-btn hc-menu-toggle" type="button" @click="nav = !nav" :aria-expanded="nav" aria-controls="hc-sidebar" aria-label="{{ __('hc.menu') }}"><x-hc.icon name="menu"/></button>
+    <button class="hc-icon-btn hc-rail-toggle" type="button" @click="toggleRail()" :aria-pressed="rail" :aria-label="rail ? @js(__('hc.expand_menu')) : @js(__('hc.collapse_menu'))" :title="rail ? @js(__('hc.expand_menu')) : @js(__('hc.collapse_menu'))"><x-hc.icon name="menu"/></button>
     <a class="hc-brand" href="{{ route('home', ['locale' => $locale]) }}" aria-label="{{ __('hc.brand') }} · {{ __('hc.organization') }}">
         <img class="hc-logo-micro" src="{{ asset('assets/brand/micro-projects.svg') }}" alt="{{ __('hc.brand') }}" width="96" height="35">
     </a>
@@ -66,7 +71,7 @@
             @if($group !== 'main')<p class="hc-nav-group">{{ __('hc.group_'.$group) }}</p>@endif
             @foreach($items as $item)
                 @if($item['url'])
-                    <a class="hc-nav-link" href="{{ $item['url'] }}" @if($item['current']) aria-current="page" @endif><x-hc.icon :name="$item['icon']"/><span>{{ __('hc.nav_'.$item['key']) }}</span></a>
+                    <a class="hc-nav-link" href="{{ $item['url'] }}" @if($item['current']) aria-current="page" @endif :title="rail ? @js(__('hc.nav_'.$item['key'])) : null"><x-hc.icon :name="$item['icon']"/><span>{{ __('hc.nav_'.$item['key']) }}</span></a>
                 @else
                     <span class="hc-nav-link" aria-disabled="true" title="{{ __('hc.soon_title', ['task' => $item['task']]) }}"><x-hc.icon :name="$item['icon']"/><span>{{ __('hc.nav_'.$item['key']) }}</span><span class="soon">{{ __('hc.soon') }}</span></span>
                 @endif

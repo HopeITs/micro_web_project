@@ -519,3 +519,4 @@ h3 { font-size: 1rem; font-weight: 700; }
 @import './modules/people.css';
 @import './modules/tables.css';
 @import './modules/insights.css';
+@import './modules/refresh.css';

@@ -7,11 +7,7 @@
 @props(['bar'])
 @php($editor = $bar['editor'])
 @php($views = $bar['views'] ?? null)
-<div class="hc-filter-bar" {{ $attributes }}>
-    @if(! empty($bar['ask']))
-        {{-- X1: ask in plain words; the answer comes back as the `ask-applied` event this list listens for. --}}
-        <livewire:ask-box :dataset="$bar['ask']" :key="'ask-'.$bar['ask']"/>
-    @endif
+<div class="hc-filter-bar" x-data="{ ask: false }" {{ $attributes }}>
     @if($views && ($views['list'] !== [] || $views['can_save']))
         {{-- "My views": own views and the ones colleagues shared; only filters are stored, never the search or names. --}}
         @php($av = $views['active'])
@@ -70,6 +66,7 @@
         </div>
     @endif
     <div class="hc-filter-row" role="group" aria-label="{{ __('hc.filters') }}">
+        <span class="hc-filter-row-icon" aria-hidden="true"><x-hc.icon name="filter" :size="16"/></span>
         @foreach($bar['chips'] as $chip)
             <span class="hc-filter-chip @if($editor && $editor['key'] === $chip['key']) is-editing @endif" wire:key="fchip-{{ $chip['key'] }}">
                 <button type="button" class="hc-filter-chip-main" wire:click="openFilter({{ \Illuminate\Support\Js::from($chip['key']) }})" aria-expanded="{{ $editor && $editor['key'] === $chip['key'] ? 'true' : 'false' }}">
@@ -88,7 +85,19 @@
                 @endforeach
             </div>
         </div>
+        @if(! empty($bar['ask']))
+            <button type="button" class="hc-chip hc-ask-toggle" @click="ask = ! ask; if (ask) $nextTick(() => $root.querySelector('.hc-ask-panel input')?.focus())" :aria-expanded="ask ? 'true' : 'false'" :aria-pressed="ask ? 'true' : 'false'">
+                <x-hc.icon name="spark" :size="15"/>{{ __('ask.title') }}
+            </button>
+        @endif
     </div>
+    @if(! empty($bar['ask']))
+        {{-- X1: ask in plain words; the answer comes back as the `ask-applied` event this list listens for.
+             X4: folded behind the "Ask in words" chip of the filter row so a list opens on one compact toolbar. --}}
+        <div class="hc-ask-panel" x-show="ask" x-cloak x-transition.opacity.duration.150ms>
+            <livewire:ask-box :dataset="$bar['ask']" :key="'ask-'.$bar['ask']"/>
+        </div>
+    @endif
 
     @if($editor)
         @php($k = \Illuminate\Support\Js::from($editor['key']))

@@ -118,7 +118,7 @@ class SearchScenarioTest extends TestCase
         $this->get('/ar/search')->assertOk()->assertSeeLivewire(SearchPage::class)->assertSee(route('search.index', ['locale' => 'ar']));
         $this->get('/en/search')->assertOk()->assertSee('Search by');
         $this->assertTrue(DB::table('account_audit_events')->where('event_type', 'reports.search')->exists());
-        $this->assertNotNull(collect(Navigation::for($admin)['tools'])->firstWhere('key', 'search')['url']);
+        $this->assertNotNull(collect(Navigation::for($admin)['data'])->firstWhere('key', 'search')['url']);
 
         foreach (self::ALL as $key) {
             $page = $this->page($key)->assertOk();
@@ -270,7 +270,7 @@ class SearchScenarioTest extends TestCase
         $this->assertSame([], $this->keys($bare));
         $this->get('/ar/search')->assertForbidden();
         $this->assertTrue(DB::table('account_audit_events')->where('actor_account_id', $bare->id)->where('event_type', 'access.denied')->exists());
-        $this->assertNull(collect(Navigation::for($bare)['tools'] ?? [])->firstWhere('key', 'search'));
+        $this->assertNull(collect(Navigation::for($bare)['data'] ?? [])->firstWhere('key', 'search'));
     }
 
     public function test_a_one_city_account_never_sees_another_citys_rows(): void
